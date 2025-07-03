@@ -15,10 +15,8 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -324,6 +322,62 @@ public class WorkspaceService {
         System.out.println("[DEBUG] 파라미터 맵: " + param);
 
         workspaceMapper.updateUserState(param);
+    }
+
+
+    /**
+     * 워크스페이스 접근 권한 확인
+     */
+    public boolean hasAccess(String workspaceCd, String userId) {
+        try {
+            // WORKSPACE_USER 테이블에서 확인
+            Map<String, Object> params = new HashMap<>();
+            params.put("workspaceCd", workspaceCd);
+            params.put("userId", userId);
+
+            // 활성 상태인 멤버인지 확인
+            Integer count = workspaceMapper.countActiveMembers(params);
+
+            return count != null && count > 0;
+
+        } catch (Exception e) {
+            log.error("워크스페이스 접근 권한 확인 실패: workspaceCd={}, userId={}",
+                    workspaceCd, userId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 워크스페이스 이름 조회
+     */
+    public String getWorkspaceName(String workspaceCd) {
+        try {
+            Workspace workspace = workspaceMapper.findWorkspaceByCd(workspaceCd);
+            return workspace != null ? workspace.getWorkspaceNm() : null;
+
+        } catch (Exception e) {
+            log.error("워크스페이스 이름 조회 실패: workspaceCd={}", workspaceCd, e);
+            return null;
+        }
+    }
+
+    /**
+     * 워크스페이스의 활성 멤버 조회
+     */
+    public List<WorkspaceMember> getActiveMembers(String workspaceCd) {
+        try {
+            // 이미 getWorkspaceMembers 메서드가 있으므로 활용
+            List<WorkspaceMember> allMembers = getWorkspaceMembers(workspaceCd);
+
+            // 활성 상태(userState가 null이 아닌) 멤버만 필터링
+            return allMembers.stream()
+                    .filter(member -> member.getUserState() != null)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("활성 멤버 조회 실패: workspaceCd={}", workspaceCd, e);
+            return new ArrayList<>();
+        }
     }
 
 }

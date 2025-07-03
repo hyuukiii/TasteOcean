@@ -251,6 +251,14 @@
         WHERE wm.WORKSPACE_CD = #{workspaceCd}
     </select>
 
+    <select id="countActiveMembers" parameterType="map" resultType="int">
+        SELECT COUNT(*)
+        FROM WORKSPACE_USER
+        WHERE WORKSPACE_CD = #{workspaceCd}
+        AND USER_ID = #{userId}
+        AND ACTIVE_STATE = 'Y'
+    </select>
+
     <!-- 특정 워크스페이스와 사용자에 대한 멤버 상세 정보 조회 -->
     <select id="findMemberByWorkspaceAndUser" parameterType="map" resultType="com.example.ocean.domain.WorkspaceMember">
         SELECT

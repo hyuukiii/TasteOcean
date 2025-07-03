@@ -117,7 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
            alert(`워크스페이스가 생성되었습니다!\n초대 코드: ${responseData.inviteCd}`);
 
            // 워크스페이스 목록으로 이동
-           window.location.href = `/wsmain?workspaceCd=${responseData.workspaceCd}`;
+           window.location.href = `/workspace`;
+           //window.location.href = `/wsmain?workspaceCd=${responseData.workspaceCd}`;
 
        } catch (error) {
            console.error('Error:', error);
@@ -139,9 +140,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('preview').src = e.target.result;
             };
             reader.readAsDataURL(file);
-
-            // TODO: 이미지 업로드 기능은 추후 구현
-            // 현재 API에서 이미지 처리를 하지 않으므로 일단 미리보기만 제공
         }
     });
 });
