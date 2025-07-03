@@ -127,20 +127,38 @@ public class WorkspaceService {
     @Transactional
     public Workspace createWorkspace(
             UserPrincipal userPrincipal,
-            Workspace workspace, // Controller에서 @ModelAttribute로 받은 객체
+            Workspace workspace,
             List<String> departments,
             MultipartFile file
     ) throws IOException {
 
-        // 1. 파일 저장 로직 (이 부분은 새로 추가되어야 합니다)
+        log.info("워크스페이스 생성 시작 - 업로드 디렉토리: {}", uploadDir);
+
+        // 1. 파일 저장 로직
         String savedFilePath = null;
         if (file != null && !file.isEmpty()) {
+            log.info("파일 업로드 시작 - 파일명: {}, 크기: {} bytes",
+                    file.getOriginalFilename(), file.getSize());
             String originalFilename = file.getOriginalFilename();
             String savedFilename = UUID.randomUUID().toString() + "_" + originalFilename;
-            new File(uploadDir).mkdirs(); // 폴더가 없으면 생성
-            file.transferTo(new File(uploadDir + savedFilename));
+
+            // ⚠️ 수정된 부분: File 객체를 사용하여 경로 조합
+            File uploadDirectory = new File(uploadDir);
+            if (!uploadDirectory.exists()) {
+                log.warn("업로드 디렉토리가 존재하지 않습니다. 생성 시도: {}", uploadDir);
+                uploadDirectory.mkdirs();
+            }
+
+            // ⚠️ 중요: 경로와 파일명을 올바르게 조합
+            File destinationFile = new File(uploadDirectory, savedFilename);
+            log.info("파일 저장 경로: {}", destinationFile.getAbsolutePath());
+
+            file.transferTo(destinationFile);
             savedFilePath = "/images/workspace/" + savedFilename;
+
+            log.info("파일 업로드 완료 - 저장 경로: {}", savedFilePath);
         }
+
 
         // 2. ID, 초대코드, 날짜 등 DB 저장 전 값 설정
         workspace.setWorkspaceCd(UUID.randomUUID().toString());

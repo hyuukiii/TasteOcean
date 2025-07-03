@@ -25,6 +25,7 @@ import java.util.*;
 
 
 // REST API 전용 컨트롤러 (JSON 응답)
+@Slf4j
 @RestController
 @RequestMapping("/api/workspaces")
 @RequiredArgsConstructor
@@ -51,45 +52,58 @@ public class WorkspaceController {
         binder.setDisallowedFields("endDate");
     }
 
-    // 워크스페이스 생성
     @PostMapping
-    public ResponseEntity<Workspace> createWorkspace(
+    public ResponseEntity<?> createWorkspace(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @ModelAttribute Workspace workspace, // 2. 여기에 workspaceNm, endDate 등이 자동으로 담겨옴.
+            @ModelAttribute Workspace workspace,
             @RequestParam(value = "endDate", required = false) String endDateStr,
             @RequestParam(value = "departments", required = false) List<String> departments,
-            @RequestParam(value = "workspaceImageFile", required = false) MultipartFile workspaceImg){
+            @RequestParam(value = "workspaceImageFile", required = false) MultipartFile workspaceImg) {
 
-        // --- 수동으로 날짜 변환 및 설정 로직 추가 ---
-        if (endDateStr != null && !endDateStr.isEmpty()) {
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            try {
-                Date parsedDate = dateFormat.parse(endDateStr);
-                workspace.setEndDate(new Timestamp(parsedDate.getTime()));
-            } catch (ParseException e) {
-                // 날짜 형식이 잘못되었을 경우의 예외 처리 (필요 시)
-                // 예를 들어, 로그를 남기거나 특정 에러 응답을 반환할 수 있음.
-                e.printStackTrace();
-            }
-        }
+        log.info("워크스페이스 생성 요청 - 사용자: {}", userPrincipal.getId());
+        log.info("워크스페이스명: {}, 이미지 파일: {}",
+                workspace.getWorkspaceNm(),
+                workspaceImg != null ? workspaceImg.getOriginalFilename() : "없음");
+
         try {
-            // 3. 서비스 호출: 컨트롤러는 서비스에 데이터를 넘겨주기만.
-            //    - UUID, 초대코드, 날짜 생성 등은 서비스에서 처리.
-                // 컨트롤러는 서비스 호출만 담당.
-                Workspace createdWorkspace = workspaceService.createWorkspace(
-                        userPrincipal,
-                        workspace,
-                        departments,
-                        workspaceImg
-                );
-
-                return ResponseEntity
-                        .status(HttpStatus.CREATED)
-                        .body(createdWorkspace);
-
-            } catch (IOException e) {
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // 날짜 변환 로직
+            if (endDateStr != null && !endDateStr.isEmpty()) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                try {
+                    Date parsedDate = dateFormat.parse(endDateStr);
+                    workspace.setEndDate(new Timestamp(parsedDate.getTime()));
+                } catch (ParseException e) {
+                    log.error("날짜 형식 오류: {}", endDateStr, e);
+                    Map<String, String> errorResponse = new HashMap<>();
+                    errorResponse.put("message", "날짜 형식이 올바르지 않습니다.");
+                    return ResponseEntity.badRequest().body(errorResponse);
+                }
             }
+
+            // 서비스 호출
+            Workspace createdWorkspace = workspaceService.createWorkspace(
+                    userPrincipal,
+                    workspace,
+                    departments,
+                    workspaceImg
+            );
+
+            log.info("워크스페이스 생성 성공 - 코드: {}", createdWorkspace.getWorkspaceCd());
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(createdWorkspace);
+
+        } catch (IOException e) {
+            log.error("파일 업로드 중 오류 발생", e);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "파일 업로드 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        } catch (Exception e) {
+            log.error("워크스페이스 생성 중 예상치 못한 오류 발생", e);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "워크스페이스 생성 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     // 워크스페이스 상세 조회

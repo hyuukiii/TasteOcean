@@ -40,73 +40,94 @@ document.addEventListener('DOMContentLoaded', function() {
         createWorkspace();
     });
 
-    // 워크스페이스 생성 함수
-    async function createWorkspace() {
-        // 로딩 표시
-        const submitBtn = document.querySelector('.btn-create');
-        const originalText = submitBtn.textContent;
-        submitBtn.disabled = true;
-        submitBtn.textContent = '생성 중...';
+   // 워크스페이스 생성 함수
+   async function createWorkspace() {
+       // 로딩 표시
+       const submitBtn = document.querySelector('.btn-create');
+       const originalText = submitBtn.textContent;
+       submitBtn.disabled = true;
+       submitBtn.textContent = '생성 중...';
 
-        try {
-            // 폼 데이터 수집
-            const formData = new FormData(document.getElementById('workspaceForm'));
+       try {
+           // FormData 객체 생성
+           const formData = new FormData();
 
-            // 부서 정보 수집
-            const departments = [];
-            document.querySelectorAll('input[name="departments"]').forEach(input => {
-                if (input.value.trim()) {
-                    departments.push(input.value.trim());
-                }
-            });
+           // 기본 필드 추가
+           formData.append('workspaceNm', document.getElementById('workspaceNm').value);
 
-            // API에 맞는 데이터 구조 생성
-            const requestData = {
-                workspaceName: formData.get('workspaceNm'),
-                endDate: formData.get('endDate') || null,
-                description: formData.get('description') || '',
-                departments: departments
-            };
+           const endDate = document.getElementById('endDate').value;
+           if (endDate) {
+               formData.append('endDate', endDate);
+           }
 
-            // 액세스 토큰 가져오기
-            const accessToken = localStorage.getItem('accessToken');
-            if (!accessToken) {
-                alert('로그인이 필요합니다.');
-                window.location.href = '/login';
-                return;
-            }
+           const description = document.getElementById('description').value;
+           if (description) {
+               formData.append('description', description);
+           }
 
-            // API 호출
-            const response = await fetch('/api/workspaces', {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + accessToken
-                },
-                 body: formData // JSON.stringify 대신 formData 객체 직접 삽입
-            });
+           // 부서 정보 추가
+           document.querySelectorAll('input[name="departments"]').forEach(input => {
+               if (input.value.trim()) {
+                   formData.append('departments', input.value.trim());
+               }
+           });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || '워크스페이스 생성 실패');
-            }
+           // 이미지 파일 추가
+           const fileInput = document.getElementById('upload');
+           if (fileInput.files.length > 0) {
+               formData.append('workspaceImageFile', fileInput.files[0]);
+           }
 
-            const workspace = await response.json();
+           // 액세스 토큰 가져오기
+           const accessToken = localStorage.getItem('accessToken');
+           if (!accessToken) {
+               alert('로그인이 필요합니다.');
+               window.location.href = '/login';
+               return;
+           }
 
-            // 성공 메시지
-            alert(`워크스페이스가 생성되었습니다!\n초대 코드: ${workspace.inviteCd}`);
+           // API 호출 - Content-Type 헤더를 설정하지 않음 (브라우저가 자동으로 설정)
+           const response = await fetch('/api/workspaces', {
+               method: 'POST',
+               headers: {
+                   'Authorization': 'Bearer ' + accessToken
+                   // Content-Type은 설정하지 않음! FormData 사용 시 브라우저가 자동으로 설정
+               },
+               body: formData
+           });
 
-            // 워크스페이스 목록으로 이동
-            window.location.href = `/wsmain?workspaceCd=${workspace.workspaceCd}`;
+           // 응답 처리
+           const contentType = response.headers.get('content-type');
+           let responseData;
 
-        } catch (error) {
-            console.error('Error:', error);
-            alert(error.message || '워크스페이스 생성 중 오류가 발생했습니다.');
-        } finally {
-            // 버튼 상태 복원
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        }
-    }
+           if (contentType && contentType.includes('application/json')) {
+               responseData = await response.json();
+           } else {
+               // JSON이 아닌 경우 텍스트로 읽기
+               const text = await response.text();
+               console.error('Non-JSON response:', text);
+               throw new Error('서버 응답 형식 오류');
+           }
+
+           if (!response.ok) {
+               throw new Error(responseData.message || '워크스페이스 생성 실패');
+           }
+
+           // 성공 메시지
+           alert(`워크스페이스가 생성되었습니다!\n초대 코드: ${responseData.inviteCd}`);
+
+           // 워크스페이스 목록으로 이동
+           window.location.href = `/wsmain?workspaceCd=${responseData.workspaceCd}`;
+
+       } catch (error) {
+           console.error('Error:', error);
+           alert(error.message || '워크스페이스 생성 중 오류가 발생했습니다.');
+       } finally {
+           // 버튼 상태 복원
+           submitBtn.disabled = false;
+           submitBtn.textContent = originalText;
+       }
+   }
 
     // 이미지 업로드 처리
     document.getElementById('upload').addEventListener('change', function(e) {
