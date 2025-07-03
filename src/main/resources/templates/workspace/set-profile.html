@@ -4,16 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>프로필 설정</title>
+  <link rel="stylesheet" th:href="@{/css/Header.css}">
+  <link rel="stylesheet" th:href="@{/css/SetProfile.css}">
+
   <link rel="stylesheet" href="https://unpkg.com/swiper@8/swiper-bundle.min.css">
-  <link rel="stylesheet" th:href="@{/css/set-profile.css}">
+
+  <!-- ⭐ Ocean Background CSS 추가 -->
   <link rel="stylesheet" th:href="@{/css/ocean-background.css}">
+
+  <style>
+    .swiper-container {
+     width: 100%;
+     height: 70vh;
+     overflow: hidden;
+ }
+ .swiper-wrapper {
+     width: 100%;
+     height: 100%;
+ }
+ .swiper-slide {
+     width: 100%;
+     height: 100%;
+     padding: 20px;
+     top: 0;
+     left: 0;
+     transition: opacity 0.3s ease, visibility 0.3s ease;
+ }
+  </style>
+
 </head>
 <body>
+<header class="header">
+  <div class="logo" th:onclick="'location.href=\'' + @{/} + '\''">
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 50 Q30 20 50 30 T90 20" stroke="#4facfe" stroke-width="8" fill="none" stroke-linecap="round"/>
+        <path d="M10 70 Q30 40 50 50 T90 40" stroke="#00f2fe" stroke-width="8" fill="none" stroke-linecap="round"/>
+      </svg>
+    </div>
+    Ocean WorkSpace
+  </div>
+</header>
 <div class="ocean-background"></div>
 
 <div class="container">
-  <h1>프로필 설정</h1>
-
   <!-- ⭐ 올바른 form 액션 설정 -->
   <form th:action="@{/workspace/{workspaceCd}/set-profile(workspaceCd=${workspaceCd})}"
         method="post"
@@ -56,15 +90,8 @@
                    required>
           </div>
 
-          <div class="navigation">
-            <button type="button" class="btn btn-next" onclick="validateFirstSlide()">다음</button>
-          </div>
-        </div>
-
-        <!-- 슬라이드 2: 상세 정보 -->
-        <div class="swiper-slide">
           <div class="form-group">
-            <label for="phoneNum">연락처</label>
+            <label for="phoneNum">전화번호</label>
             <input type="tel"
                    id="phoneNum"
                    name="phoneNum"
@@ -74,11 +101,22 @@
 
           <div class="form-group">
             <label for="statusMsg">상태 메시지</label>
-            <textarea id="statusMsg"
-                      name="statusMsg"
-                      th:text="${member?.statusMsg}"
-                      placeholder="상태 메시지를 입력하세요"></textarea>
+            <input type="text"
+                   id="statusMsg"
+                   name="statusMsg"
+                   th:value="${member?.statusMsg}"
+                   placeholder="상태 메시지를 입력하세요">
           </div>
+
+          <div class="navigation">
+            <button type="button" class="btn btn-back" onclick="location.href='/workspace'">목록으로</button>
+            <button type="button" class="btn btn-next" onclick="validateFirstSlide()">다음</button>
+          </div>
+        </div>
+
+        <!-- 슬라이드 2: 상세 정보 -->
+        <div class="swiper-slide">
+          <h2 style="color: white; padding-bottom: 30px;" >사용 하시려는 부서 / 기관을 선택 해 주세요</h2>
 
           <div class="form-group">
             <label for="deptCd">부서</label>
