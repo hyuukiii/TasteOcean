@@ -37,5 +37,9 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addResourceHandler("/images/workspace/**")
                 // 로컬 디스크의 'file:///C:/ocean_uploads/' 경로에서 파일을 찾아 제공
                 .addResourceLocations("file:///" + uploadDir);
+
+        // ⭐ 프로필 이미지 경로 추가
+        registry.addResourceHandler("/images/profiles/**")
+                .addResourceLocations("file:///" + uploadDir + "/profiles/");
     }
 }

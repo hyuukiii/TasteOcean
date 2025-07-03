@@ -54,8 +54,8 @@ public class WorkspaceService {
 
     public void insertUserProfileToWorkspace(String workspaceCd, String userId,
                                              String userNickname, String statusMsg,
-                                             String email, String phoneNum, String role) {
-        workspaceMapper.insertUserProfile(workspaceCd, userId, userNickname, statusMsg, email, phoneNum, role);
+                                             String email, String phoneNum, String role, String userImg) {
+        workspaceMapper.insertUserProfile(workspaceCd, userId, userNickname, statusMsg, email, phoneNum, role, userImg);
     }
 
     public Workspace findByInviteCode(String inviteCd) {
@@ -210,7 +210,8 @@ public class WorkspaceService {
             String statusMsg,
             String email,
             String phoneNum,
-            String userRole
+            String userRole,
+            String userImg
     ) {
         try {
             log.info("프로필 업데이트 시작");
@@ -221,15 +222,16 @@ public class WorkspaceService {
             log.info("이메일: {}", email);
             log.info("전화번호: {}", phoneNum);
             log.info("역할: {}", userRole);
+            log.info("이미지: {}", userImg);  // ⭐ 로그 추가
 
-            workspaceMapper.updateUserProfile(
+            workspaceMapper.updateWorkspaceProfile(
                     workspaceCd,
                     userId,
                     userNickname,
                     statusMsg,
                     email,
                     phoneNum,
-                    userRole
+                    userImg
             );
             log.info("프로필 업데이트 완료");
         } catch (Exception e) {

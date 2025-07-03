@@ -80,13 +80,13 @@
     <!-- 사용자 프로필 추가 -->
     <insert id="insertUserProfile">
         INSERT INTO WORKSPACE_MEMBERS (
-        WORKSPACE_CD, USER_ID, USER_NICKNAME,
-        STATUS_MSG, EMAIL, PHONE_NUM,
-        USER_ROLE, ACTIVE_STATE, JOINED_DATE
+            WORKSPACE_CD, USER_ID, USER_NICKNAME,
+            STATUS_MSG, EMAIL, PHONE_NUM,
+            USER_ROLE, USER_IMG, ACTIVE_STATE, JOINED_DATE
         ) VALUES (
-        #{workspaceCd}, #{userId}, #{userNickname},
-        #{statusMsg}, #{email}, #{phoneNum},
-        #{userRole}, '1', NOW()
+            #{workspaceCd}, #{userId}, #{userNickname},
+            #{statusMsg}, #{email}, #{phoneNum},
+            #{userRole}, #{userImg}, '1', NOW()
         )
     </insert>
 

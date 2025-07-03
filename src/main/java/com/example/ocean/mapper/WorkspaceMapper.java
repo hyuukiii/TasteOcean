@@ -32,7 +32,8 @@ public interface WorkspaceMapper {
                            @Param("statusMsg") String statusMsg,
                            @Param("email") String email,
                            @Param("phoneNum") String phoneNum,
-                           @Param("userRole") String userRole);
+                           @Param("userRole") String userRole,
+                           @Param("userImg") String userImg);
 
     // 워크스페이스 멤버 프로필 정보 업데이트
     void updateUserProfile(@Param("workspaceCd") String workspaceCd,
