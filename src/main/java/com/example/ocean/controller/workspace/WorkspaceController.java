@@ -23,14 +23,12 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.*;
 
-
 // REST API 전용 컨트롤러 (JSON 응답)
 @Slf4j
 @RestController
 @RequestMapping("/api/workspaces")
 @RequiredArgsConstructor
 public class WorkspaceController {
-
 
     private final WorkspaceService workspaceService;
 
@@ -52,6 +50,7 @@ public class WorkspaceController {
         binder.setDisallowedFields("endDate");
     }
 
+    // 워크스페이스 생성 메서드
     @PostMapping
     public ResponseEntity<?> createWorkspace(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -66,61 +65,48 @@ public class WorkspaceController {
                 workspaceImg != null ? workspaceImg.getOriginalFilename() : "없음");
 
         try {
-            // 날짜 변환 로직
-            if (endDateStr != null && !endDateStr.isEmpty()) {
-                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            // 2. 수동으로 endDate 파싱
+            if (endDateStr != null && !endDateStr.trim().isEmpty()) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
                 try {
-                    Date parsedDate = dateFormat.parse(endDateStr);
+                    java.util.Date parsedDate = sdf.parse(endDateStr);
                     workspace.setEndDate(new Timestamp(parsedDate.getTime()));
                 } catch (ParseException e) {
-                    log.error("날짜 형식 오류: {}", endDateStr, e);
-                    Map<String, String> errorResponse = new HashMap<>();
-                    errorResponse.put("message", "날짜 형식이 올바르지 않습니다.");
-                    return ResponseEntity.badRequest().body(errorResponse);
+                    log.error("날짜 파싱 에러: {}", endDateStr, e);
+                    return ResponseEntity.badRequest()
+                            .body(Map.of("error", "유효하지 않은 날짜 형식입니다."));
                 }
             }
 
-            // 서비스 호출
+            // ⭐ 3. 올바른 메서드명과 파라미터 순서로 수정
             Workspace createdWorkspace = workspaceService.createWorkspace(
-                    userPrincipal,
-                    workspace,
-                    departments,
-                    workspaceImg
+                    userPrincipal,    // 첫 번째 파라미터
+                    workspace,        // 두 번째 파라미터
+                    departments,      // 세 번째 파라미터
+                    workspaceImg      // 네 번째 파라미터
             );
 
-            log.info("워크스페이스 생성 성공 - 코드: {}", createdWorkspace.getWorkspaceCd());
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(createdWorkspace);
+            log.info("워크스페이스 생성 완료 - 워크스페이스 코드: {}", createdWorkspace.getWorkspaceCd());
 
-        } catch (IOException e) {
-            log.error("파일 업로드 중 오류 발생", e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "파일 업로드 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            return ResponseEntity.ok(createdWorkspace);
+
         } catch (Exception e) {
-            log.error("워크스페이스 생성 중 예상치 못한 오류 발생", e);
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "워크스페이스 생성 중 오류가 발생했습니다: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+            log.error("워크스페이스 생성 중 오류 발생", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "워크스페이스 생성 중 오류가 발생했습니다."));
         }
     }
 
-    // 워크스페이스 상세 조회
-    @GetMapping("/{workspaceCd}")
-    public ResponseEntity<Map<String, Object>> getWorkspaceDetail(
+    // 워크스페이스 멤버 조회
+    @GetMapping("/{workspaceCd}/members")
+    public ResponseEntity<Map<String, Object>> getWorkspaceMembers(
             @PathVariable String workspaceCd,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-
-        Workspace workspace = workspaceService.findWorkspaceByCd(workspaceCd);
-        if (workspace == null) {
-            return ResponseEntity.notFound().build();
-        }
 
         List<WorkspaceMember> members = workspaceService.getWorkspaceMembers(workspaceCd);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("workspace", workspace);
+        response.put("workspaceCd", workspaceCd);
         response.put("members", members);
 
         return ResponseEntity.ok(response);
@@ -141,7 +127,6 @@ public class WorkspaceController {
 
         return ResponseEntity.ok(profile);
     }
-
 
     // 워크스페이스 사용자 프로필 수정
     @PutMapping("/{workspaceCd}/profile")
@@ -195,11 +180,10 @@ public class WorkspaceController {
             return ResponseEntity.ok(updatedProfile);
 
         } catch (Exception e) {
+            log.error("프로필 업데이트 실패", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-
-
 
     // 부서 목록 조회
     @GetMapping("/{workspaceCd}/departments")
@@ -260,53 +244,6 @@ public class WorkspaceController {
         return ResponseEntity.ok().build();
     }
 
-    // 이미지 업로드 (별도 엔드포인트)
-    @PostMapping("/{workspaceCd}/profile/image")
-    public ResponseEntity<Map<String, String>> uploadProfileImage(
-            @PathVariable String workspaceCd,
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
-            @RequestParam("image") MultipartFile image) {
-
-        try {
-            if (image.isEmpty()) {
-                return ResponseEntity.badRequest().build();
-            }
-
-            File uploadDir = new File("C:/uploads/workspace/");
-            if (!uploadDir.exists()) {
-                uploadDir.mkdirs();
-            }
-
-            String originalFilename = image.getOriginalFilename();
-            String ext = originalFilename != null ?
-                    originalFilename.substring(originalFilename.lastIndexOf(".")) : "";
-            String savedFileName = UUID.randomUUID() + ext;
-
-            File destFile = new File(uploadDir, savedFileName);
-            image.transferTo(destFile);
-
-            // 이미지 파일명만 DB에 업데이트
-            workspaceService.updateWorkspaceProfile(
-                    workspaceCd,
-                    userPrincipal.getId(),
-                    null,  // userNickname
-                    null,  // statusMsg
-                    null,  // email
-                    null,  // phoneNum
-                    null,  // userRole
-                    savedFileName  // ⭐ userImg 추가!
-            );
-
-            Map<String, String> response = new HashMap<>();
-            response.put("imageUrl", savedFileName);
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(errorResponse);
-        }
-    }
-
+    // ⚠️ 불필요한 별도 이미지 업로드 엔드포인트 제거됨
+    // 이제 프로필 설정은 WorkspacePageController의 handleSetProfile 메서드에서 통합 처리
 }

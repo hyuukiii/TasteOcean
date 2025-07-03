@@ -52,12 +52,6 @@ public class WorkspaceService {
         return true;
     }
 
-    public void insertUserProfileToWorkspace(String workspaceCd, String userId,
-                                             String userNickname, String statusMsg,
-                                             String email, String phoneNum, String role, String userImg) {
-        workspaceMapper.insertUserProfile(workspaceCd, userId, userNickname, statusMsg, email, phoneNum, role, userImg);
-    }
-
     public Workspace findByInviteCode(String inviteCd) {
         return workspaceMapper.findByInviteCode(inviteCd);
     }
@@ -214,16 +208,17 @@ public class WorkspaceService {
             String userImg
     ) {
         try {
-            log.info("프로필 업데이트 시작");
-            log.info("워크스페이스: {}", workspaceCd);
-            log.info("사용자: {}", userId);
+            log.info("=== 프로필 업데이트 시작 ===");
+            log.info("워크스페이스 코드: {}", workspaceCd);
+            log.info("사용자 ID: {}", userId);
             log.info("닉네임: {}", userNickname);
             log.info("상태메시지: {}", statusMsg);
             log.info("이메일: {}", email);
             log.info("전화번호: {}", phoneNum);
             log.info("역할: {}", userRole);
-            log.info("이미지: {}", userImg);  // ⭐ 로그 추가
+            log.info("이미지 경로: {}", userImg);  // ⭐ 이미지 경로 로그
 
+            // ⭐ 매퍼 호출 (6개 파라미터)
             workspaceMapper.updateWorkspaceProfile(
                     workspaceCd,
                     userId,
@@ -231,28 +226,82 @@ public class WorkspaceService {
                     statusMsg,
                     email,
                     phoneNum,
-                    userImg
+                    userImg  // ⭐ 이미지 경로 포함
             );
-            log.info("프로필 업데이트 완료");
+
+            log.info("=== 프로필 업데이트 완료 ===");
+
         } catch (Exception e) {
-            log.error("프로필 업데이트 실패", e);
+            log.error("프로필 업데이트 실패 - workspaceCd: {}, userId: {}", workspaceCd, userId, e);
             throw new RuntimeException("프로필 업데이트 중 오류가 발생했습니다.", e);
         }
     }
 
+    /**
+     * 워크스페이스에 새 사용자 프로필 추가
+     * 이미지 경로를 포함한 모든 프로필 정보를 삽입
+     */
+    public void insertUserProfileToWorkspace(
+            String workspaceCd,
+            String userId,
+            String userNickname,
+            String statusMsg,
+            String email,
+            String phoneNum,
+            String role,
+            String userImg
+    ) {
+        try {
+            log.info("=== 사용자 프로필 추가 시작 ===");
+            log.info("워크스페이스 코드: {}", workspaceCd);
+            log.info("사용자 ID: {}", userId);
+            log.info("닉네임: {}", userNickname);
+            log.info("상태메시지: {}", statusMsg);
+            log.info("이메일: {}", email);
+            log.info("전화번호: {}", phoneNum);
+            log.info("역할: {}", role);
+            log.info("이미지 경로: {}", userImg);  // ⭐ 이미지 경로 로그
 
-    // 사용자 '이미지'만 업데이트 매서드
+            // ⭐ 매퍼 호출 (8개 파라미터)
+            workspaceMapper.insertUserProfile(
+                    workspaceCd,
+                    userId,
+                    userNickname,
+                    statusMsg,
+                    email,
+                    phoneNum,
+                    role,
+                    userImg  // ⭐ 이미지 경로 포함
+            );
+
+            log.info("=== 사용자 프로필 추가 완료 ===");
+
+        } catch (Exception e) {
+            log.error("사용자 프로필 추가 실패 - workspaceCd: {}, userId: {}", workspaceCd, userId, e);
+            throw new RuntimeException("사용자 프로필 추가 중 오류가 발생했습니다.", e);
+        }
+    }
+
+
+    /**
+     * 프로필 이미지만 업데이트하는 메서드
+     */
     public void updateProfileImage(String workspaceCd, String userId, String imageFileName) {
         try {
+            log.info("=== 프로필 이미지 업데이트 시작 ===");
+            log.info("워크스페이스 코드: {}", workspaceCd);
+            log.info("사용자 ID: {}", userId);
+            log.info("이미지 파일명: {}", imageFileName);
+
             workspaceMapper.updateProfileImageOnly(workspaceCd, userId, imageFileName);
+
+            log.info("=== 프로필 이미지 업데이트 완료 ===");
+
         } catch (Exception e) {
             log.error("프로필 이미지 업데이트 실패 - workspaceCd: {}, userId: {}", workspaceCd, userId, e);
             throw new RuntimeException("프로필 이미지 업데이트 중 오류가 발생했습니다.", e);
         }
     }
-
-
-
 
 
     public void updateDeptAndPosition(String workspaceCd, String userId,
