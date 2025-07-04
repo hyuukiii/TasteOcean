@@ -330,15 +330,11 @@ public class WorkspaceService {
      */
     public boolean hasAccess(String workspaceCd, String userId) {
         try {
-            // WORKSPACE_USER 테이블에서 확인
-            Map<String, Object> params = new HashMap<>();
-            params.put("workspaceCd", workspaceCd);
-            params.put("userId", userId);
+            List<WorkspaceMember> members = getWorkspaceMembers(workspaceCd);
 
-            // 활성 상태인 멤버인지 확인
-            Integer count = workspaceMapper.countActiveMembers(params);
-
-            return count != null && count > 0;
+            // 단순히 해당 워크스페이스의 멤버인지만 확인
+            return members.stream()
+                    .anyMatch(member -> member.getUserId().equals(userId));
 
         } catch (Exception e) {
             log.error("워크스페이스 접근 권한 확인 실패: workspaceCd={}, userId={}",
