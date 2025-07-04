@@ -16,107 +16,6 @@ class MeetingSetup {
     this.checkDevicePermissions();
   }
 
-  let currentMemberId = null;
-
-  /**
-   * 멤버 정보 모달 표시
-   */
-  function showMemberModal(userId, name, dept, position, email, phone, statusMsg, userImg) {
-      currentMemberId = userId;
-
-      // 모달 요소 가져오기
-      const modal = document.getElementById('memberModal');
-      const profileImg = modal.querySelector('.profile-image-large img');
-      const profileInitial = modal.querySelector('.profile-initial-large');
-
-      // 프로필 이미지 처리
-      if (userImg && userImg !== 'null' && userImg !== '') {
-          profileImg.src = userImg;
-          profileImg.style.display = 'block';
-          profileInitial.style.display = 'none';
-      } else {
-          profileImg.style.display = 'none';
-          profileInitial.style.display = 'flex';
-          profileInitial.textContent = name ? name.substring(0, 1) : '?';
-
-          // 이름에 따른 색상 설정
-          const colors = ['#4a9eff', '#ff6b6b', '#51cf66', '#ff922b', '#845ef7'];
-          const colorIndex = name ? name.charCodeAt(0) % colors.length : 0;
-          profileInitial.style.backgroundColor = colors[colorIndex];
-      }
-
-      // 정보 업데이트
-      document.getElementById('modalMemberName').textContent = name || '미설정';
-      document.getElementById('modalMemberPosition').textContent = position || '';
-      document.getElementById('modalMemberDept').textContent = dept || '-';
-      document.getElementById('modalMemberEmail').textContent = email || '-';
-      document.getElementById('modalMemberPhone').textContent = phone || '-';
-      document.getElementById('modalMemberStatus').textContent = statusMsg || '-';
-
-      // 현재 사용자인 경우 초대 버튼 숨기기
-      const inviteBtn = modal.querySelector('.btn-primary');
-      if (userId === currentUserId) {
-          inviteBtn.style.display = 'none';
-      } else {
-          inviteBtn.style.display = 'flex';
-      }
-
-      // 모달 표시
-      modal.classList.add('show');
-      document.body.style.overflow = 'hidden'; // 배경 스크롤 방지
-  }
-
-  /**
-   * 멤버 정보 모달 닫기
-   */
-  function closeMemberModal() {
-      const modal = document.getElementById('memberModal');
-      modal.classList.remove('show');
-      document.body.style.overflow = ''; // 스크롤 복원
-      currentMemberId = null;
-  }
-
-  /**
-   * 멤버 초대 (체크박스 체크)
-   */
-  function inviteMember() {
-      if (!currentMemberId) return;
-
-      // 해당 멤버의 체크박스 찾기
-      const checkbox = document.querySelector(`input[name="invitedMembers"][value="${currentMemberId}"]`);
-      if (checkbox && !checkbox.disabled) {
-          checkbox.checked = true;
-
-          // 시각적 피드백
-          const memberItem = checkbox.closest('.member-item');
-          memberItem.style.backgroundColor = 'rgba(74, 158, 255, 0.1)';
-          setTimeout(() => {
-              memberItem.style.backgroundColor = '';
-          }, 300);
-      }
-
-      closeMemberModal();
-  }
-
-  // 모달 외부 클릭 시 닫기
-  document.addEventListener('DOMContentLoaded', function() {
-      const modalOverlay = document.getElementById('memberModal');
-      if (modalOverlay) {
-          modalOverlay.addEventListener('click', function(e) {
-              if (e.target === modalOverlay) {
-                  closeMemberModal();
-              }
-          });
-      }
-
-      // ESC 키로 모달 닫기
-      document.addEventListener('keydown', function(e) {
-          if (e.key === 'Escape' && modalOverlay && modalOverlay.classList.contains('show')) {
-              closeMemberModal();
-          }
-      });
-  });
-
   /**
    * DOM 요소 초기화
    */
@@ -483,9 +382,110 @@ class MeetingSetup {
   }
 }
 
+// ===== 클래스 밖에 모달 관련 전역 함수들 정의 =====
+
+let currentMemberId = null;
+
+/**
+ * 멤버 정보 모달 표시
+ */
+function showMemberModal(userId, name, dept, position, email, phone, statusMsg, userImg) {
+  currentMemberId = userId;
+
+  // 모달 요소 가져오기
+  const modal = document.getElementById('memberModal');
+  const profileImg = modal.querySelector('.profile-image-large img');
+  const profileInitial = modal.querySelector('.profile-initial-large');
+
+  // 프로필 이미지 처리
+  if (userImg && userImg !== 'null' && userImg !== '') {
+    profileImg.src = userImg;
+    profileImg.style.display = 'block';
+    profileInitial.style.display = 'none';
+  } else {
+    profileImg.style.display = 'none';
+    profileInitial.style.display = 'flex';
+    profileInitial.textContent = name ? name.substring(0, 1) : '?';
+
+    // 이름에 따른 색상 설정
+    const colors = ['#4a9eff', '#ff6b6b', '#51cf66', '#ff922b', '#845ef7'];
+    const colorIndex = name ? name.charCodeAt(0) % colors.length : 0;
+    profileInitial.style.backgroundColor = colors[colorIndex];
+  }
+
+  // 정보 업데이트
+  document.getElementById('modalMemberName').textContent = name || '미설정';
+  document.getElementById('modalMemberPosition').textContent = position || '';
+  document.getElementById('modalMemberDept').textContent = dept || '-';
+  document.getElementById('modalMemberEmail').textContent = email || '-';
+  document.getElementById('modalMemberPhone').textContent = phone || '-';
+  document.getElementById('modalMemberStatus').textContent = statusMsg || '-';
+
+  // 현재 사용자인 경우 초대 버튼 숨기기
+  const inviteBtn = modal.querySelector('.btn-primary');
+  if (userId === currentUserId) {
+    inviteBtn.style.display = 'none';
+  } else {
+    inviteBtn.style.display = 'flex';
+  }
+
+  // 모달 표시
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden'; // 배경 스크롤 방지
+}
+
+/**
+ * 멤버 정보 모달 닫기
+ */
+function closeMemberModal() {
+  const modal = document.getElementById('memberModal');
+  modal.classList.remove('show');
+  document.body.style.overflow = ''; // 스크롤 복원
+  currentMemberId = null;
+}
+
+/**
+ * 멤버 초대 (체크박스 체크)
+ */
+function inviteMember() {
+  if (!currentMemberId) return;
+
+  // 해당 멤버의 체크박스 찾기
+  const checkbox = document.querySelector(`input[name="invitedMembers"][value="${currentMemberId}"]`);
+  if (checkbox && !checkbox.disabled) {
+    checkbox.checked = true;
+
+    // 시각적 피드백
+    const memberItem = checkbox.closest('.member-item');
+    memberItem.style.backgroundColor = 'rgba(74, 158, 255, 0.1)';
+    setTimeout(() => {
+      memberItem.style.backgroundColor = '';
+    }, 300);
+  }
+
+  closeMemberModal();
+}
+
 // 페이지 로드 시 초기화
 document.addEventListener('DOMContentLoaded', () => {
   window.meetingSetup = new MeetingSetup();
+
+  // 모달 외부 클릭 시 닫기
+  const modalOverlay = document.getElementById('memberModal');
+  if (modalOverlay) {
+    modalOverlay.addEventListener('click', function(e) {
+      if (e.target === modalOverlay) {
+        closeMemberModal();
+      }
+    });
+  }
+
+  // ESC 키로 모달 닫기
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modalOverlay && modalOverlay.classList.contains('show')) {
+      closeMemberModal();
+    }
+  });
 });
 
 // 페이지 언로드 시 정리

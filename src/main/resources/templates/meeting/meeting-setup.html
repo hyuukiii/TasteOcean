@@ -178,16 +178,16 @@
 
                                     <!-- 클릭 가능한 멤버 정보 영역 추가 -->
                                     <div class="member-clickable"
-                                         th:onclick="'showMemberModal(' +
-                                 '\'' + ${member.userId} + '\', ' +
-                                 '\'' + (${member.userNickname} ?: '') + '\', ' +
-                                 '\'' + (${member.deptNm} ?: '') + '\', ' +
-                                 '\'' + (${member.position} ?: '') + '\', ' +
-                                 '\'' + (${member.email} ?: '') + '\', ' +
-                                 '\'' + (${member.phoneNum} ?: '') + '\', ' +
-                                 '\'' + (${member.statusMsg} ?: '') + '\', ' +
-                                 '\'' + (${member.userImg} ?: '') + '\''  +
-                                 ')'">
+                                         th:attr="onclick='showMemberModal(' +
+         '&quot;' + ${member.userId} + '&quot;, ' +
+         '&quot;' + ${member.userNickname ?: ''} + '&quot;, ' +
+         '&quot;' + ${member.deptNm ?: ''} + '&quot;, ' +
+         '&quot;' + ${member.position ?: ''} + '&quot;, ' +
+         '&quot;' + ${member.email ?: ''} + '&quot;, ' +
+         '&quot;' + ${member.phoneNum ?: ''} + '&quot;, ' +
+         '&quot;' + ${member.statusMsg ?: ''} + '&quot;, ' +
+         '&quot;' + ${member.userImg ?: ''} + '&quot;' +
+         ')'">
                                         <!-- 프로필 이미지가 있을 때 -->
                                         <img class="member-avatar"
                                              th:if="${member.userImg != null and !member.userImg.isEmpty()}"
@@ -204,9 +204,9 @@
                                             <span class="member-name" th:text="${member.userNickname ?: '미설정'}">멤버명</span>
                                             <span class="member-detail" th:if="${member.deptNm != null or member.position != null}">
                                                 <span th:text="${member.deptNm}">부서</span>
-                                            <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
-                                        </span>
-                                      </div>
+                                                <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
+                                            </span>
+                                        </div>
                                     </div>
                                 </label>
                             </div>
