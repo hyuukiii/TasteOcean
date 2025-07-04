@@ -514,3 +514,234 @@ window.addEventListener('beforeunload', () => {
     window.meetingSetup.cleanup();
   }
 });
+
+// ========== 모달 관련 전역 함수들 ==========
+// meeting-setup.js 파일의 맨 끝에 추가하세요
+
+/**
+ * 멤버 정보 모달 표시
+ * @param {string} userId - 사용자 ID
+ * @param {string} userNickname - 사용자 닉네임
+ * @param {string} deptNm - 부서명
+ * @param {string} position - 직책
+ * @param {string} email - 이메일
+ * @param {string} phoneNum - 전화번호
+ * @param {string} statusMsg - 상태 메시지
+ * @param {string} userImg - 프로필 이미지 URL
+ */
+function showMemberModal(userId, userNickname, deptNm, position, email, phoneNum, statusMsg, userImg) {
+    // 모달 요소 가져오기
+    const modal = document.getElementById('memberModal');
+    if (!modal) return;
+
+    // 프로필 이미지 처리
+    const modalProfileImage = document.getElementById('modalProfileImage');
+    const profileImg = modalProfileImage.querySelector('img');
+    const profileInitial = modalProfileImage.querySelector('.profile-initial-large');
+
+    if (userImg && userImg !== 'null' && userImg !== '') {
+        // 프로필 이미지가 있는 경우
+        profileImg.src = userImg;
+        profileImg.style.display = 'block';
+        profileImg.onerror = function() {
+            // 이미지 로드 실패 시 이니셜 표시
+            this.style.display = 'none';
+            profileInitial.style.display = 'flex';
+            profileInitial.textContent = userNickname ? userNickname.charAt(0).toUpperCase() : '?';
+        };
+        profileInitial.style.display = 'none';
+    } else {
+        // 프로필 이미지가 없는 경우 - 이니셜 표시
+        profileImg.style.display = 'none';
+        profileInitial.style.display = 'flex';
+        profileInitial.textContent = userNickname ? userNickname.charAt(0).toUpperCase() : '?';
+
+        // 랜덤 배경색 적용
+        const colors = ['#4a9eff', '#ff6b6b', '#51cf66', '#ff922b', '#845ef7'];
+        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+        profileInitial.style.backgroundColor = randomColor;
+    }
+
+    // 정보 업데이트
+    document.getElementById('modalMemberName').textContent = userNickname || '이름 없음';
+    document.getElementById('modalMemberPosition').textContent = position || '';
+    document.getElementById('modalMemberDept').textContent = deptNm || '-';
+    document.getElementById('modalMemberEmail').textContent = email || '-';
+    document.getElementById('modalMemberPhone').textContent = phoneNum || '-';
+    document.getElementById('modalMemberStatus').textContent = statusMsg || '-';
+
+    // 모달에 사용자 ID 저장 (나중에 초대할 때 사용)
+    modal.dataset.userId = userId;
+
+    // 모달 표시
+    modal.classList.add('show');
+
+    // ESC 키로 닫기
+    document.addEventListener('keydown', handleModalEsc);
+
+    // 배경 클릭으로 닫기
+    modal.addEventListener('click', handleModalBackgroundClick);
+}
+
+/**
+ * 멤버 정보 모달 닫기
+ */
+function closeMemberModal() {
+    const modal = document.getElementById('memberModal');
+    if (!modal) return;
+
+    // 모달 숨기기
+    modal.classList.remove('show');
+
+    // 이벤트 리스너 제거
+    document.removeEventListener('keydown', handleModalEsc);
+    modal.removeEventListener('click', handleModalBackgroundClick);
+
+    // 데이터 초기화
+    delete modal.dataset.userId;
+}
+
+/**
+ * ESC 키 처리
+ */
+function handleModalEsc(e) {
+    if (e.key === 'Escape') {
+        closeMemberModal();
+    }
+}
+
+/**
+ * 배경 클릭 처리
+ */
+function handleModalBackgroundClick(e) {
+    if (e.target.classList.contains('member-modal-overlay')) {
+        closeMemberModal();
+    }
+}
+
+/**
+ * 멤버 초대
+ */
+async function inviteMember() {
+    const modal = document.getElementById('memberModal');
+    const userId = modal.dataset.userId;
+
+    if (!userId) {
+        alert('사용자 정보를 찾을 수 없습니다.');
+        return;
+    }
+
+    try {
+        // 초대 로직 구현
+        // 예: API 호출을 통해 해당 사용자에게 초대 알림 전송
+        console.log('초대할 사용자:', userId);
+
+        // 체크박스 자동 체크
+        const checkbox = document.querySelector(`input[name="invitedMembers"][value="${userId}"]`);
+        if (checkbox && !checkbox.disabled) {
+            checkbox.checked = true;
+
+            // 체크박스 변경 이벤트 발생
+            const event = new Event('change', { bubbles: true });
+            checkbox.dispatchEvent(event);
+        }
+
+        // 성공 메시지
+        alert('초대 목록에 추가되었습니다.');
+
+        // 모달 닫기
+        closeMemberModal();
+
+    } catch (error) {
+        console.error('초대 실패:', error);
+        alert('초대에 실패했습니다. 다시 시도해주세요.');
+    }
+}
+
+/**
+ * 이메일로 초대
+ */
+async function inviteByEmail(email) {
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('올바른 이메일 주소를 입력해주세요.');
+        return;
+    }
+
+    try {
+        // 이메일 초대 API 호출
+        const response = await fetch('/api/meeting/invite', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                workspaceCd: workspaceCd
+            })
+        });
+
+        if (response.ok) {
+            alert(`${email}로 초대장을 발송했습니다.`);
+
+            // 입력 필드 초기화
+            const emailInput = document.getElementById('emailInput');
+            if (emailInput) {
+                emailInput.value = '';
+            }
+        } else {
+            throw new Error('초대 실패');
+        }
+
+    } catch (error) {
+        console.error('이메일 초대 실패:', error);
+        alert('이메일 초대에 실패했습니다. 다시 시도해주세요.');
+    }
+}
+
+/**
+ * 초대 이메일 추가
+ */
+function addEmailInvite() {
+    const emailInput = document.getElementById('newEmailInput');
+    const email = emailInput.value.trim();
+
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('올바른 이메일 주소를 입력해주세요.');
+        return;
+    }
+
+    // 이메일 목록에 추가
+    const emailList = document.getElementById('emailList');
+    if (emailList) {
+        const emailItem = document.createElement('div');
+        emailItem.className = 'email-item';
+        emailItem.innerHTML = `
+            <span>${email}</span>
+            <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+        `;
+        emailList.appendChild(emailItem);
+    }
+
+    // 입력 필드 초기화
+    emailInput.value = '';
+    emailInput.focus();
+}
+
+// Enter 키로 이메일 추가
+document.addEventListener('DOMContentLoaded', function() {
+    const emailInput = document.getElementById('newEmailInput');
+    if (emailInput) {
+        emailInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addEmailInvite();
+            }
+        });
+    }
+});
