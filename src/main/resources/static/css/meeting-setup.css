@@ -643,20 +643,49 @@ input#meetingTitle:focus {
 .member-checkbox {
     display: flex;
     align-items: center;
-    padding: 8px;
-    border-radius: 6px;
+    padding: 8px 12px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s ease;
+    gap: 12px;
 }
 
 .member-checkbox:hover {
     background: #f5f5f5;
+    transform: translateX(4px);
 }
 
+
 .member-checkbox input[type="checkbox"] {
-    margin-right: 12px;
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    accent-color: #4a9eff;
+}
+
+/* 선택된 상태 강조 */
+.member-checkbox:has(input:checked) {
+    background: rgba(74, 158, 255, 0.08);
+    border-left: 3px solid #4a9eff;
+    padding-left: 9px;
+}
+
+/* 프로필 이미지와 정보 간격 조정 */
+.member-checkbox .member-avatar,
+.member-checkbox .member-avatar-initial {
+    margin-right: 4px;
+}
+
+/* 로딩 상태 애니메이션 */
+.member-avatar.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
 }
 
 /* 프로필 이니셜(첫 글자) 표시 스타일 */
@@ -673,6 +702,39 @@ input#meetingTitle:focus {
     font-weight: bold;
     font-size: 14px;
     flex-shrink: 0;
+}
+
+.member-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid #f0f0f0;
+    background-color: #f5f5f5;
+}
+
+/* hover 효과 추가 (선택사항) */
+.member-avatar:hover {
+    border-color: #4a9eff;
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
+
+/* 에러 발생 시 기본 이미지 처리 */
+.member-avatar:not([src]),
+.member-avatar[src=""] {
+    display: none;
+}
+
+/* 모바일 반응형 - 작은 화면에서는 더 작게 */
+@media (max-width: 768px) {
+    .member-avatar,
+    .member-avatar-initial {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
 }
 
 /* 스타일된 텍스트 에어리어 */
