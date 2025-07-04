@@ -105,26 +105,19 @@
                         <label for="meetingTitle">회의 제목</label>
                         <input type="text"
                                id="meetingTitle"
+                               name="meetingTitle"
                                placeholder="예: 주간 팀 미팅"
-                               value="스케치 회의 - [[${#temporals.format(#temporals.createNow(), 'MM월 dd일')}]]"
+                               th:value="${'스케치 회의 - ' + #temporals.format(#temporals.createNow(), 'MM월 dd일')}"
                                required>
                     </div>
 
                     <div class="form-group">
                         <label for="meetingDesc">회의 설명 <span class="optional">(선택)</span></label>
                         <textarea id="meetingDesc"
-                                  rows="3"
+                                  name="meetingDesc"
+                                  class="styled-textarea no-resize"
+                                  rows="4"
                                   placeholder="회의 목적이나 안건을 입력하세요"></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="duration">예상 시간</label>
-                        <select id="duration" class="form-select">
-                            <option value="30">30분</option>
-                            <option value="60" selected>1시간</option>
-                            <option value="120">2시간</option>
-                            <option value="0">제한 없음</option>
-                        </select>
                     </div>
                 </div>
 
@@ -135,7 +128,7 @@
                         <label class="option-item">
                             <input type="checkbox" id="autoRecord" name="autoRecord">
                             <div class="option-content">
-                                <span class="option-title">회의 자동 녹화</span>
+                                <span class="option-title">자동 녹화</span>
                                 <span class="option-desc">회의 시작과 동시에 녹화를 시작합니다</span>
                             </div>
                         </label>
@@ -159,7 +152,7 @@
 
                     <div class="form-group">
                         <label for="videoQuality">비디오 품질</label>
-                        <select id="videoQuality" class="form-select">
+                        <select id="videoQuality" name="videoQuality" class="form-select">
                             <option value="auto" selected>자동 (권장)</option>
                             <option value="720">HD (720p)</option>
                             <option value="480">SD (480p)</option>
@@ -172,7 +165,7 @@
                 <div class="form-section">
                     <h3>참가자 초대</h3>
 
-                    <!-- 워크스페이스 멤버 -->
+                    <!-- 워크스페이스 멤버만 표시 -->
                     <div class="member-invite" th:if="${members != null and !members.isEmpty()}">
                         <h4>워크스페이스 멤버</h4>
                         <div class="member-list">
@@ -183,42 +176,41 @@
                                            th:value="${member.userId}"
                                            th:disabled="${member.userId == currentUserId}">
 
-                                    <!-- 프로필 이미지가 있을 때 -->
-                                    <img class="member-avatar"
-                                         th:if="${member.userImg != null and !member.userImg.isEmpty()}"
-                                         th:src="${member.userImg}"
-                                         th:alt="${member.userNickname}">
+                                    <!-- 클릭 가능한 멤버 정보 영역 추가 -->
+                                    <div class="member-clickable"
+                                         th:onclick="'showMemberModal(' +
+                                 '\'' + ${member.userId} + '\', ' +
+                                 '\'' + (${member.userNickname} ?: '') + '\', ' +
+                                 '\'' + (${member.deptNm} ?: '') + '\', ' +
+                                 '\'' + (${member.position} ?: '') + '\', ' +
+                                 '\'' + (${member.email} ?: '') + '\', ' +
+                                 '\'' + (${member.phoneNum} ?: '') + '\', ' +
+                                 '\'' + (${member.statusMsg} ?: '') + '\', ' +
+                                 '\'' + (${member.userImg} ?: '') + '\''  +
+                                 ')'">
+                                        <!-- 프로필 이미지가 있을 때 -->
+                                        <img class="member-avatar"
+                                             th:if="${member.userImg != null and !member.userImg.isEmpty()}"
+                                             th:src="${member.userImg}"
+                                             th:alt="${member.userNickname}">
 
-                                    <!-- 프로필 이미지가 없을 때 - 첫 글자만 표시 -->
-                                    <div class="member-avatar-initial"
-                                         th:unless="${member.userImg != null and !member.userImg.isEmpty()}"
-                                         th:text="${member.userNickname != null and !member.userNickname.isEmpty() ? #strings.substring(member.userNickname, 0, 1) : '?'}">
+                                        <!-- 프로필 이미지가 없을 때 - 첫 글자만 표시 -->
+                                        <div class="member-avatar-initial"
+                                             th:unless="${member.userImg != null and !member.userImg.isEmpty()}"
+                                             th:text="${member.userNickname != null and !member.userNickname.isEmpty() ? #strings.substring(member.userNickname, 0, 1) : '?'}">
+                                        </div>
+
+                                        <div class="member-info">
+                                            <span class="member-name" th:text="${member.userNickname ?: '미설정'}">멤버명</span>
+                                            <span class="member-detail" th:if="${member.deptNm != null or member.position != null}">
+                                                <span th:text="${member.deptNm}">부서</span>
+                                            <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
+                                        </span>
+                                      </div>
                                     </div>
-
-                                    <div class="member-info">
-                                        <span class="member-name" th:text="${member.userNickname ?: '미설정'}">멤버명</span>
-                                        <span class="member-detail" th:if="${member.deptNm != null or member.position != null}">
-                                            <span th:text="${member.deptNm}">부서</span>
-                                        <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
-                                    </span>
-                                </div>
-                            </label>
+                                </label>
+                            </div>
                         </div>
-                    </div>
-                    <!-- 이메일 초대 -->
-                    <div class="email-invite">
-                        <h4>이메일로 초대</h4>
-                        <div class="email-input-group">
-                            <input type="email"
-                                   id="inviteEmail"
-                                   placeholder="이메일 주소 입력">
-                            <button type="button"
-                                    id="addEmail"
-                                    class="add-btn">추가</button>
-                        </div>
-                        <div id="emailList" class="email-list"></div>
-                    </div>
-                </div>
 
                 <!-- 하단 버튼 -->
                 <div class="form-actions">
@@ -233,10 +225,6 @@
                         회의 시작
                     </button>
                 </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <!-- 로딩 오버레이 -->
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
@@ -245,6 +233,66 @@
         <p>회의실을 준비하고 있습니다...</p>
     </div>
 </div>
+
+<!-- ⭐️ 여기에 모달 HTML 추가! ⭐️ -->
+<!-- 사용자 정보 모달 -->
+                <div id="memberModal" class="member-modal-overlay">
+                    <div class="member-modal">
+                        <!-- 모달 헤더 -->
+                        <div class="modal-header">
+                            <h3>멤버 정보</h3>
+                            <button class="modal-close" onclick="closeMemberModal()">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 6L6 18M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- 모달 본문 -->
+                        <div class="modal-body">
+                            <!-- 프로필 섹션 -->
+                            <div class="member-profile-section">
+                                <div class="profile-image-large" id="modalProfileImage">
+                                    <img src="" alt="프로필 이미지" style="display: none;">
+                                    <div class="profile-initial-large"></div>
+                                </div>
+                                <h2 id="modalMemberName">멤버 이름</h2>
+                                <p id="modalMemberPosition" class="member-position"></p>
+                            </div>
+
+                            <!-- 정보 섹션 -->
+                            <div class="member-info-section">
+                                <div class="info-item">
+                                    <span class="info-label">부서</span>
+                                    <span class="info-value" id="modalMemberDept">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">이메일</span>
+                                    <span class="info-value" id="modalMemberEmail">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">연락처</span>
+                                    <span class="info-value" id="modalMemberPhone">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">상태 메시지</span>
+                                    <span class="info-value" id="modalMemberStatus">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 모달 푸터 -->
+                        <div class="modal-footer">
+                            <button class="btn-secondary" onclick="closeMemberModal()">닫기</button>
+                            <button class="btn-primary" onclick="inviteMember()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 5v14M5 12h14"/>
+                                </svg>
+                                초대하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
 <script th:src="@{/js/token.js}"></script>
 

@@ -2,7 +2,6 @@
 
 /**
  * 회의 준비 페이지 JavaScript
- * Google JavaScript Style Guide 준수
  */
 
 class MeetingSetup {
@@ -11,12 +10,112 @@ class MeetingSetup {
     this.audioContext = null;
     this.analyser = null;
     this.microphone = null;
-    this.invitedEmails = new Set();
 
     this.initializeElements();
     this.initializeEventListeners();
     this.checkDevicePermissions();
   }
+
+  let currentMemberId = null;
+
+  /**
+   * 멤버 정보 모달 표시
+   */
+  function showMemberModal(userId, name, dept, position, email, phone, statusMsg, userImg) {
+      currentMemberId = userId;
+
+      // 모달 요소 가져오기
+      const modal = document.getElementById('memberModal');
+      const profileImg = modal.querySelector('.profile-image-large img');
+      const profileInitial = modal.querySelector('.profile-initial-large');
+
+      // 프로필 이미지 처리
+      if (userImg && userImg !== 'null' && userImg !== '') {
+          profileImg.src = userImg;
+          profileImg.style.display = 'block';
+          profileInitial.style.display = 'none';
+      } else {
+          profileImg.style.display = 'none';
+          profileInitial.style.display = 'flex';
+          profileInitial.textContent = name ? name.substring(0, 1) : '?';
+
+          // 이름에 따른 색상 설정
+          const colors = ['#4a9eff', '#ff6b6b', '#51cf66', '#ff922b', '#845ef7'];
+          const colorIndex = name ? name.charCodeAt(0) % colors.length : 0;
+          profileInitial.style.backgroundColor = colors[colorIndex];
+      }
+
+      // 정보 업데이트
+      document.getElementById('modalMemberName').textContent = name || '미설정';
+      document.getElementById('modalMemberPosition').textContent = position || '';
+      document.getElementById('modalMemberDept').textContent = dept || '-';
+      document.getElementById('modalMemberEmail').textContent = email || '-';
+      document.getElementById('modalMemberPhone').textContent = phone || '-';
+      document.getElementById('modalMemberStatus').textContent = statusMsg || '-';
+
+      // 현재 사용자인 경우 초대 버튼 숨기기
+      const inviteBtn = modal.querySelector('.btn-primary');
+      if (userId === currentUserId) {
+          inviteBtn.style.display = 'none';
+      } else {
+          inviteBtn.style.display = 'flex';
+      }
+
+      // 모달 표시
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden'; // 배경 스크롤 방지
+  }
+
+  /**
+   * 멤버 정보 모달 닫기
+   */
+  function closeMemberModal() {
+      const modal = document.getElementById('memberModal');
+      modal.classList.remove('show');
+      document.body.style.overflow = ''; // 스크롤 복원
+      currentMemberId = null;
+  }
+
+  /**
+   * 멤버 초대 (체크박스 체크)
+   */
+  function inviteMember() {
+      if (!currentMemberId) return;
+
+      // 해당 멤버의 체크박스 찾기
+      const checkbox = document.querySelector(`input[name="invitedMembers"][value="${currentMemberId}"]`);
+      if (checkbox && !checkbox.disabled) {
+          checkbox.checked = true;
+
+          // 시각적 피드백
+          const memberItem = checkbox.closest('.member-item');
+          memberItem.style.backgroundColor = 'rgba(74, 158, 255, 0.1)';
+          setTimeout(() => {
+              memberItem.style.backgroundColor = '';
+          }, 300);
+      }
+
+      closeMemberModal();
+  }
+
+  // 모달 외부 클릭 시 닫기
+  document.addEventListener('DOMContentLoaded', function() {
+      const modalOverlay = document.getElementById('memberModal');
+      if (modalOverlay) {
+          modalOverlay.addEventListener('click', function(e) {
+              if (e.target === modalOverlay) {
+                  closeMemberModal();
+              }
+          });
+      }
+
+      // ESC 키로 모달 닫기
+      document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && modalOverlay && modalOverlay.classList.contains('show')) {
+              closeMemberModal();
+          }
+      });
+  });
 
   /**
    * DOM 요소 초기화
@@ -40,8 +139,6 @@ class MeetingSetup {
 
     // 폼 요소
     this.meetingForm = document.getElementById('meetingForm');
-    this.emailInput = document.getElementById('inviteEmail');
-    this.emailList = document.getElementById('emailList');
 
     // 기타
     this.loadingOverlay = document.getElementById('loadingOverlay');
@@ -52,102 +149,54 @@ class MeetingSetup {
    */
   initializeEventListeners() {
     // 미디어 컨트롤
-    this.cameraToggle.addEventListener('click', () => this.toggleCamera());
-    this.micToggle.addEventListener('click', () => this.toggleMicrophone());
+    if (this.cameraToggle) {
+      this.cameraToggle.addEventListener('click', () => this.toggleCamera());
+    }
+    if (this.micToggle) {
+      this.micToggle.addEventListener('click', () => this.toggleMicrophone());
+    }
 
     // 장치 변경
-    this.cameraSelect.addEventListener('change', () => this.changeCamera());
-    this.micSelect.addEventListener('change', () => this.changeMicrophone());
+    if (this.cameraSelect) {
+      this.cameraSelect.addEventListener('change', () => this.changeCamera());
+    }
+    if (this.micSelect) {
+      this.micSelect.addEventListener('change', () => this.changeMicrophone());
+    }
+    if (this.speakerSelect) {
+      this.speakerSelect.addEventListener('change', () => this.changeSpeaker());
+    }
 
-    // 스피커 테스트
-    document.getElementById('testSpeaker').addEventListener('click', () => this.testSpeaker());
-
-    // 이메일 추가
-    document.getElementById('addEmail').addEventListener('click', () => this.addEmail());
-    this.emailInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        this.addEmail();
-      }
-    });
+    // 테스트 버튼
+    const testSpeakerBtn = document.getElementById('testSpeaker');
+    if (testSpeakerBtn) {
+      testSpeakerBtn.addEventListener('click', () => this.testSpeaker());
+    }
 
     // 폼 제출
-    this.meetingForm.addEventListener('submit', (e) => this.handleSubmit(e));
+    if (this.meetingForm) {
+      this.meetingForm.addEventListener('submit', (e) => this.handleSubmit(e));
+    }
   }
 
   /**
-   * 장치 권한 확인 및 목록 로드
+   * 장치 권한 확인
    */
   async checkDevicePermissions() {
     try {
-      // 임시 스트림으로 권한 요청
-      const tempStream = await navigator.mediaDevices.getUserMedia({
+      // 권한 요청
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
       });
 
       // 즉시 정지
-      tempStream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => track.stop());
 
       // 장치 목록 로드
       await this.loadDevices();
     } catch (error) {
-      console.log('초기 권한 요청 스킵:', error.message);
-      // 권한이 없어도 장치 목록은 로드 시도
-      await this.loadDevices();
-    }
-  }
-
-  /**
-   * 미디어 장치 목록 로드
-   */
-  async loadDevices() {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-
-      // 기존 옵션 제거
-      this.clearSelectOptions(this.cameraSelect);
-      this.clearSelectOptions(this.micSelect);
-      this.clearSelectOptions(this.speakerSelect);
-
-      // 장치별로 분류
-      devices.forEach(device => {
-        const option = document.createElement('option');
-        option.value = device.deviceId;
-        option.text = device.label || `${device.kind} ${device.deviceId.substr(0, 8)}`;
-
-        if (device.kind === 'videoinput') {
-          this.cameraSelect.appendChild(option);
-        } else if (device.kind === 'audioinput') {
-          this.micSelect.appendChild(option);
-        } else if (device.kind === 'audiooutput') {
-          this.speakerSelect.appendChild(option);
-        }
-      });
-
-      // 기본 장치 선택
-      if (this.localStream) {
-        const videoTrack = this.localStream.getVideoTracks()[0];
-        const audioTrack = this.localStream.getAudioTracks()[0];
-
-        if (videoTrack) {
-          this.cameraSelect.value = videoTrack.getSettings().deviceId || '';
-        }
-        if (audioTrack) {
-          this.micSelect.value = audioTrack.getSettings().deviceId || '';
-        }
-      }
-    } catch (error) {
-      console.error('장치 목록 로드 실패:', error);
-    }
-  }
-
-  /**
-   * select 요소의 옵션 초기화
-   */
-  clearSelectOptions(selectElement) {
-    while (selectElement.options.length > 1) {
-      selectElement.remove(1);
+      console.log('미디어 권한 대기 중');
     }
   }
 
@@ -155,267 +204,68 @@ class MeetingSetup {
    * 카메라 토글
    */
   async toggleCamera() {
-    if (this.localStream && this.localStream.getVideoTracks().length > 0) {
-      // 카메라 끄기
-      this.localStream.getVideoTracks().forEach(track => {
-        track.stop();
-        this.localStream.removeTrack(track);
-      });
+    if (!this.localStream || !this.localStream.getVideoTracks().length) {
+      await this.startCamera();
+    } else {
+      this.stopCamera();
+    }
+  }
 
+  /**
+   * 카메라 시작
+   */
+  async startCamera() {
+    try {
+      const constraints = {
+        video: {
+          deviceId: this.cameraSelect.value ? { exact: this.cameraSelect.value } : undefined
+        },
+        audio: {
+          deviceId: this.micSelect.value ? { exact: this.micSelect.value } : undefined
+        }
+      };
+
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+      this.videoElement.srcObject = this.localStream;
+      this.videoElement.style.display = 'block';
+      this.videoPlaceholder.style.display = 'none';
+
+      // 버튼 상태 업데이트
+      this.cameraToggle.classList.add('active');
+      this.micToggle.classList.add('active');
+
+      // 오디오 레벨 모니터링 시작
+      this.startVolumeMonitor();
+
+    } catch (error) {
+      console.error('카메라 시작 실패:', error);
+      alert('카메라를 시작할 수 없습니다. 권한을 확인해주세요.');
+    }
+  }
+
+  /**
+   * 카메라 정지
+   */
+  stopCamera() {
+    if (this.localStream) {
+      this.localStream.getVideoTracks().forEach(track => track.stop());
       this.videoElement.style.display = 'none';
       this.videoPlaceholder.style.display = 'flex';
       this.cameraToggle.classList.remove('active');
-      this.cameraToggle.querySelector('span').textContent = '카메라 켜기';
-    } else {
-      // 카메라 켜기
-      try {
-        const constraints = {
-          video: {
-            deviceId: this.cameraSelect.value ?
-              { exact: this.cameraSelect.value } : undefined,
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        };
-
-        const videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        if (!this.localStream) {
-          this.localStream = new MediaStream();
-        }
-
-        videoStream.getVideoTracks().forEach(track => {
-          this.localStream.addTrack(track);
-        });
-
-        this.videoElement.srcObject = this.localStream;
-        this.videoElement.style.display = 'block';
-        this.videoPlaceholder.style.display = 'none';
-        this.cameraToggle.classList.add('active');
-        this.cameraToggle.querySelector('span').textContent = '카메라 끄기';
-
-        // 장치 목록 업데이트
-        await this.loadDevices();
-      } catch (error) {
-        console.error('카메라 시작 실패:', error);
-        alert('카메라를 시작할 수 없습니다. 권한을 확인해주세요.');
-      }
     }
   }
 
   /**
    * 마이크 토글
    */
-  async toggleMicrophone() {
-    if (this.localStream && this.localStream.getAudioTracks().length > 0) {
-      // 마이크 끄기
-      this.localStream.getAudioTracks().forEach(track => {
-        track.stop();
-        this.localStream.removeTrack(track);
-      });
-
-      this.stopVolumeMonitor();
-      this.micToggle.classList.remove('active');
-      this.micToggle.querySelector('span').textContent = '마이크 켜기';
-    } else {
-      // 마이크 켜기
-      try {
-        const constraints = {
-          audio: {
-            deviceId: this.micSelect.value ?
-              { exact: this.micSelect.value } : undefined,
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }
-        };
-
-        const audioStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        if (!this.localStream) {
-          this.localStream = new MediaStream();
-        }
-
-        audioStream.getAudioTracks().forEach(track => {
-          this.localStream.addTrack(track);
-        });
-
-        this.micToggle.classList.add('active');
-        this.micToggle.querySelector('span').textContent = '마이크 끄기';
-
-        // 볼륨 모니터링 시작
-        this.startVolumeMonitor(audioStream);
-
-        // 장치 목록 업데이트
-        await this.loadDevices();
-      } catch (error) {
-        console.error('마이크 시작 실패:', error);
-        alert('마이크를 시작할 수 없습니다. 권한을 확인해주세요.');
+  toggleMicrophone() {
+    if (this.localStream) {
+      const audioTrack = this.localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        this.micToggle.classList.toggle('active', audioTrack.enabled);
       }
     }
-  }
-
-  /**
-   * 카메라 변경
-   */
-  async changeCamera() {
-    if (this.localStream && this.localStream.getVideoTracks().length > 0) {
-      // 기존 카메라 정지
-      this.localStream.getVideoTracks().forEach(track => track.stop());
-
-      // 새 카메라로 시작
-      this.cameraToggle.classList.remove('active');
-      await this.toggleCamera();
-    }
-  }
-
-  /**
-   * 마이크 변경
-   */
-  async changeMicrophone() {
-    if (this.localStream && this.localStream.getAudioTracks().length > 0) {
-      // 기존 마이크 정지
-      this.localStream.getAudioTracks().forEach(track => track.stop());
-
-      // 새 마이크로 시작
-      this.micToggle.classList.remove('active');
-      await this.toggleMicrophone();
-    }
-  }
-
-  /**
-   * 볼륨 모니터링 시작
-   */
-  startVolumeMonitor(stream) {
-    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    this.analyser = this.audioContext.createAnalyser();
-    this.microphone = this.audioContext.createMediaStreamSource(stream);
-
-    this.analyser.smoothingTimeConstant = 0.8;
-    this.analyser.fftSize = 1024;
-
-    this.microphone.connect(this.analyser);
-
-    const bufferLength = this.analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    const checkVolume = () => {
-      this.analyser.getByteFrequencyData(dataArray);
-
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        sum += dataArray[i];
-      }
-
-      const average = sum / bufferLength;
-      const percentage = Math.min(100, (average / 128) * 100);
-
-      this.volumeBar.style.width = percentage + '%';
-
-      if (this.audioContext && this.audioContext.state === 'running') {
-        requestAnimationFrame(checkVolume);
-      }
-    };
-
-    checkVolume();
-  }
-
-  /**
-   * 볼륨 모니터링 중지
-   */
-  stopVolumeMonitor() {
-    if (this.microphone) {
-      this.microphone.disconnect();
-      this.microphone = null;
-    }
-
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
-    }
-
-    this.volumeBar.style.width = '0%';
-  }
-
-  /**
-   * 스피커 테스트
-   */
-  async testSpeaker() {
-    try {
-      const audio = new Audio('/sounds/test-sound.mp3');
-
-      // 선택된 스피커로 출력 설정
-      if (this.speakerSelect.value && audio.setSinkId) {
-        await audio.setSinkId(this.speakerSelect.value);
-      }
-
-      audio.play();
-    } catch (error) {
-      console.error('스피커 테스트 실패:', error);
-
-      // 대체 테스트 사운드
-      const oscillator = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = oscillator.createOscillator();
-      const gain = oscillator.createGain();
-
-      osc.connect(gain);
-      gain.connect(oscillator.destination);
-
-      gain.gain.setValueAtTime(0.1, oscillator.currentTime);
-      osc.frequency.setValueAtTime(440, oscillator.currentTime);
-
-      osc.start();
-      osc.stop(oscillator.currentTime + 0.5);
-    }
-  }
-
-  /**
-   * 이메일 추가
-   */
-  addEmail() {
-    const email = this.emailInput.value.trim();
-
-    if (!email) return;
-
-    // 이메일 형식 검증
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      alert('올바른 이메일 형식이 아닙니다.');
-      return;
-    }
-
-    // 중복 확인
-    if (this.invitedEmails.has(email)) {
-      alert('이미 추가된 이메일입니다.');
-      return;
-    }
-
-    this.invitedEmails.add(email);
-    this.renderEmailList();
-    this.emailInput.value = '';
-  }
-
-  /**
-   * 이메일 목록 렌더링
-   */
-  renderEmailList() {
-    this.emailList.innerHTML = '';
-
-    this.invitedEmails.forEach(email => {
-      const tag = document.createElement('div');
-      tag.className = 'email-tag';
-      tag.innerHTML = `
-        ${email}
-        <span class="remove" data-email="${email}">×</span>
-      `;
-
-      tag.querySelector('.remove').addEventListener('click', () => {
-        this.invitedEmails.delete(email);
-        this.renderEmailList();
-      });
-
-      this.emailList.appendChild(tag);
-    });
   }
 
   /**
@@ -441,14 +291,12 @@ class MeetingSetup {
       const requestData = {
         title: formData.get('meetingTitle'),
         description: document.getElementById('meetingDesc').value,
-        duration: parseInt(formData.get('duration')),
         workspaceCd: workspaceCd,
         autoRecord: formData.get('autoRecord') === 'on',
         muteOnJoin: formData.get('muteOnJoin') === 'on',
         waitingRoom: formData.get('waitingRoom') === 'on',
         videoQuality: formData.get('videoQuality'),
-        invitedMembers: invitedMembers,
-        invitedEmails: Array.from(this.invitedEmails)
+        invitedMembers: invitedMembers
       };
 
       // 회의 생성 API 호출
@@ -485,16 +333,142 @@ class MeetingSetup {
 
     } catch (error) {
       console.error('회의 생성 실패:', error);
-
-        // 더 구체적인 에러 메시지
-      if (error.message === '회의 생성 실패') {
-          alert('회의를 생성할 수 없습니다. 네트워크 연결을 확인해주세요.');
-      } else {
-        alert('회의를 시작할 수 없습니다. 다시 시도해주세요.');
-      }
+      alert('회의를 시작할 수 없습니다. 다시 시도해주세요.');
 
       this.loadingOverlay.style.display = 'none';
     }
+  }
+
+  /**
+   * 오디오 레벨 모니터링 시작
+   */
+  startVolumeMonitor() {
+    if (!this.audioContext) {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    this.analyser = this.audioContext.createAnalyser();
+    this.microphone = this.audioContext.createMediaStreamSource(this.localStream);
+    this.microphone.connect(this.analyser);
+
+    this.analyser.fftSize = 256;
+    const bufferLength = this.analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const updateVolume = () => {
+      if (!this.analyser) return;
+
+      this.analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b) / bufferLength;
+      const percentage = Math.min(100, (average / 255) * 200);
+
+      if (this.volumeBar) {
+        this.volumeBar.style.width = `${percentage}%`;
+      }
+
+      requestAnimationFrame(updateVolume);
+    };
+
+    updateVolume();
+  }
+
+  /**
+   * 오디오 레벨 모니터링 중지
+   */
+  stopVolumeMonitor() {
+    if (this.microphone) {
+      this.microphone.disconnect();
+      this.microphone = null;
+    }
+    if (this.analyser) {
+      this.analyser = null;
+    }
+  }
+
+  /**
+   * 장치 목록 로드
+   */
+  async loadDevices() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+
+      // 카메라 목록
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      this.cameraSelect.innerHTML = '<option value="">카메라를 선택하세요</option>';
+      videoDevices.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `카메라 ${this.cameraSelect.options.length}`;
+        this.cameraSelect.appendChild(option);
+      });
+
+      // 마이크 목록
+      const audioDevices = devices.filter(device => device.kind === 'audioinput');
+      this.micSelect.innerHTML = '<option value="">마이크를 선택하세요</option>';
+      audioDevices.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `마이크 ${this.micSelect.options.length}`;
+        this.micSelect.appendChild(option);
+      });
+
+      // 스피커 목록
+      const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
+      this.speakerSelect.innerHTML = '<option value="">스피커를 선택하세요</option>';
+      audioOutputDevices.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `스피커 ${this.speakerSelect.options.length}`;
+        this.speakerSelect.appendChild(option);
+      });
+
+    } catch (error) {
+      console.error('장치 목록 로드 실패:', error);
+    }
+  }
+
+  /**
+   * 카메라 변경
+   */
+  async changeCamera() {
+    if (this.localStream && this.localStream.getVideoTracks().length > 0) {
+      this.stopCamera();
+      await this.startCamera();
+    }
+  }
+
+  /**
+   * 마이크 변경
+   */
+  async changeMicrophone() {
+    if (this.localStream && this.localStream.getAudioTracks().length > 0) {
+      this.stopCamera();
+      await this.startCamera();
+    }
+  }
+
+  /**
+   * 스피커 변경
+   */
+  async changeSpeaker() {
+    if (this.videoElement && this.videoElement.setSinkId) {
+      try {
+        await this.videoElement.setSinkId(this.speakerSelect.value);
+      } catch (error) {
+        console.error('스피커 변경 실패:', error);
+      }
+    }
+  }
+
+  /**
+   * 스피커 테스트
+   */
+  testSpeaker() {
+    const audio = new Audio('/sounds/test-sound.mp3');
+    if (this.speakerSelect.value && audio.setSinkId) {
+      audio.setSinkId(this.speakerSelect.value);
+    }
+    audio.play();
   }
 
   /**

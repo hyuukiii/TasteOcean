@@ -248,17 +248,6 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.form-section {
-    margin-bottom: 32px;
-    padding-bottom: 32px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.form-section:last-of-type {
-    border-bottom: none;
-    margin-bottom: 24px;
-}
-
 .form-section h3 {
     font-size: 16px;
     font-weight: 600;
@@ -268,20 +257,6 @@
 
 .form-group {
     margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 8px;
-}
-
-.optional {
-    color: #999;
-    font-weight: 400;
-    font-size: 12px;
 }
 
 input[type="text"],
@@ -305,9 +280,53 @@ textarea:focus,
     border-color: #4a9eff;
 }
 
-textarea {
-    resize: vertical;
-    min-height: 80px;
+/* 리사이즈 비활성화된 텍스트 에어리어 */
+.styled-textarea.no-resize {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+    resize: none; /* 리사이즈 비활성화 */
+    height: 100px; /* 고정 높이 설정 */
+    transition: all 0.2s ease;
+    background-color: #fafafa;
+    overflow-y: auto; /* 내용이 많을 경우 스크롤 표시 */
+}
+
+.styled-textarea.no-resize:focus {
+    outline: none;
+    border-color: #4a9eff;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1);
+}
+
+.styled-textarea.no-resize:hover {
+    border-color: #ccc;
+}
+
+.styled-textarea.no-resize::placeholder {
+    color: #999;
+    font-size: 14px;
+}
+
+/* 회의 제목 입력창 스타일 */
+input#meetingTitle {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+input#meetingTitle:focus {
+    outline: none;
+    border-color: #4a9eff;
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1);
 }
 
 /* 옵션 리스트 */
@@ -355,6 +374,248 @@ textarea {
 .option-desc {
     font-size: 12px;
     color: #666;
+}
+
+/* meeting-setup.css에 추가할 모달 스타일 */
+
+/* 멤버 클릭 가능 영역 */
+.member-clickable {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.member-clickable:hover {
+    background-color: rgba(74, 158, 255, 0.05);
+}
+
+/* 모달 오버레이 */
+.member-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    visibility: hidden;
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.member-modal-overlay.show {
+    visibility: visible;
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* 모달 창 */
+.member-modal {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.member-modal-overlay.show .member-modal {
+    transform: translateY(0) scale(1);
+}
+
+/* 모달 헤더 */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.modal-close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.modal-close:hover {
+    background-color: #f0f0f0;
+}
+
+/* 모달 본문 */
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+}
+
+/* 프로필 섹션 */
+.member-profile-section {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.profile-image-large {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 16px;
+    position: relative;
+}
+
+.profile-image-large img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #f0f0f0;
+}
+
+.profile-initial-large {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: #4a9eff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: bold;
+}
+
+#modalMemberName {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+}
+
+.member-position {
+    margin: 0;
+    font-size: 16px;
+    color: #666;
+}
+
+/* 정보 섹션 */
+.member-info-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-size: 14px;
+    color: #666;
+    width: 100px;
+    flex-shrink: 0;
+}
+
+.info-value {
+    font-size: 14px;
+    color: #333;
+    word-break: break-word;
+}
+
+/* 모달 푸터 */
+.modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.modal-footer .btn-secondary,
+.modal-footer .btn-primary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-footer .btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.modal-footer .btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.modal-footer .btn-primary {
+    background: #4a9eff;
+    color: white;
+}
+
+.modal-footer .btn-primary:hover {
+    background: #3a8eff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+}
+
+/* 애니메이션 효과 */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes modalFadeOut {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
 }
 
 /* 참가자 초대 */
@@ -412,6 +673,68 @@ textarea {
     font-weight: bold;
     font-size: 14px;
     flex-shrink: 0;
+}
+
+/* 스타일된 텍스트 에어리어 */
+.styled-textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 100px;
+    max-height: 200px;
+    transition: all 0.2s ease;
+    background-color: #fafafa;
+}
+
+.styled-textarea:focus {
+    outline: none;
+    border-color: #4a9eff;
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1);
+}
+
+.styled-textarea:hover {
+    border-color: #ccc;
+}
+
+.styled-textarea::placeholder {
+    color: #999;
+    font-size: 14px;
+}
+
+/* 폼 그룹 간격 조정 */
+.form-section {
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+    margin-bottom: 24px;
+    padding-bottom: 0;
+}
+
+/* 제목 레이블 스타일 개선 */
+.form-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+/* 선택사항 표시 */
+.optional {
+    color: #999;
+    font-weight: 400;
+    font-size: 12px;
+    margin-left: 4px;
 }
 
 /* 색상 변형 - 랜덤하게 보이도록 */
