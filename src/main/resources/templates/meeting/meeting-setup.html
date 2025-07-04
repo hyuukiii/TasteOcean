@@ -191,9 +191,7 @@
                                             <span th:text="${member.deptNm}">부서</span>
                                             <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
                                         </span>
-                                        <span class="member-status"
-                                              th:classappend="${member.userState == 'ONLINE' ? 'online' : 'offline'}"
-                                              th:text="${member.userState == 'ONLINE' ? '온라인' : '오프라인'}">상태</span>
+                                        <!-- 온라인/오프라인 상태 표시 제거 -->
                                     </div>
                                 </label>
                             </div>

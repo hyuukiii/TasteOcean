@@ -365,9 +365,9 @@ public class WorkspaceService {
             // 이미 getWorkspaceMembers 메서드가 있으므로 활용
             List<WorkspaceMember> allMembers = getWorkspaceMembers(workspaceCd);
 
-            // 활성 상태(userState가 null이 아닌) 멤버만 필터링
+            // 활성 상태(userState가 null이 아닌) 멤버만 필터링 getUserState() != null
             return allMembers.stream()
-                    .filter(member -> member.getUserState() != null)
+                    .filter(member ->"Y". equals(member.getActiveState()))
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
