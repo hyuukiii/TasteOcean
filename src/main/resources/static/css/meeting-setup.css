@@ -398,11 +398,41 @@ textarea {
     height: 16px;
 }
 
-.member-avatar {
+/* 프로필 이니셜(첫 글자) 표시 스타일 */
+.member-avatar-initial {
     width: 32px;
     height: 32px;
     border-radius: 50%;
     margin-right: 12px;
+    background-color: #4a9eff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* 색상 변형 - 랜덤하게 보이도록 */
+.member-item:nth-child(5n+1) .member-avatar-initial {
+    background-color: #4a9eff;
+}
+
+.member-item:nth-child(5n+2) .member-avatar-initial {
+    background-color: #ff6b6b;
+}
+
+.member-item:nth-child(5n+3) .member-avatar-initial {
+    background-color: #51cf66;
+}
+
+.member-item:nth-child(5n+4) .member-avatar-initial {
+    background-color: #ff922b;
+}
+
+.member-item:nth-child(5n) .member-avatar-initial {
+    background-color: #845ef7;
 }
 
 .member-info {

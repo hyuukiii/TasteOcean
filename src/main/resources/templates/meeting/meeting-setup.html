@@ -182,22 +182,29 @@
                                            name="invitedMembers"
                                            th:value="${member.userId}"
                                            th:disabled="${member.userId == currentUserId}">
+
+                                    <!-- 프로필 이미지가 있을 때 -->
                                     <img class="member-avatar"
-                                         th:src="${member.userImg != null ? member.userImg : '/images/default-avatar.png'}"
+                                         th:if="${member.userImg != null and !member.userImg.isEmpty()}"
+                                         th:src="${member.userImg}"
                                          th:alt="${member.userNickname}">
+
+                                    <!-- 프로필 이미지가 없을 때 - 첫 글자만 표시 -->
+                                    <div class="member-avatar-initial"
+                                         th:unless="${member.userImg != null and !member.userImg.isEmpty()}"
+                                         th:text="${member.userNickname != null and !member.userNickname.isEmpty() ? #strings.substring(member.userNickname, 0, 1) : '?'}">
+                                    </div>
+
                                     <div class="member-info">
-                                        <span class="member-name" th:text="${member.userNickname}">멤버명</span>
+                                        <span class="member-name" th:text="${member.userNickname ?: '미설정'}">멤버명</span>
                                         <span class="member-detail" th:if="${member.deptNm != null or member.position != null}">
                                             <span th:text="${member.deptNm}">부서</span>
-                                            <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
-                                        </span>
-                                        <!-- 온라인/오프라인 상태 표시 제거 -->
-                                    </div>
-                                </label>
-                            </div>
+                                        <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
+                                    </span>
+                                </div>
+                            </label>
                         </div>
                     </div>
-
                     <!-- 이메일 초대 -->
                     <div class="email-invite">
                         <h4>이메일로 초대</h4>
