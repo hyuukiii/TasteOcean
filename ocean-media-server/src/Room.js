@@ -70,6 +70,8 @@ class Room {
         const videoTransport = await this.router.createPlainTransport(transportOptions);
         const audioTransport = await this.router.createPlainTransport(transportOptions);
 
+
+
         console.log('비디오 Transport 정보:', {
             id: videoTransport.id,
             port: videoTransport.tuple.localPort,
