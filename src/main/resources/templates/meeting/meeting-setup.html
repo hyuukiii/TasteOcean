@@ -107,7 +107,7 @@
                                id="meetingTitle"
                                name="meetingTitle"
                                placeholder="예: 주간 팀 미팅"
-                               th:value="${'스케치 회의 - ' + #temporals.format(#temporals.createNow(), 'MM월 dd일')}"
+                               th:value="${'제목을 입력해주세요 - ' + #temporals.format(#temporals.createNow(), 'MM월 dd일')}"
                                required>
                     </div>
 
@@ -179,15 +179,15 @@
                                     <!-- 클릭 가능한 멤버 정보 영역 추가 -->
                                     <div class="member-clickable"
                                          th:attr="onclick='showMemberModal(' +
-         '&quot;' + ${member.userId} + '&quot;, ' +
-         '&quot;' + ${member.userNickname ?: ''} + '&quot;, ' +
-         '&quot;' + ${member.deptNm ?: ''} + '&quot;, ' +
-         '&quot;' + ${member.position ?: ''} + '&quot;, ' +
-         '&quot;' + ${member.email ?: ''} + '&quot;, ' +
-         '&quot;' + ${member.phoneNum ?: ''} + '&quot;, ' +
-         '&quot;' + ${member.statusMsg ?: ''} + '&quot;, ' +
-         '&quot;' + ${member.userImg ?: ''} + '&quot;' +
-         ')'">
+                                         '&quot;' + ${member.userId} + '&quot;, ' +
+                                         '&quot;' + ${member.userNickname ?: ''} + '&quot;, ' +
+                                         '&quot;' + ${member.deptNm ?: ''} + '&quot;, ' +
+                                         '&quot;' + ${member.position ?: ''} + '&quot;, ' +
+                                         '&quot;' + ${member.email ?: ''} + '&quot;, ' +
+                                         '&quot;' + ${member.phoneNum ?: ''} + '&quot;, ' +
+                                         '&quot;' + ${member.statusMsg ?: ''} + '&quot;, ' +
+                                         '&quot;' + ${member.userImg ?: ''} + '&quot;' +
+                                         ')'">
                                         <!-- 프로필 이미지가 있을 때 -->
                                         <img class="member-avatar"
                                              th:if="${member.userImg != null and !member.userImg.isEmpty()}"
@@ -241,7 +241,7 @@
                         <!-- 모달 헤더 -->
                         <div class="modal-header">
                             <h3>멤버 정보</h3>
-                            <button class="modal-close" onclick="closeMemberModal()">
+                            <button type="button" class="modal-close" onclick="closeMemberModal()">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M18 6L6 18M6 6l12 12"/>
                                 </svg>
@@ -283,8 +283,9 @@
 
                         <!-- 모달 푸터 -->
                         <div class="modal-footer">
-                            <button class="btn-secondary" onclick="closeMemberModal()">닫기</button>
-                            <button class="btn-primary" onclick="inviteMember()">
+                            <button type="button" class="btn-secondary" onclick="closeMemberModal()">닫기</button>
+                            <!-- ⚠️ type="button" 추가! -->
+                            <button type="button" class="btn-primary" onclick="inviteMember()">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 5v14M5 12h14"/>
                                 </svg>
