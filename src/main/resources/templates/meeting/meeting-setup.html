@@ -163,20 +163,32 @@
 
                 <!-- 참가자 초대 -->
                 <div class="form-section">
-                    <h3>참가자 초대</h3>
+                    <h3>참가자 초대 <span id="invitedCount" class="text-muted"></span></h3>
 
                     <!-- 워크스페이스 멤버만 표시 -->
                     <div class="member-invite" th:if="${members != null and !members.isEmpty()}">
-                        <h4>워크스페이스 멤버</h4>
+                        <div class="member-list-header">
+                            <h4>워크스페이스 멤버</h4>
+                            <button type="button" class="btn-link" onclick="toggleAllMembers()">
+                                전체 선택/해제
+                            </button>
+                        </div>
+
                         <div class="member-list">
                             <div class="member-item" th:each="member : ${members}">
-                                <label class="member-checkbox">
+                                <div class="member-checkbox">
+                                    <!-- 체크박스를 label 밖으로 이동 -->
                                     <input type="checkbox"
+                                           id="member-[[${member.userId}]]"
                                            name="invitedMembers"
                                            th:value="${member.userId}"
-                                           th:disabled="${member.userId == currentUserId}">
+                                           th:disabled="${member.userId == currentUserId}"
+                                           onchange="handleCheckboxChange(this)">
 
-                                    <!-- 클릭 가능한 멤버 정보 영역 추가 -->
+                                    <!-- 체크박스와 멤버 정보를 분리 -->
+                                    <label th:for="'member-' + ${member.userId}" class="checkbox-label"></label>
+
+                                    <!-- 클릭 가능한 멤버 정보 영역 -->
                                     <div class="member-clickable"
                                          th:attr="onclick='showMemberModal(' +
                                          '&quot;' + ${member.userId} + '&quot;, ' +
@@ -206,9 +218,11 @@
                                                 <span th:text="${member.deptNm}">부서</span>
                                                 <span th:if="${member.position != null}" th:text="' · ' + ${member.position}">직책</span>
                                             </span>
+                                            <!-- 본인 표시 추가 -->
+                                            <span class="member-badge" th:if="${member.userId == currentUserId}">(나)</span>
                                         </div>
                                     </div>
-                                </label>
+                                </div>
                             </div>
                         </div>
 

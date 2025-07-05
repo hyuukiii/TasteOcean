@@ -516,7 +516,6 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ========== 모달 관련 전역 함수들 ==========
-// meeting-setup.js 파일의 맨 끝에 추가하세요
 
 /**
  * 멤버 정보 모달 표시
@@ -620,34 +619,51 @@ function handleModalBackgroundClick(e) {
 }
 
 /**
- * 멤버 초대
+ * 멤버 초대 - 개선된 버전
  */
-async function inviteMember() {
+async function inviteMember(event) {
+    // 이벤트 전파 방지
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
     const modal = document.getElementById('memberModal');
     const userId = modal.dataset.userId;
 
     if (!userId) {
         alert('사용자 정보를 찾을 수 없습니다.');
-        return;
+        return false;
     }
 
     try {
-        // 초대 로직 구현
-        // 예: API 호출을 통해 해당 사용자에게 초대 알림 전송
-        console.log('초대할 사용자:', userId);
+        // 체크박스 찾기 - ID로 직접 찾기
+        const checkbox = document.getElementById(`member-${userId}`);
 
-        // 체크박스 자동 체크
-        const checkbox = document.querySelector(`input[name="invitedMembers"][value="${userId}"]`);
-        if (checkbox && !checkbox.disabled) {
-            checkbox.checked = true;
+        if (checkbox) {
+            if (checkbox.disabled) {
+                alert('본인은 자동으로 회의에 참가합니다.');
+            } else {
+                // 체크박스 상태 토글
+                checkbox.checked = !checkbox.checked;
 
-            // 체크박스 변경 이벤트 발생
-            const event = new Event('change', { bubbles: true });
-            checkbox.dispatchEvent(event);
+                // change 이벤트 수동 발생
+                const changeEvent = new Event('change', { bubbles: true });
+                checkbox.dispatchEvent(changeEvent);
+
+                // 체크박스 변경 함수 호출
+                handleCheckboxChange(checkbox);
+
+                // 성공 메시지
+                if (checkbox.checked) {
+                    alert('초대 목록에 추가되었습니다.');
+                } else {
+                    alert('초대 목록에서 제거되었습니다.');
+                }
+            }
+        } else {
+            console.error('체크박스를 찾을 수 없습니다:', userId);
         }
-
-        // 성공 메시지
-        alert('초대 목록에 추가되었습니다.');
 
         // 모달 닫기
         closeMemberModal();
@@ -656,6 +672,59 @@ async function inviteMember() {
         console.error('초대 실패:', error);
         alert('초대에 실패했습니다. 다시 시도해주세요.');
     }
+    return false;
+}
+
+/**
+ * 체크박스 변경 처리
+ * @param {HTMLInputElement} checkbox - 변경된 체크박스
+ */
+function handleCheckboxChange(checkbox) {
+    const userId = checkbox.value;
+    const isChecked = checkbox.checked;
+
+    console.log(`멤버 ${userId} 초대 상태: ${isChecked ? '선택됨' : '선택 해제됨'}`);
+
+    // 선택된 멤버 수 업데이트
+    updateInvitedCount();
+
+    // 시각적 피드백
+    const memberItem = checkbox.closest('.member-checkbox');
+    if (memberItem) {
+        if (isChecked) {
+            memberItem.classList.add('selected');
+        } else {
+            memberItem.classList.remove('selected');
+        }
+    }
+}
+
+/**
+ * 선택된 멤버 수 업데이트
+ */
+function updateInvitedCount() {
+    const checkedBoxes = document.querySelectorAll('input[name="invitedMembers"]:checked');
+    const count = checkedBoxes.length;
+
+    // 선택된 멤버 수를 어딘가에 표시할 수 있음
+    const countDisplay = document.getElementById('invitedCount');
+    if (countDisplay) {
+        countDisplay.textContent = count > 0 ? `(${count}명 선택됨)` : '';
+    }
+}
+
+/**
+ * 전체 선택/해제 기능
+ */
+function toggleAllMembers() {
+    const checkboxes = document.querySelectorAll('input[name="invitedMembers"]:not(:disabled)');
+    const checkedCount = document.querySelectorAll('input[name="invitedMembers"]:checked').length;
+    const shouldCheck = checkedCount < checkboxes.length;
+
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = shouldCheck;
+        handleCheckboxChange(checkbox);
+    });
 }
 
 /**
@@ -735,6 +804,7 @@ function addEmailInvite() {
 
 // Enter 키로 이메일 추가
 document.addEventListener('DOMContentLoaded', function() {
+    // 기존 이메일 입력 관련 코드
     const emailInput = document.getElementById('newEmailInput');
     if (emailInput) {
         emailInput.addEventListener('keypress', function(e) {
@@ -744,4 +814,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // ⭐ 새로 추가할 체크박스 관련 초기화 코드
+    // 초기 선택된 멤버 수 표시
+    updateInvitedCount();
+
+    // 체크박스 클릭 이벤트가 부모로 전파되지 않도록 방지
+    document.querySelectorAll('input[name="invitedMembers"]').forEach(checkbox => {
+            checkbox.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+    });
 });
