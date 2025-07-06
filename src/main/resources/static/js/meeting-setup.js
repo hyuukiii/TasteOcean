@@ -459,7 +459,8 @@ class MeetingSetup {
         meetingType: 'sketch',
         autoRecord: requestData.autoRecord,
         muteOnJoin: requestData.muteOnJoin,
-        videoQuality: requestData.videoQuality
+        videoQuality: requestData.videoQuality,
+        meetingTitle: requestData.title
       })}`;
 
     } catch (error) {
