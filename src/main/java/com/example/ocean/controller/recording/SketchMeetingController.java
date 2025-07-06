@@ -25,6 +25,9 @@ public class SketchMeetingController {
     @Value("${media.server.url:https://localhost:3001}")
     private String mediaServerUrl;
 
+    @Value("${app.frontend.url:http://localhost:8080}")
+    private String frontendUrl;  // Spring Boot 서버 URL 추가
+
     private final MeetingService meetingService;
     private final WorkspaceService workspaceService;  // 추가
 
@@ -57,13 +60,15 @@ public class SketchMeetingController {
 
             String userProfileImg = "";
             if (member != null && member.getUserImg() != null && !member.getUserImg().isEmpty()) {
-                // 프로필 이미지 경로가 상대 경로인 경우 절대 경로로 변환
-                userProfileImg = member.getUserImg().startsWith("/")
-                        ? member.getUserImg()
-                        : "/" + member.getUserImg();
-                log.info("사용자 프로필 이미지 경로: {}", userProfileImg);
-            } else {
-                log.info("사용자 프로필 이미지가 없습니다. userId: {}", user.getId());
+                // 프로필 이미지를 절대 URL로 변환
+                String imagePath = member.getUserImg();
+                if (!imagePath.startsWith("http")) {
+                    // 상대 경로인 경우 Spring Boot 서버의 절대 URL로 변환
+                    userProfileImg = frontendUrl + (imagePath.startsWith("/") ? imagePath : "/" + imagePath);
+                } else {
+                    userProfileImg = imagePath;
+                }
+                log.info("사용자 프로필 이미지 절대 경로: {}", userProfileImg);
             }
 
             // 고유한 룸 ID 생성 (스케치 회의용)
@@ -94,7 +99,7 @@ public class SketchMeetingController {
                     URLEncoder.encode(user.getId(), StandardCharsets.UTF_8),
                     URLEncoder.encode(user.getName(), StandardCharsets.UTF_8),
                     URLEncoder.encode("스케치 회의 - " + user.getName(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(userProfileImg, StandardCharsets.UTF_8)  // 프로필 이미지 추가
+                    URLEncoder.encode(userProfileImg, StandardCharsets.UTF_8)  // 절대 URL로 인코딩
             );
 
             log.info("스케치 회의 시작 - 사용자: {}, 룸ID: {}, 워크스페이스: {}, 프로필이미지: {}",

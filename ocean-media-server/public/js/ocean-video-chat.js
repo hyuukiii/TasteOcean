@@ -722,7 +722,7 @@
             showToast(isAudioOn ? '마이크 켜짐' : '마이크 꺼짐');
         }
 
-        // 비디오 토글
+        // 2. toggleVideo 함수 수정
         function toggleVideo() {
             isVideoOn = !isVideoOn;
             const videoBtn = document.getElementById('videoBtn');
@@ -744,12 +744,10 @@
 
                 // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
                 if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
-                    // 이미지 경로가 상대 경로인지 확인하고 절대 경로로 변환
-                    const imgSrc = userProfileImg.startsWith('http')
-                        ? userProfileImg
-                        : (userProfileImg.startsWith('/')
-                            ? userProfileImg
-                            : '/' + userProfileImg);
+                    // URL 디코딩 (URLEncoder로 인코딩된 경우)
+                    let imgSrc = decodeURIComponent(userProfileImg);
+
+                    console.log('디코딩된 이미지 URL:', imgSrc);
 
                     localPlaceholder.innerHTML = `
                         <img src="${imgSrc}"
@@ -1419,11 +1417,10 @@
                 console.log('userProfileImg:', userProfileImg);
 
                 if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
-                        const imgSrc = userProfileImg.startsWith('http')
-                            ? userProfileImg
-                            : (userProfileImg.startsWith('/')
-                                ? userProfileImg
-                                : '/' + userProfileImg);
+                        // URL 디코딩
+                        let imgSrc = decodeURIComponent(userProfileImg);
+
+                        console.log('페이지 로드 - 디코딩된 이미지 URL:', imgSrc);
 
                         localPlaceholder.innerHTML = `
                             <img src="${imgSrc}"
@@ -1431,9 +1428,9 @@
                                  style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
                                  onerror="this.onerror=null; this.parentElement.innerHTML='${displayName.charAt(0).toUpperCase()}'">
                         `;
-                } else {
-                  localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
-                }
+                    } else {
+                        localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
+                    }
 
             document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
 
@@ -1486,11 +1483,8 @@
             if (remotePlaceholder) {
                 // 원격 사용자의 프로필 이미지 처리
                 if (userInfo?.profileImg && userInfo.profileImg !== 'null') {
-                    const imgSrc = userInfo.profileImg.startsWith('http')
-                        ? userInfo.profileImg
-                        : (userInfo.profileImg.startsWith('/')
-                            ? userInfo.profileImg
-                            : '/' + userInfo.profileImg);
+                    // URL 디코딩
+                    let imgSrc = decodeURIComponent(userInfo.profileImg);
 
                     remotePlaceholder.innerHTML = `
                         <img src="${imgSrc}"

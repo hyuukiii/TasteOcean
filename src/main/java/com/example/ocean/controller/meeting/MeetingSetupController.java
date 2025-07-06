@@ -40,6 +40,9 @@ public class MeetingSetupController {
     @Value("${media.server.url:https://localhost:3001}")
     private String mediaServerUrl;
 
+    @Value("${app.frontend.url:http://localhost:8080}")
+    private String frontendUrl;  // 클래스 상단에 추가
+
     /**
      * 회의 준비 페이지 표시
      *
@@ -229,9 +232,14 @@ public class MeetingSetupController {
         try {
             String userProfileImg = "";
             if (member != null && member.getUserImg() != null && !member.getUserImg().isEmpty()) {
-                userProfileImg = member.getUserImg().startsWith("/")
-                        ? member.getUserImg()
-                        : "/" + member.getUserImg();
+                String imagePath = member.getUserImg();
+                if (!imagePath.startsWith("http")) {
+                    // 상대 경로인 경우 Spring Boot 서버의 절대 URL로 변환
+                    userProfileImg = frontendUrl + (imagePath.startsWith("/") ? imagePath : "/" + imagePath);
+                } else {
+                    userProfileImg = imagePath;
+                }
+                log.info("프로필 이미지 절대 URL: {}", userProfileImg);
             }
 
             String encodedRoomId = URLEncoder.encode(roomId, StandardCharsets.UTF_8);
