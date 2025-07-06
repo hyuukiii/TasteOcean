@@ -41,20 +41,27 @@
         // 토큰에서 사용자 이미지 가져오기
         let userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
 
-        // URL 디코딩 및 포트 수정
+        // URL 디코딩 및 절대 경로 변환
         if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
             userProfileImg = decodeURIComponent(userProfileImg);
 
-            // 8081 포트를 8080으로 변경 (phpMyAdmin 포트를 Spring Boot 포트로)
-            if (userProfileImg.includes(':8081')) {
-                userProfileImg = userProfileImg.replace(':8081', ':8080');
-                console.log('프로필 이미지 포트 수정: 8081 → 8080');
+            // 프로필 이미지가 http로 시작하지 않으면 절대 경로로 변환
+            if (!userProfileImg.startsWith('http')) {
+                // Spring Boot 서버의 절대 URL로 변환
+                userProfileImg = 'http://localhost:8080' + (userProfileImg.startsWith('/') ? userProfileImg : '/' + userProfileImg);
+                // console.log('프로필 이미지를 절대 경로로 변환:', userProfileImg);
             }
 
-            console.log('최종 프로필 이미지 URL:', userProfileImg);
+            // 8081 포트를 8080으로 변경 (만약 있다면)
+            if (userProfileImg.includes(':8081')) {
+                userProfileImg = userProfileImg.replace(':8081', ':8080');
+                // console.log('프로필 이미지 포트 수정: 8081 → 8080');
+            }
+
+            // console.log('최종 프로필 이미지 URL:', userProfileImg);
         }
 
-        console.log('토큰에서 추출한 사용자 정보:', userInfo);
+        // console.log('토큰에서 추출한 사용자 정보:', userInfo);
 
         // 디버깅 로그 추가
         // console.log('=== 프로필 이미지 디버깅 ===');
@@ -76,10 +83,10 @@
             waitingRoom: urlParams.get('waitingRoom') === 'true'
         };
 
-        console.log('회의 옵션:', meetingOptions);
+        // console.log('회의 옵션:', meetingOptions);
 
-        console.log('최종 userId:', userId);
-        console.log('최종 displayName:', displayName);
+        // console.log('최종 userId:', userId);
+        // console.log('최종 displayName:', displayName);
 
         // userId가 없으면 경고
         if (!userId) {
@@ -1424,20 +1431,25 @@
             // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
             const localPlaceholder = document.getElementById('localPlaceholder');
 
-            console.log('페이지 로드 - 프로필 이미지 초기화');
-            console.log('userProfileImg:', userProfileImg);
+            //console.log('페이지 로드 - 프로필 이미지 초기화');
+            //console.log('userProfileImg:', userProfileImg);
 
             if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
                 // URL 디코딩
                 let imgSrc = decodeURIComponent(userProfileImg);
 
-                // ⭐ 포트 8081을 8080으로 변경
-                if (imgSrc.includes(':8081')) {
-                    imgSrc = imgSrc.replace(':8081', ':8080');
-                    console.log('프로필 이미지 포트 수정: 8081 → 8080');
+                // ⭐ 상대 경로를 절대 경로로 변환 (이 부분이 추가됨!)
+                if (!imgSrc.startsWith('http')) {
+                    imgSrc = 'http://localhost:8080' + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);
+                    //console.log('프로필 이미지를 절대 경로로 변환:', imgSrc);
                 }
 
-                console.log('페이지 로드 - 최종 이미지 URL:', imgSrc);
+                // 포트 변경 (이미 있음)
+                if (imgSrc.includes(':8081')) {
+                    imgSrc = imgSrc.replace(':8081', ':8080');
+                }
+
+                // console.log('페이지 로드 - 최종 이미지 URL:', imgSrc);
 
                 localPlaceholder.innerHTML = `
                     <img src="${imgSrc}"

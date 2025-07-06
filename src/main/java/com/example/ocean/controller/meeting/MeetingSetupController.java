@@ -233,14 +233,27 @@ public class MeetingSetupController {
             String userProfileImg = "";
             if (member != null && member.getUserImg() != null && !member.getUserImg().isEmpty()) {
                 String imagePath = member.getUserImg();
+
+                log.info("=== 프로필 이미지 URL 생성 디버깅 ===");
+                log.info("원본 이미지 경로: {}", imagePath);
+                log.info("frontendUrl 값: {}", frontendUrl);
+
                 if (!imagePath.startsWith("http")) {
                     // 상대 경로인 경우 Spring Boot 서버의 절대 URL로 변환
                     userProfileImg = frontendUrl + (imagePath.startsWith("/") ? imagePath : "/" + imagePath);
+                    log.info("절대 경로로 변환됨: {}", userProfileImg);
                 } else {
                     userProfileImg = imagePath;
+                    log.info("이미 절대 경로임: {}", userProfileImg);
                 }
-                log.info("프로필 이미지 절대 URL: {}", userProfileImg);
+            } else {
+                log.info("멤버 또는 프로필 이미지가 없음 - member: {}, userImg: {}",
+                        member != null ? "있음" : "없음",
+                        member != null && member.getUserImg() != null ? member.getUserImg() : "null");
             }
+
+            // URL 인코딩 전 최종 값 확인
+            log.info("URL 인코딩 전 userProfileImg: {}", userProfileImg);
 
             String encodedRoomId = URLEncoder.encode(roomId, StandardCharsets.UTF_8);
             String encodedTitle = URLEncoder.encode(title != null ? title : "회의", StandardCharsets.UTF_8);
@@ -249,11 +262,18 @@ public class MeetingSetupController {
             String encodedProfileImg = URLEncoder.encode(userProfileImg, StandardCharsets.UTF_8);
             String encodedWorkspaceCd = URLEncoder.encode(workspaceCd, StandardCharsets.UTF_8);
 
-            return String.format(
+            log.info("URL 인코딩 후 userProfileImg: {}", encodedProfileImg);
+
+            String finalUrl = String.format(
                     "%s/ocean-video-chat-complete.html?roomId=%s&meetingTitle=%s&peerId=%s&displayName=%s&userProfileImg=%s&workspaceId=%s",
                     mediaServerUrl, encodedRoomId, encodedTitle, encodedUserId,
                     encodedDisplayName, encodedProfileImg, encodedWorkspaceCd
             );
+
+            log.info("최종 생성된 URL의 userProfileImg 파라미터 확인: {}", encodedProfileImg);
+
+            return finalUrl;
+
         } catch (Exception e) {
             log.error("URL 인코딩 실패", e);
             return String.format("%s/ocean-video-chat-complete.html?roomId=%s&meetingTitle=%s",
