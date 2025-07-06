@@ -133,6 +133,13 @@
             transition: all 0.3s ease;
         }
 
+        /* 원격 비디오 플레이스홀더도 동일하게 적용 */
+        .video-container .video-placeholder {
+            width: 80px;
+            height: 80px;
+            font-size: 28px;
+        }
+
         .video-container:hover {
             border-color: #4a9eff;
         }
@@ -149,16 +156,28 @@
         }
 
         .video-placeholder {
-            width: 80px;
-            height: 80px;
-            background: #3a3a3a;
+            width: 100px;
+            height: 100px;
             border-radius: 50%;
+            background: #4a9eff;
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 600;
-            color: #666;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            overflow: hidden;
+        }
+
+        .video-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
         }
 
         .video-info {

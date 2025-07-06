@@ -460,7 +460,8 @@ class MeetingSetup {
         autoRecord: requestData.autoRecord,
         muteOnJoin: requestData.muteOnJoin,
         videoQuality: requestData.videoQuality,
-        meetingTitle: requestData.title
+        meetingTitle: requestData.title,
+        userProfileImg: result.userProfileImg || ''  // ⭐ 프로필 이미지 추가
       })}`;
 
     } catch (error) {

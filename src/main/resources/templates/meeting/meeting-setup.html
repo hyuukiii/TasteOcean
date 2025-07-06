@@ -106,8 +106,7 @@
                         <input type="text"
                                id="meetingTitle"
                                name="meetingTitle"
-                               placeholder="예: 주간 팀 미팅"
-                               th:value="${'제목을 입력해주세요 - ' + #temporals.format(#temporals.createNow(), 'MM월 dd일')}"
+                               placeholder="제목을 입력해주세요 (예: 주간 팀 미팅)"
                                required>
                     </div>
 
@@ -148,6 +147,7 @@
                                 <span class="option-desc">호스트가 승인해야 입장 가능합니다</span>
                             </div>
                         </label>
+
                     </div>
 
                     <div class="form-group">

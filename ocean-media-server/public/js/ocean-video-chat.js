@@ -37,6 +37,8 @@
 
         // ⭐ 토큰에서 사용자 정보 가져오기 (displayName보다 먼저 실행)
         const userInfo = getUserInfoFromToken();
+        // 토큰에서 사용자 이미지 가져오기
+        const userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
         console.log('토큰에서 추출한 사용자 정보:', userInfo);
 
         // ⭐ 사용자 정보 설정 (순서 중요!)
@@ -729,6 +731,14 @@
             } else {
                 videoBtn.classList.add('active');
                 localVideo.style.display = 'none';
+
+                // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
+                if (userProfileImg && userProfileImg !== 'null') {
+                    localPlaceholder.innerHTML = `<img src="${userProfileImg}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                } else {
+                    localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
+                }
+
                 localPlaceholder.style.display = 'flex';
                 if (videoProducer) videoProducer.pause();
             }
@@ -1282,15 +1292,21 @@
         }
 
         // 원격 비디오 추가
-        function addRemoteVideo(peerId, displayName) {
+        function addRemoteVideo(peerId, displayName, profileImg) {
             const videoGrid = document.getElementById('videoGrid');
 
             const container = document.createElement('div');
             container.className = 'video-container';
             container.id = `container-${peerId}`;
+
+            // 프로필 이미지가 있으면 표시, 없으면 이니셜
+            const placeholderContent = profileImg && profileImg !== 'null'
+                ? `<img src="${profileImg}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`
+                : displayName.charAt(0).toUpperCase();
+
             container.innerHTML = `
                 <video id="video-${peerId}" autoplay playsinline></video>
-                <div class="video-placeholder" style="display: flex;">${displayName.charAt(0).toUpperCase()}</div>
+                <div class="video-placeholder" style="display: flex;">${placeholderContent}</div>
                 <div class="video-info">
                     <span>${displayName}</span>
                     <span class="mic-status">
@@ -1371,6 +1387,15 @@
         window.addEventListener('load', () => {
             // displayName과 roomName 초기화
             document.getElementById('localName').textContent = displayName;
+
+                // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
+                const localPlaceholder = document.getElementById('localPlaceholder');
+                if (userProfileImg && userProfileImg !== 'null') {
+                    localPlaceholder.innerHTML = `<img src="${userProfileImg}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                } else {
+                    localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
+                }
+
             document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
 
             // ⭐ 회의 제목 설정
