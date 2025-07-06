@@ -37,14 +37,30 @@
 
         // ⭐ 토큰에서 사용자 정보 가져오기 (displayName보다 먼저 실행)
         const userInfo = getUserInfoFromToken();
+
         // 토큰에서 사용자 이미지 가져오기
-        const userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
+        let userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
+
+        // URL 디코딩 및 포트 수정
+        if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
+            userProfileImg = decodeURIComponent(userProfileImg);
+
+            // 8081 포트를 8080으로 변경 (phpMyAdmin 포트를 Spring Boot 포트로)
+            if (userProfileImg.includes(':8081')) {
+                userProfileImg = userProfileImg.replace(':8081', ':8080');
+                console.log('프로필 이미지 포트 수정: 8081 → 8080');
+            }
+
+            console.log('최종 프로필 이미지 URL:', userProfileImg);
+        }
+
+        console.log('토큰에서 추출한 사용자 정보:', userInfo);
 
         // 디버깅 로그 추가
-        console.log('=== 프로필 이미지 디버깅 ===');
-        console.log('토큰에서 추출한 전체 사용자 정보:', userInfo);
-        console.log('userProfileImg 값:', userProfileImg);
-        console.log('URL 파라미터의 userProfileImg:', urlParams.get('userProfileImg'));
+        // console.log('=== 프로필 이미지 디버깅 ===');
+        // console.log('토큰에서 추출한 전체 사용자 정보:', userInfo);
+        // console.log('userProfileImg 값:', userProfileImg);
+        // console.log('URL 파라미터의 userProfileImg:', urlParams.get('userProfileImg'));
 
 
         // ⭐ 사용자 정보 설정 (순서 중요!)
@@ -722,7 +738,7 @@
             showToast(isAudioOn ? '마이크 켜짐' : '마이크 꺼짐');
         }
 
-        // 2. toggleVideo 함수 수정
+        // toggleVideo 함수도 동일하게 수정
         function toggleVideo() {
             isVideoOn = !isVideoOn;
             const videoBtn = document.getElementById('videoBtn');
@@ -744,13 +760,8 @@
 
                 // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
                 if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
-                    // URL 디코딩 (URLEncoder로 인코딩된 경우)
-                    let imgSrc = decodeURIComponent(userProfileImg);
-
-                    console.log('디코딩된 이미지 URL:', imgSrc);
-
                     localPlaceholder.innerHTML = `
-                        <img src="${imgSrc}"
+                        <img src="${userProfileImg}"
                              alt="${displayName}"
                              style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
                              onerror="this.onerror=null; this.parentElement.innerHTML='${displayName.charAt(0).toUpperCase()}'">
@@ -1410,48 +1421,54 @@
             // displayName과 roomName 초기화
             document.getElementById('localName').textContent = displayName;
 
-                // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
-                const localPlaceholder = document.getElementById('localPlaceholder');
+            // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
+            const localPlaceholder = document.getElementById('localPlaceholder');
 
-                console.log('페이지 로드 - 프로필 이미지 초기화');
-                console.log('userProfileImg:', userProfileImg);
+            console.log('페이지 로드 - 프로필 이미지 초기화');
+            console.log('userProfileImg:', userProfileImg);
 
-                if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
-                        // URL 디코딩
-                        let imgSrc = decodeURIComponent(userProfileImg);
+            if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
+                // URL 디코딩
+                let imgSrc = decodeURIComponent(userProfileImg);
 
-                        console.log('페이지 로드 - 디코딩된 이미지 URL:', imgSrc);
+                // ⭐ 포트 8081을 8080으로 변경
+                if (imgSrc.includes(':8081')) {
+                    imgSrc = imgSrc.replace(':8081', ':8080');
+                    console.log('프로필 이미지 포트 수정: 8081 → 8080');
+                }
 
-                        localPlaceholder.innerHTML = `
-                            <img src="${imgSrc}"
-                                 alt="${displayName}"
-                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
-                                 onerror="this.onerror=null; this.parentElement.innerHTML='${displayName.charAt(0).toUpperCase()}'">
-                        `;
-                    } else {
-                        localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
-                    }
+                console.log('페이지 로드 - 최종 이미지 URL:', imgSrc);
 
-            document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
+                localPlaceholder.innerHTML = `
+                    <img src="${imgSrc}"
+                         alt="${displayName}"
+                         style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                         onerror="this.onerror=null; this.parentElement.innerHTML='${displayName.charAt(0).toUpperCase()}'">
+                `;
+            } else {
+                localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
+            }
+
+            // ⭐ 이 줄을 삭제해야 합니다! (이미지를 덮어쓰는 문제의 원인)
+            // document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
 
             // ⭐ 회의 제목 설정
             document.getElementById('roomName').textContent = meetingTitle;
-            //document.getElementById('roomName').textContent = meetingTitle || '회의';
 
-                // 회의 옵션 적용
-                if (meetingOptions.muteOnJoin) {
-                    isAudioOn = false;
-                    document.getElementById('micBtn').classList.add('active');
-                }
+            // 회의 옵션 적용
+            if (meetingOptions.muteOnJoin) {
+                isAudioOn = false;
+                document.getElementById('micBtn').classList.add('active');
+            }
 
-                // 녹화 자동 시작
-                if (meetingOptions.autoRecord) {
-                    setTimeout(() => {
-                        if (socket && socket.connected) {
-                            startRecording();
-                        }
-                    }, 3000);
-                }
+            // 녹화 자동 시작
+            if (meetingOptions.autoRecord) {
+                setTimeout(() => {
+                    if (socket && socket.connected) {
+                        startRecording();
+                    }
+                }, 3000);
+            }
 
             // 채팅 입력 필드 이벤트 리스너 추가
             const chatInput = document.getElementById('chatInputField');
