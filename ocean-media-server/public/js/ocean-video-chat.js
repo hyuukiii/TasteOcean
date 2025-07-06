@@ -39,7 +39,13 @@
         const userInfo = getUserInfoFromToken();
         // 토큰에서 사용자 이미지 가져오기
         const userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
-        console.log('토큰에서 추출한 사용자 정보:', userInfo);
+
+        // 디버깅 로그 추가
+        console.log('=== 프로필 이미지 디버깅 ===');
+        console.log('토큰에서 추출한 전체 사용자 정보:', userInfo);
+        console.log('userProfileImg 값:', userProfileImg);
+        console.log('URL 파라미터의 userProfileImg:', urlParams.get('userProfileImg'));
+
 
         // ⭐ 사용자 정보 설정 (순서 중요!)
         const userId = userInfo?.userId;
@@ -732,11 +738,29 @@
                 videoBtn.classList.add('active');
                 localVideo.style.display = 'none';
 
+                // 디버깅 로그 추가
+                console.log('비디오 OFF - 프로필 이미지 설정 시도');
+                console.log('userProfileImg 값:', userProfileImg);
+
                 // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
-                if (userProfileImg && userProfileImg !== 'null') {
-                    localPlaceholder.innerHTML = `<img src="${userProfileImg}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
+                    // 이미지 경로가 상대 경로인지 확인하고 절대 경로로 변환
+                    const imgSrc = userProfileImg.startsWith('http')
+                        ? userProfileImg
+                        : (userProfileImg.startsWith('/')
+                            ? userProfileImg
+                            : '/' + userProfileImg);
+
+                    localPlaceholder.innerHTML = `
+                        <img src="${imgSrc}"
+                             alt="${displayName}"
+                             style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                             onerror="this.onerror=null; this.parentElement.innerHTML='${displayName.charAt(0).toUpperCase()}'">
+                    `;
+                    console.log('프로필 이미지 HTML 설정됨:', localPlaceholder.innerHTML);
                 } else {
                     localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
+                    console.log('이니셜 표시됨:', displayName.charAt(0).toUpperCase());
                 }
 
                 localPlaceholder.style.display = 'flex';
@@ -1390,16 +1414,47 @@
 
                 // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
                 const localPlaceholder = document.getElementById('localPlaceholder');
-                if (userProfileImg && userProfileImg !== 'null') {
-                    localPlaceholder.innerHTML = `<img src="${userProfileImg}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+
+                console.log('페이지 로드 - 프로필 이미지 초기화');
+                console.log('userProfileImg:', userProfileImg);
+
+                if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
+                        const imgSrc = userProfileImg.startsWith('http')
+                            ? userProfileImg
+                            : (userProfileImg.startsWith('/')
+                                ? userProfileImg
+                                : '/' + userProfileImg);
+
+                        localPlaceholder.innerHTML = `
+                            <img src="${imgSrc}"
+                                 alt="${displayName}"
+                                 style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                                 onerror="this.onerror=null; this.parentElement.innerHTML='${displayName.charAt(0).toUpperCase()}'">
+                        `;
                 } else {
-                    localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
+                  localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
                 }
 
             document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
 
             // ⭐ 회의 제목 설정
-            document.getElementById('roomName').textContent = meetingTitle || '회의';
+            document.getElementById('roomName').textContent = meetingTitle;
+            //document.getElementById('roomName').textContent = meetingTitle || '회의';
+
+                // 회의 옵션 적용
+                if (meetingOptions.muteOnJoin) {
+                    isAudioOn = false;
+                    document.getElementById('micBtn').classList.add('active');
+                }
+
+                // 녹화 자동 시작
+                if (meetingOptions.autoRecord) {
+                    setTimeout(() => {
+                        if (socket && socket.connected) {
+                            startRecording();
+                        }
+                    }, 3000);
+                }
 
             // 채팅 입력 필드 이벤트 리스너 추가
             const chatInput = document.getElementById('chatInputField');
@@ -1415,6 +1470,41 @@
                 toggleFullscreen(this);
             });
         });
+
+        // 4. 원격 사용자의 비디오가 꺼졌을 때도 프로필 처리 (handleRemoteVideoOff 함수 추가/수정)
+        function handleRemoteVideoOff(peerId, userInfo) {
+            const remoteContainer = document.getElementById(`remote-${peerId}`);
+            if (!remoteContainer) return;
+
+            const remoteVideo = remoteContainer.querySelector('video');
+            const remotePlaceholder = remoteContainer.querySelector('.video-placeholder');
+
+            if (remoteVideo) {
+                remoteVideo.style.display = 'none';
+            }
+
+            if (remotePlaceholder) {
+                // 원격 사용자의 프로필 이미지 처리
+                if (userInfo?.profileImg && userInfo.profileImg !== 'null') {
+                    const imgSrc = userInfo.profileImg.startsWith('http')
+                        ? userInfo.profileImg
+                        : (userInfo.profileImg.startsWith('/')
+                            ? userInfo.profileImg
+                            : '/' + userInfo.profileImg);
+
+                    remotePlaceholder.innerHTML = `
+                        <img src="${imgSrc}"
+                             alt="${userInfo.displayName || '참가자'}"
+                             style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                             onerror="this.onerror=null; this.parentElement.innerHTML='${(userInfo.displayName || '참가자').charAt(0).toUpperCase()}'">
+                    `;
+                } else {
+                    remotePlaceholder.textContent = (userInfo?.displayName || '참가자').charAt(0).toUpperCase();
+                }
+
+                remotePlaceholder.style.display = 'flex';
+            }
+        }
 
         // 전체화면 토글 함수
         function toggleFullscreen(element) {

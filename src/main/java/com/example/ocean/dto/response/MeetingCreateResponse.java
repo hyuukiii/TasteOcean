@@ -46,4 +46,9 @@ public class MeetingCreateResponse {
      * 에러 코드 (실패 시)
      */
     private String errorCode;
+
+    /**
+     * 사용자 프로필 이미지 URL
+     */
+    private String userProfileImg;
 }

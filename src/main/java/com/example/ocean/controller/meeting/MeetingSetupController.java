@@ -112,66 +112,56 @@ public class MeetingSetupController {
                 throw new SecurityException("워크스페이스 접근 권한이 없습니다.");
             }
 
-            // 룸 ID 생성
+            // 회의 타이틀 생성
+            String title = (request.getTitle() != null && !request.getTitle().isEmpty())
+                    ? request.getTitle()
+                    : user.getName() + "님의 회의";
+
+            // 회의 룸 ID 생성
             String roomId = generateRoomId(request.getMeetingType());
 
-            // DB에 미팅룸 정보 저장
+            // 미팅룸 DB 저장
             meetingService.createMeetingRoom(
                     roomId,
-                    request.getTitle(),
+                    title,
                     request.getWorkspaceCd(),
                     user.getId(),
                     request.getMeetingType()
             );
 
-            // 회의 옵션 저장
-            meetingService.saveMeetingOptions(roomId, request);
+            // 워크스페이스 멤버 정보 조회 (프로필 이미지 포함)
+            WorkspaceMember member = workspaceService.findMemberByWorkspaceAndUser(
+                    request.getWorkspaceCd(),
+                    user.getId()
+            );
 
-            // 사용자 설정 저장 (다음 회의에서 재사용)
-            meetingService.saveUserPreferences(user.getId(), request);
+            // 참가 URL 생성 (프로필 이미지 포함)
+            String joinUrl = buildJoinUrl(roomId, title, request.getWorkspaceCd(), user, member);
 
-            // 멤버 초대 처리
+            /* 초대된 멤버들에게 이메일 발송
             if (request.getInvitedMembers() != null && !request.getInvitedMembers().isEmpty()) {
-                for (String memberId : request.getInvitedMembers()) {
-                    meetingService.inviteMember(roomId, memberId, user.getId());
-                }
-            }
-
-            // 이메일 초대 처리
-            if (request.getInvitedEmails() != null && !request.getInvitedEmails().isEmpty()) {
                 emailService.sendMeetingInvitations(
-                        roomId,
-                        request.getTitle(),
-                        request.getInvitedEmails(),
+                        request.getInvitedMembers(),
+                        title,
+                        joinUrl,
                         user.getName()
                 );
             }
-
-            // 캘린더 일정 생성 (예약된 경우)
-            if (request.getScheduledTime() != null) {
-                meetingService.createCalendarEvent(
-                        roomId,
-                        request.getTitle(),
-                        request.getScheduledTime(),
-                        request.getDuration(),
-                        user.getId()
-                );
-            }
+            */
 
             log.info("회의 생성 완료: roomId={}, title={}, creator={}",
-                    roomId, request.getTitle(), user.getId());
+                    roomId, title, user.getId());
 
-            // 응답 생성
             return MeetingCreateResponse.builder()
-                    .roomId(roomId)
-                    .joinUrl(buildJoinUrl(roomId, request.getTitle()))
-                    .displayName(user.getName())
                     .success(true)
+                    .roomId(roomId)
+                    .joinUrl(joinUrl)
+                    .displayName(user.getName())
+                    .userProfileImg(member != null ? member.getUserImg() : null)  // 프로필 이미지 추가
                     .build();
 
         } catch (Exception e) {
             log.error("회의 생성 실패", e);
-
             return MeetingCreateResponse.builder()
                     .success(false)
                     .errorMessage(e.getMessage())
@@ -181,6 +171,7 @@ public class MeetingSetupController {
 
     /**
      * 빠른 회의 시작 (설정 페이지 건너뛰기)
+     * MeetingSetupController.java의 일부
      */
     @PostMapping("/quick-start")
     @ResponseBody
@@ -189,6 +180,12 @@ public class MeetingSetupController {
             @AuthenticationPrincipal UserPrincipal user) {
 
         try {
+            // 워크스페이스 멤버 정보 조회 (프로필 이미지 포함)
+            WorkspaceMember member = workspaceService.findMemberByWorkspaceAndUser(
+                    workspaceCd,
+                    user.getId()
+            );
+
             // 기본 설정으로 회의 생성
             MeetingCreateRequest request = MeetingCreateRequest.builder()
                     .title("빠른 회의 - " + user.getName())
@@ -198,7 +195,8 @@ public class MeetingSetupController {
                     .muteOnJoin(true)
                     .build();
 
-            return createMeeting(request, user);  // createMeeting이 이미 title을 처리함
+            // createMeeting 메서드가 이미 member 정보를 조회하므로 그대로 호출
+            return createMeeting(request, user);
 
         } catch (Exception e) {
             log.error("빠른 회의 시작 실패", e);
@@ -224,18 +222,32 @@ public class MeetingSetupController {
     }
 
     /**
-     * 회의 참가 URL 생성
+     * 회의 참가 URL 생성 (프로필 이미지 포함)
      */
-    private String buildJoinUrl(String roomId, String title) {
+    private String buildJoinUrl(String roomId, String title, String workspaceCd,
+                                UserPrincipal user, WorkspaceMember member) {
         try {
+            String userProfileImg = "";
+            if (member != null && member.getUserImg() != null && !member.getUserImg().isEmpty()) {
+                userProfileImg = member.getUserImg().startsWith("/")
+                        ? member.getUserImg()
+                        : "/" + member.getUserImg();
+            }
+
             String encodedRoomId = URLEncoder.encode(roomId, StandardCharsets.UTF_8);
             String encodedTitle = URLEncoder.encode(title != null ? title : "회의", StandardCharsets.UTF_8);
+            String encodedUserId = URLEncoder.encode(user.getId(), StandardCharsets.UTF_8);
+            String encodedDisplayName = URLEncoder.encode(user.getName(), StandardCharsets.UTF_8);
+            String encodedProfileImg = URLEncoder.encode(userProfileImg, StandardCharsets.UTF_8);
+            String encodedWorkspaceCd = URLEncoder.encode(workspaceCd, StandardCharsets.UTF_8);
 
-            return String.format("%s/ocean-video-chat-complete.html?roomId=%s&meetingTitle=%s",
-                    mediaServerUrl, encodedRoomId, encodedTitle);
+            return String.format(
+                    "%s/ocean-video-chat-complete.html?roomId=%s&meetingTitle=%s&peerId=%s&displayName=%s&userProfileImg=%s&workspaceId=%s",
+                    mediaServerUrl, encodedRoomId, encodedTitle, encodedUserId,
+                    encodedDisplayName, encodedProfileImg, encodedWorkspaceCd
+            );
         } catch (Exception e) {
             log.error("URL 인코딩 실패", e);
-            // 인코딩 실패 시 원본 값 사용
             return String.format("%s/ocean-video-chat-complete.html?roomId=%s&meetingTitle=%s",
                     mediaServerUrl, roomId, title != null ? title : "회의");
         }
