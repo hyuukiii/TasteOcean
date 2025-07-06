@@ -32,7 +32,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('roomId');
         const workspaceId = urlParams.get('workspaceId');
-        const peerId = urlParams.get('peerId');
+        //const peerId = urlParams.get('peerId');
         const displayName = urlParams.get('displayName') || '사용자';
         const meetingTitle = urlParams.get('meetingTitle') || '회의';  // ⭐ 회의 제목 추가
 
@@ -41,7 +41,6 @@
         console.log('토큰에서 추출한 사용자 정보:', userInfo);
 
         const userId = userInfo?.userId;
-        const displayName = userInfo?.userName || '참가자';
         const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
 
         // 회의 옵션 파라미터 읽기
