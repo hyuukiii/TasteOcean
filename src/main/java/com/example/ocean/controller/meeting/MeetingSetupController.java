@@ -2,7 +2,7 @@ package com.example.ocean.controller.meeting;
 
 import com.example.ocean.dto.request.MeetingCreateRequest;
 import com.example.ocean.dto.response.MeetingCreateResponse;
-import com.example.ocean.domain.WorkspaceMember;  // ✅ WorkspaceMemberDto → WorkspaceMember로 변경
+import com.example.ocean.domain.WorkspaceMember;
 import com.example.ocean.security.oauth.UserPrincipal;
 import com.example.ocean.service.MeetingService;
 import com.example.ocean.service.WorkspaceService;
@@ -15,6 +15,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -42,8 +44,8 @@ public class MeetingSetupController {
      * 회의 준비 페이지 표시
      *
      * @param workspaceCd 워크스페이스 코드
-     * @param model Spring MVC Model
-     * @param user 인증된 사용자 정보
+     * @param model       Spring MVC Model
+     * @param user        인증된 사용자 정보
      * @return 회의 준비 페이지 뷰
      */
     @GetMapping("/setup")
@@ -95,7 +97,7 @@ public class MeetingSetupController {
      * 회의 생성 API
      *
      * @param request 회의 생성 요청 데이터
-     * @param user 인증된 사용자 정보
+     * @param user    인증된 사용자 정보
      * @return 생성된 회의 정보
      */
     @PostMapping("/create")
@@ -162,7 +164,7 @@ public class MeetingSetupController {
             // 응답 생성
             return MeetingCreateResponse.builder()
                     .roomId(roomId)
-                    .joinUrl(buildJoinUrl(roomId))
+                    .joinUrl(buildJoinUrl(roomId, request.getTitle()))
                     .displayName(user.getName())
                     .success(true)
                     .build();
@@ -196,7 +198,7 @@ public class MeetingSetupController {
                     .muteOnJoin(true)
                     .build();
 
-            return createMeeting(request, user);
+            return createMeeting(request, user);  // createMeeting이 이미 title을 처리함
 
         } catch (Exception e) {
             log.error("빠른 회의 시작 실패", e);
@@ -224,8 +226,18 @@ public class MeetingSetupController {
     /**
      * 회의 참가 URL 생성
      */
-    private String buildJoinUrl(String roomId) {
-        return String.format("%s/ocean-video-chat-complete.html?roomId=%s",
-                mediaServerUrl, roomId);
+    private String buildJoinUrl(String roomId, String title) {
+        try {
+            String encodedRoomId = URLEncoder.encode(roomId, StandardCharsets.UTF_8);
+            String encodedTitle = URLEncoder.encode(title != null ? title : "회의", StandardCharsets.UTF_8);
+
+            return String.format("%s/ocean-video-chat-complete.html?roomId=%s&meetingTitle=%s",
+                    mediaServerUrl, encodedRoomId, encodedTitle);
+        } catch (Exception e) {
+            log.error("URL 인코딩 실패", e);
+            // 인코딩 실패 시 원본 값 사용
+            return String.format("%s/ocean-video-chat-complete.html?roomId=%s&meetingTitle=%s",
+                    mediaServerUrl, roomId, title != null ? title : "회의");
+        }
     }
 }

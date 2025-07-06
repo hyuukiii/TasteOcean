@@ -32,6 +32,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('roomId');
         const workspaceId = urlParams.get('workspaceId');
+        const peerId = urlParams.get('peerId');
+        const displayName = urlParams.get('displayName') || '사용자';
+        const meetingTitle = urlParams.get('meetingTitle') || '회의';  // ⭐ 회의 제목 추가
 
         // ⭐ 토큰에서 사용자 정보 가져오기
         const userInfo = getUserInfoFromToken();
@@ -1370,10 +1373,8 @@
             document.getElementById('localName').textContent = displayName;
             document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
 
-            const roomNameFromURL = new URLSearchParams(window.location.search).get('roomName');
-            if (roomNameFromURL) {
-                document.getElementById('roomName').textContent = roomNameFromURL;
-            }
+            // ⭐ 회의 제목 설정
+            document.getElementById('roomName').textContent = meetingTitle || '회의';
 
             // 채팅 입력 필드 이벤트 리스너 추가
             const chatInput = document.getElementById('chatInputField');

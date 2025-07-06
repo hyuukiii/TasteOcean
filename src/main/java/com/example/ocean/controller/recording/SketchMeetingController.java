@@ -72,7 +72,8 @@ public class SketchMeetingController {
                     URLEncoder.encode(roomId, StandardCharsets.UTF_8),
                     URLEncoder.encode(workspaceCd, StandardCharsets.UTF_8),
                     URLEncoder.encode(user.getId(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(user.getName(), StandardCharsets.UTF_8)
+                    URLEncoder.encode(user.getName(), StandardCharsets.UTF_8),
+                    URLEncoder.encode("스케치 회의 - " + user.getName(), StandardCharsets.UTF_8)  // ⭐ 제목 추가
             );
 
             log.info("스케치 회의 시작 - 사용자: {}, 룸ID: {}, 워크스페이스: {}",
