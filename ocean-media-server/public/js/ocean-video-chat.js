@@ -41,6 +41,16 @@
         const displayName = userInfo?.userName || '참가자';
         const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
 
+        // 회의 옵션 파라미터 읽기
+        const meetingOptions = {
+            autoRecord: urlParams.get('autoRecord') === 'true',
+            muteOnJoin: urlParams.get('muteOnJoin') === 'true',
+            videoQuality: urlParams.get('videoQuality') || 'HD',
+            waitingRoom: urlParams.get('waitingRoom') === 'true'
+        };
+
+        console.log('회의 옵션:', meetingOptions);
+
         console.log('최종 userId:', userId);
         console.log('최종 displayName:', displayName);
 
@@ -225,12 +235,31 @@
         // ===== 미디어 권한 요청 =====
         async function requestMediaPermissions() {
             try {
+                // 비디오 품질 설정 적용
+                let videoConstraints = {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    frameRate: { ideal: 30 }
+                };
+
+                // 회의 옵션에 따른 비디오 품질 설정
+                if (meetingOptions.videoQuality) {
+                    const qualitySettings = {
+                        'SD': { width: { ideal: 640 }, height: { ideal: 480 } },
+                        'HD': { width: { ideal: 1280 }, height: { ideal: 720 } },
+                        'FHD': { width: { ideal: 1920 }, height: { ideal: 1080 } }
+                    };
+
+                    if (qualitySettings[meetingOptions.videoQuality]) {
+                        videoConstraints = {
+                            ...qualitySettings[meetingOptions.videoQuality],
+                            frameRate: { ideal: 30 }
+                        };
+                    }
+                }
+
                 localStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
-                    },
+                    video: videoConstraints,
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
@@ -242,6 +271,32 @@
                 const localVideo = document.getElementById('localVideo');
                 localVideo.srcObject = localStream;
                 document.getElementById('localPlaceholder').style.display = 'none';
+
+                // ⭐ 입장 시 음소거 옵션 적용
+                if (meetingOptions.muteOnJoin) {
+                    const audioTrack = localStream.getAudioTracks()[0];
+                    if (audioTrack) {
+                        audioTrack.enabled = false;  // 오디오 트랙 비활성화
+                        isAudioOn = false;  // 전역 상태 업데이트
+
+                        // UI 업데이트
+                        const micBtn = document.getElementById('micBtn');
+                        const localMicStatus = document.getElementById('localMicStatus');
+
+                        micBtn.classList.add('active');  // 음소거 상태 표시
+                        localMicStatus.innerHTML = `
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                                <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+                                <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>`;
+
+                        console.log('입장 시 음소거 적용됨');
+                        showToast('입장 시 음소거가 적용되었습니다');
+                    }
+                }
 
             } catch (error) {
                 console.error('미디어 권한 획득 실패:', error);
@@ -432,6 +487,11 @@
                         opusDtx: true
                     }
                 });
+
+                // ⭐ 입장 시 음소거가 적용된 경우 Producer도 일시정지
+                        if (meetingOptions.muteOnJoin) {
+                            audioProducer.pause();
+                        }
 
                 // ⭐ 디버깅을 위해 window에 저장
                 if (!window.producers) window.producers = new Map();
