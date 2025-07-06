@@ -67,13 +67,13 @@ public class SketchMeetingController {
 
             // 미디어 서버로 리다이렉트할 URL 생성
             String redirectUrl = String.format(
-                    "%s/ocean-video-chat-complete.html?roomId=%s&workspaceId=%s&peerId=%s&displayName=%s&meetingType=sketch",
+                    "%s/ocean-video-chat-complete.html?roomId=%s&workspaceId=%s&peerId=%s&displayName=%s&meetingType=sketch&meetingTitle=%s",
                     mediaServerUrl,
                     URLEncoder.encode(roomId, StandardCharsets.UTF_8),
                     URLEncoder.encode(workspaceCd, StandardCharsets.UTF_8),
                     URLEncoder.encode(user.getId(), StandardCharsets.UTF_8),
                     URLEncoder.encode(user.getName(), StandardCharsets.UTF_8),
-                    URLEncoder.encode("스케치 회의 - " + user.getName(), StandardCharsets.UTF_8)  // ⭐ 제목 추가
+                    URLEncoder.encode("스케치 회의 - " + user.getName(), StandardCharsets.UTF_8)
             );
 
             log.info("스케치 회의 시작 - 사용자: {}, 룸ID: {}, 워크스페이스: {}",
