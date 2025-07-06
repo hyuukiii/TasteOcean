@@ -29,18 +29,19 @@
         let localStream;
         let screenStream;
 
+        // URL 파라미터 파싱
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('roomId');
         const workspaceId = urlParams.get('workspaceId');
-        //const peerId = urlParams.get('peerId');
-        const displayName = urlParams.get('displayName') || '사용자';
-        const meetingTitle = urlParams.get('meetingTitle') || '회의';  // ⭐ 회의 제목 추가
+        const meetingTitle = urlParams.get('meetingTitle') || '회의';
 
-        // ⭐ 토큰에서 사용자 정보 가져오기
+        // ⭐ 토큰에서 사용자 정보 가져오기 (displayName보다 먼저 실행)
         const userInfo = getUserInfoFromToken();
         console.log('토큰에서 추출한 사용자 정보:', userInfo);
 
+        // ⭐ 사용자 정보 설정 (순서 중요!)
         const userId = userInfo?.userId;
+        const displayName = userInfo?.userName || urlParams.get('displayName') || '참가자';
         const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
 
         // 회의 옵션 파라미터 읽기

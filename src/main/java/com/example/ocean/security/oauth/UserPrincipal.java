@@ -89,6 +89,6 @@ public class UserPrincipal implements OAuth2User, UserDetails {
 
     @Override
     public String getName() {
-        return String.valueOf(id);
+        return username;
     }
 }
