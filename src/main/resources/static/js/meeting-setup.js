@@ -506,86 +506,9 @@ class MeetingSetup {
 }
 
 // 페이지 로드 시 초기화
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   window.meetingSetup = new MeetingSetup();
-
-  // 진행 중인 회의 확인
-  await checkActiveMeeting();
 });
-
-// 진행 중인 회의 확인 함수 수정
-async function checkActiveMeeting() {
-    try {
-        const response = await fetch(`/api/meetings/active?workspaceCd=${workspaceCd}&userId=${currentUserId}`);
-
-        // 204 No Content 응답 처리
-        if (response.status === 204) {
-            console.log('진행 중인 회의가 없습니다');
-            return;
-        }
-
-        if (response.ok) {
-            const contentType = response.headers.get("content-type");
-            if (contentType && contentType.includes("application/json")) {
-                const activeMeeting = await response.json();
-
-                if (activeMeeting && activeMeeting.roomId) {
-                    showActiveMeetingDialog(activeMeeting);
-                }
-            }
-        }
-    } catch (error) {
-        console.error('진행 중인 회의 확인 실패:', error);
-        // API가 없어도 계속 진행
-    }
-}
-
-// 진행 중인 회의 다이얼로그 표시
-function showActiveMeetingDialog(meeting) {
-    const dialog = document.createElement('div');
-    dialog.className = 'active-meeting-dialog';
-    dialog.innerHTML = `
-        <div class="dialog-overlay"></div>
-        <div class="dialog-content">
-            <h3>진행 중인 회의가 있습니다</h3>
-            <p><strong>${meeting.title}</strong></p>
-            <p>시작 시간: ${new Date(meeting.startTime).toLocaleString()}</p>
-            <p>참가자: ${meeting.participantCount}명</p>
-            <div class="dialog-buttons">
-                <button class="btn-primary" onclick="rejoinMeeting('${meeting.roomId}')">회의 재입장</button>
-                <button class="btn-secondary" onclick="closeActiveMeetingDialog()">새 회의 시작</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(dialog);
-}
-
-// 회의 재입장 함수
-function rejoinMeeting(roomId) {
-    // 기존 미디어 스트림 정리
-    if (window.meetingSetup) {
-        window.meetingSetup.cleanup();
-    }
-
-    // 회의실로 이동
-    window.location.href = `${mediaServerUrl}/ocean-video-chat-complete.html?${new URLSearchParams({
-        roomId: roomId,
-        workspaceId: workspaceCd,
-        peerId: currentUserId,
-        displayName: userName || '사용자',
-        meetingType: 'sketch',
-        rejoin: 'true'  // 재입장 표시
-    })}`;
-}
-
-// 다이얼로그 닫기
-function closeActiveMeetingDialog() {
-    const dialog = document.querySelector('.active-meeting-dialog');
-    if (dialog) {
-        dialog.remove();
-    }
-}
 
 // 페이지 언로드 시 정리
 window.addEventListener('beforeunload', () => {

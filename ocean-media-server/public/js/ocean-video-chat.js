@@ -1,13 +1,7 @@
-        // ocean-video-chat.js 상단의 SPRING_BOOT_URL 변수 수정
-        // HTTP 대신 HTTPS 사용하거나 프로토콜 상속
+        // 동적으로 SpringBoot 서버 URL 설정 하기
         const SPRING_BOOT_URL = window.location.hostname === 'localhost'
-            ? 'https://localhost:8080'  // HTTP를 HTTPS로 변경
-            : `https://${window.location.hostname}:8080`;
-
-        // 또는 현재 페이지의 프로토콜을 그대로 사용
-        // const SPRING_BOOT_URL = window.location.hostname === 'localhost'
-        //     ? `${window.location.protocol}//localhost:8080`
-        //     : `${window.location.protocol}//${window.location.hostname}:8080`;
+            ? 'http://localhost:8080'
+            : `http://${window.location.hostname}:8080`;
 
         // ===== UI 상태 관리 =====
         let isVideoOn = true;
@@ -32,7 +26,6 @@
         let videoProducer;
         let screenProducer;
         let consumers = new Map();
-        let isHost = false;  // 호스트 여부
 
         // ===== 녹화 기능 ======
         let currentRecordingId = null;
@@ -253,33 +246,6 @@
                    showToast(`${stoppedBy}님이 녹화를 종료했습니다`);
                }
             });
-
-            // 회의 종료 알림 수신
-            socket.on('meeting-ended', ({ endedBy }) => {
-                // 알림 표시
-                alert(`${endedBy}님이 회의를 종료했습니다.`);
-
-                // 모든 미디어 정리
-                if (localStream) {
-                    localStream.getTracks().forEach(track => track.stop());
-                }
-                if (screenStream) {
-                    screenStream.getTracks().forEach(track => track.stop());
-                }
-
-                // Socket 연결 종료
-                if (socket) {
-                    socket.disconnect();
-                }
-
-                // 워크스페이스 메인으로 이동
-                const urlParams = new URLSearchParams(window.location.search);
-                const workspaceId = urlParams.get('workspaceId');
-
-                setTimeout(() => {
-                     window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
-                }, 2000);
-            });
         }
 
         // 페이지 로드 시 녹화 상태 확인
@@ -404,46 +370,21 @@
 
             // 방 참가
             socket.emit('join-room', {
-               roomId,
-               workspaceId,
-               peerId,
-               displayName,
-               meetingType,
-               userId: actualUserId
-                }, (response) => {
-                     console.log('join-room 응답:', response);
-
-                  // 서버로부터 호스트 정보 받기
-                  if (response && response.isHost !== undefined) {
-                      isHost = response.isHost;
-                      console.log('호스트 여부:', isHost);
-
-                      // 종료 버튼 상태 업데이트
-                      updateEndCallButton();
-
-                      // 호스트인 경우 안내 메시지
-                      if (isHost) {
-                          showToast('회의 호스트로 입장했습니다');
-                      }
-                  }
-
-                  // 기존 참가자 정보 처리
-                  if (response && response.existingPeers) {
-                        response.existingPeers.forEach(peer => {
-                        addRemoteVideo(peer.id, peer.displayName);
-                        });
-                        updateParticipantCount();
-                  }
-                });
+                roomId,
+                workspaceId,
+                peerId,
+                displayName,
+                userId: actualUserId  // ⭐ 수정된 userId 전달
+            });
 
             // 디버깅을 위해 로그 추가
-            //console.log('join-room 전송 데이터:', {
-                //roomId,
-                //workspaceId,
-                //peerId,
-                //displayName,
-                //userId: actualUserId
-            //});
+            console.log('join-room 전송 데이터:', {
+                roomId,
+                workspaceId,
+                peerId,
+                displayName,
+                userId: actualUserId
+            });
 
             socket.on('room-joined', async (data) => {
                 console.log('방 참가 성공:', data);
@@ -469,32 +410,6 @@
 
                 showToast('회의에 참가했습니다');
             });
-        }
-
-        // 종료 버튼 업데이트 함수 (누락된 함수)
-        function updateEndCallButton() {
-            const endCallBtn = document.querySelector('.control-btn.danger');
-
-            if (!endCallBtn) {
-                console.warn('종료 버튼을 찾을 수 없습니다');
-                return;
-            }
-
-            if (!isHost) {
-                // 호스트가 아니면 버튼 비활성화 스타일 적용
-                endCallBtn.style.opacity = '0.5';
-                endCallBtn.style.cursor = 'not-allowed';
-                endCallBtn.title = '회의 종료는 호스트만 가능합니다';
-
-                // 시각적 표시를 위해 클래스 추가
-                endCallBtn.classList.add('disabled-for-non-host');
-            } else {
-                // 호스트인 경우 정상 표시
-                endCallBtn.style.opacity = '1';
-                endCallBtn.style.cursor = 'pointer';
-                endCallBtn.title = '회의 종료';
-                endCallBtn.classList.remove('disabled-for-non-host');
-            }
         }
 
         // ===== MediaSoup Device 초기화 =====
@@ -1471,24 +1386,7 @@
 
         // 방 나가기 (화상채팅 완전 종료)
         function leaveRoom() {
-            // 호스트가 아닌 경우 체크
-            if (!isHost) {
-                alert('회의 종료는 호스트만 가능합니다.\n회의에서 나가려면 상단의 나가기 버튼을 사용하세요.');
-                return;
-            }
-
-            // ⭐ 호스트용 메시지로 변경
-            if (confirm('회의를 종료하시겠습니까?\n모든 참가자가 회의에서 나가게 됩니다.')) {
-
-                // ⭐ 서버에 회의 종료 알림 (다른 참가자들에게 알림이 가도록)
-                if (socket && socket.connected) {
-                    socket.emit('end-meeting', { roomId }, (response) => {
-                        if (response && response.success) {
-                            console.log('회의 종료 알림 전송 완료');
-                        }
-                    });
-                }
-
+            if (confirm('회의를 나가시겠습니까?')) {
                 // 모든 프로듀서 정리
                 if (audioProducer) audioProducer.close();
                 if (videoProducer) videoProducer.close();
@@ -1514,7 +1412,7 @@
                     socket.disconnect();
                 }
 
-                // workspaceId를 가져와서 워크스페이스 메인 페이지로 이동
+                // ⭐ workspaceId를 가져와서 워크스페이스 메인 페이지로 이동
                 const urlParams = new URLSearchParams(window.location.search);
                 const workspaceId = urlParams.get('workspaceId');
 
@@ -1553,14 +1451,16 @@
             // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
             const localPlaceholder = document.getElementById('localPlaceholder');
 
+            //console.log('페이지 로드 - 프로필 이미지 초기화');
+            //console.log('userProfileImg:', userProfileImg);
+
             if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
                 // URL 디코딩
                 let imgSrc = decodeURIComponent(userProfileImg);
 
-                // ⭐ 상대 경로를 절대 경로로 변환 - HTTPS 사용
+                // ⭐ 상대 경로를 절대 경로로 변환 (이 부분이 추가됨!)
                 if (!imgSrc.startsWith('http')) {
-                    // HTTPS로 변경
-                    imgSrc = 'https://localhost:8080' + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);
+                    imgSrc = 'http://localhost:8080' + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);
                     //console.log('프로필 이미지를 절대 경로로 변환:', imgSrc);
                 }
 
@@ -1581,11 +1481,11 @@
                 localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
             }
 
+            // ⭐ 이 줄을 삭제해야 합니다! (이미지를 덮어쓰는 문제의 원인)
+            // document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
+
             // ⭐ 회의 제목 설정
             document.getElementById('roomName').textContent = meetingTitle;
-
-            // ⭐ 종료 버튼 초기 상태 설정 (누락된 함수 호출)
-            updateEndCallButton();
 
             // 회의 옵션 적용
             if (meetingOptions.muteOnJoin) {
@@ -1604,25 +1504,17 @@
 
             // 채팅 입력 필드 이벤트 리스너 추가
             const chatInput = document.getElementById('chatInputField');
-            if (chatInput) {
-                // 포커스 아웃 시 타이핑 중지
-                chatInput.addEventListener('blur', stopTyping);
-            }
 
-            // ⭐ init 함수 호출 시 에러 처리 추가
-            init().catch(error => {
-                console.error('초기화 중 에러 발생:', error);
-            });
+            // 포커스 아웃 시 타이핑 중지
+            chatInput.addEventListener('blur', stopTyping);
 
+            init();
             updateParticipantCount();
 
             // 로컬 비디오 더블클릭 시 전체화면
-            const localVideoContainer = document.getElementById('localVideoContainer');
-            if (localVideoContainer) {
-                localVideoContainer.addEventListener('dblclick', function() {
-                    toggleFullscreen(this);
-                });
-            }
+            document.getElementById('localVideoContainer').addEventListener('dblclick', function() {
+                toggleFullscreen(this);
+            });
         });
 
         // 4. 원격 사용자의 비디오가 꺼졌을 때도 프로필 처리 (handleRemoteVideoOff 함수 추가/수정)

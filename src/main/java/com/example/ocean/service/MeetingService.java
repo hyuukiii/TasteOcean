@@ -1,10 +1,7 @@
 package com.example.ocean.service;
 
-import com.example.ocean.dto.MeetingInfoDto;
-import com.example.ocean.dto.MeetingRoomDto;
 import com.example.ocean.dto.UserMeetingPreferences;
 import com.example.ocean.dto.request.MeetingCreateRequest;
-import jakarta.persistence.NoResultException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -463,112 +460,6 @@ public class MeetingService {
         } catch (Exception e) {
             log.error("캘린더 일정 생성 실패: roomId={}", roomId, e);
             // 캘린더 일정 생성 실패해도 회의는 진행 가능
-        }
-    }
-
-    /**
-     * 사용자의 진행 중인 회의 조회
-     */
-    public MeetingRoomDto getActiveMeetingForUser(String workspaceCd, String userId) {
-        String query = """
-        SELECT mr.*, 
-               (SELECT COUNT(*) FROM MEETING_PARTICIPANTS mp 
-                WHERE mp.ROOM_CD = mr.ROOM_CD 
-                AND mp.ACTIVE_STATE = 'Y') as participantCount
-        FROM MEETING_ROOMS mr
-        JOIN MEETING_PARTICIPANTS mp ON mr.ROOM_CD = mp.ROOM_CD
-        WHERE mr.WORKSPACE_CD = :workspaceCd
-        AND mp.USER_ID = :userId
-        AND mr.STATUS = 'IN_PROGRESS'
-        AND mp.ACTIVE_STATE = 'Y'
-        ORDER BY mr.ACTUAL_START_TIME DESC
-        LIMIT 1
-    """;
-
-        Query queryObj = entityManager.createNativeQuery(query);
-        queryObj.setParameter("workspaceCd", workspaceCd);
-        queryObj.setParameter("userId", userId);
-
-        try {
-            Object[] result = (Object[]) queryObj.getSingleResult();
-
-            return MeetingRoomDto.builder()
-                    .roomId((String) result[0])
-                    .title((String) result[1])
-                    .workspaceCd((String) result[3])
-                    .hostId((String) result[4])
-                    .status((String) result[5])
-                    .startTime((Timestamp) result[8])
-                    .participantCount(((Number) result[10]).intValue())
-                    .build();
-
-        } catch (NoResultException e) {
-            return null;
-        }
-    }
-
-    /**
-     * 회의 정보 조회
-     */
-    public MeetingInfoDto getMeetingInfo(String roomId) {
-        String query = """
-        SELECT ROOM_CD, ROOM_NM, HOST_ID, STATUS, WORKSPACE_CD
-        FROM MEETING_ROOMS
-        WHERE ROOM_CD = :roomId
-    """;
-
-        Query queryObj = entityManager.createNativeQuery(query);
-        queryObj.setParameter("roomId", roomId);
-
-        try {
-            Object[] result = (Object[]) queryObj.getSingleResult();
-
-            return MeetingInfoDto.builder()
-                    .roomId((String) result[0])
-                    .title((String) result[1])
-                    .hostId((String) result[2])
-                    .status((String) result[3])
-                    .workspaceCd((String) result[4])
-                    .build();
-
-        } catch (NoResultException e) {
-            return null;
-        }
-    }
-
-    /**
-     * 회의 상태 업데이트
-     */
-    @Transactional
-    public void updateMeetingStatus(String roomId, String status) {
-        String updateQuery = """
-        UPDATE MEETING_ROOMS 
-        SET STATUS = :status,
-            ACTUAL_END_TIME = CASE 
-                WHEN :status = 'ENDED' THEN NOW() 
-                ELSE ACTUAL_END_TIME 
-            END
-        WHERE ROOM_CD = :roomId
-    """;
-
-        Query query = entityManager.createNativeQuery(updateQuery);
-        query.setParameter("status", status);
-        query.setParameter("roomId", roomId);
-        query.executeUpdate();
-
-        // 종료 시 모든 참가자 비활성화
-        if ("ENDED".equals(status)) {
-            String updateParticipants = """
-            UPDATE MEETING_PARTICIPANTS
-            SET ACTIVE_STATE = 'N',
-                QUIT_DATE = NOW()
-            WHERE ROOM_CD = :roomId
-            AND ACTIVE_STATE = 'Y'
-        """;
-
-            Query participantQuery = entityManager.createNativeQuery(updateParticipants);
-            participantQuery.setParameter("roomId", roomId);
-            participantQuery.executeUpdate();
         }
     }
 

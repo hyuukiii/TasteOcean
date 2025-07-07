@@ -1,8 +1,6 @@
 const roomManager = require('./RoomManager');
 const Peer = require('./Peer');
 const Recorder = require('./recorder');
-// Spring Boot 서버와 통신하는 헬퍼 함수들 (axios 사용)
-const axios = require('axios');
 
 const peers = new Map();
 
@@ -21,187 +19,77 @@ module.exports = (io, worker, router) => {
   io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
 
-    // join-room 이벤트 핸들러 수정
-    socket.on('join-room', async (data, callback) => {
-        try {
-            const { roomId, workspaceId, peerId, displayName, meetingType, userId } = data;
+    socket.on('join-room', async (data) => {
+      try {
+        const { roomId, workspaceId, peerId, displayName, userId } = data;
 
-            console.log(`${displayName} joining room ${roomId}, userId: ${userId}`);
+        // ⭐ 디버깅 로그 추가
+        console.log('join-room 데이터:', { roomId, workspaceId, peerId, displayName, userId });
+        console.log(`${displayName} joining room ${roomId}`);
 
-            // 룸 가져오기 또는 생성
-            let room = roomManager.getRoom(roomId);
-            if (!room) {
-                room = roomManager.createRoom(roomId, workspaceId, router);
-            }
+        // 룸 가져오기 또는 생성
+        let room = roomManager.getRoom(roomId);
+        if (!room) {
+          room = roomManager.createRoom(roomId, workspaceId, router);
+        }
 
-            // Peer 생성
-            const peer = new Peer(socket, roomId, peerId, displayName);
-            peer.userId = userId;
+        // Peer 생성
+        const peer = new Peer(socket, roomId, peerId, displayName);
+        peer.userId = userId;
 
-            // ⭐ Spring Boot 서버에서 회의 정보 확인
-            let isHost = false;
-            try {
-                const meetingInfo = await getMeetingInfo(roomId);
-                if (meetingInfo && meetingInfo.hostId) {
-                    isHost = meetingInfo.hostId === userId;
-                    console.log(`User ${userId} is ${isHost ? 'HOST' : 'PARTICIPANT'} in room ${roomId}`);
-                } else {
-                    console.warn(`Meeting info not found for room ${roomId}, treating as participant`);
-                }
-            } catch (error) {
-                console.error('Failed to get meeting info:', error);
-                // 회의 정보를 가져오지 못해도 계속 진행 (참가자로 처리)
-            }
+        // ⭐ 저장 확인
+        console.log('Peer 생성 완료:', { peerId: peer.id, userId: peer.userId });
 
-            // 피어에 호스트 정보 저장
-            peer.isHost = isHost;
+        peers.set(socket.id, peer);
+        // 룸에 피어 추가 (Peer 인스턴스 자체를 저장)
+        room.peers.set(peerId, peer);
+        console.log(`Peer ${peerId} added to room ${roomId}`);
 
-            console.log('Peer 생성 완료:', {
-                peerId: peer.id,
-                userId: peer.userId,
-                isHost: peer.isHost
-            });
+        // Socket.io 룸 참가
+        socket.join(roomId);
 
-            peers.set(socket.id, peer);
-            room.peers.set(peerId, peer);
+        // 기존 참가자 정보 전송
+        const existingPeers = Array.from(room.peers.values())
+          .filter(p => p.id !== peerId)
+          .map(p => p.toJson());
 
-            // Socket.io 룸 참가
-            socket.join(roomId);
+        socket.emit('room-joined', {
+          roomId,
+          peers: existingPeers
+        });
 
-            // 기존 참가자 정보 전송
-            const existingPeers = Array.from(room.peers.values())
-                .filter(p => p.id !== peerId)
-                .map(p => p.toJson());
+        // 다른 참가자들에게 알림
+        socket.to(roomId).emit('new-peer', {
+          peerId,
+          displayName
+        });
 
-            // ⭐ 콜백으로 호스트 정보와 기존 참가자 정보 전달
-            if (callback && typeof callback === 'function') {
-                callback({
-                    isHost,
-                    existingPeers: existingPeers
-                });
-            }
-
-            // room-joined 이벤트도 발송 (기존 클라이언트 호환성)
-            socket.emit('room-joined', {
-                roomId,
-                peers: existingPeers
-            });
-
-            // 다른 참가자들에게 알림
-            socket.to(roomId).emit('new-peer', {
-                peerId,
-                displayName
-            });
-
-            // 타이밍 문제 해결: 1초 후 기존 참가자들의 producer 정보 전송
+        // ⭐ 타이밍 문제 해결: 1초 후 기존 참가자들의 producer 정보 전송
             setTimeout(() => {
-                console.log(`Sending existing producers to new peer ${peerId}...`);
+              console.log(`Sending existing producers to new peer ${peerId}...`);
 
-                for (const [_, existingPeer] of room.peers) {
-                    if (existingPeer.id !== peerId) {
-                        for (const [producerId, producer] of existingPeer.producers) {
-                            socket.emit('new-producer', {
-                                producerId: producer.id,
-                                peerId: existingPeer.id,
-                                kind: producer.kind
-                            });
-                        }
-                    }
+              for (const [_, existingPeer] of room.peers) {
+                if (existingPeer.id !== peerId) {
+                  console.log(`Peer ${existingPeer.id} has ${existingPeer.producers.size} producers`);
+
+                  for (const [producerId, producer] of existingPeer.producers) {
+                    console.log(`Sending producer ${producerId} (${producer.kind})`);
+
+                    socket.emit('new-producer', {
+                      producerId: producer.id,
+                      peerId: existingPeer.id,
+                      kind: producer.kind
+                    });
+                  }
                 }
-            }, 1000);
+              }
+            }, 1000); // 1초 대기
 
-        } catch (error) {
-            console.error('Join room error:', error);
-
-            if (callback && typeof callback === 'function') {
-                callback({ error: error.message });
-            } else {
-                socket.emit('error', { message: error.message });
-            }
-        }
+      } catch (error) {
+        console.error('Join room error:', error);
+        socket.emit('error', { message: error.message });
+      }
     });
-
-    // ⭐ 회의 종료 이벤트 핸들러
-    socket.on('end-meeting', async (data, callback) => {
-        try {
-            const { roomId } = data;
-            const peer = peers.get(socket.id);
-
-            if (!peer) {
-                return callback({ error: '피어를 찾을 수 없습니다.' });
-            }
-
-            if (!peer.isHost) {
-                return callback({ error: '호스트만 회의를 종료할 수 있습니다.' });
-            }
-
-            const room = roomManager.getRoom(roomId);
-            if (!room) {
-                return callback({ error: '회의실을 찾을 수 없습니다.' });
-            }
-
-            console.log(`Host ${peer.displayName} is ending meeting ${roomId}`);
-
-            // Spring Boot 서버에 회의 종료 알림
-            try {
-                await updateMeetingStatus(roomId, 'ENDED');
-            } catch (error) {
-                console.error('Failed to update meeting status:', error);
-                // 서버 업데이트 실패해도 계속 진행
-            }
-
-            // 모든 참가자에게 회의 종료 알림
-            socket.to(roomId).emit('meeting-ended', {
-                endedBy: peer.displayName
-            });
-
-            // 모든 참가자 연결 종료 (호스트 제외)
-            room.peers.forEach((p) => {
-                if (p.id !== peer.id && p.socket && p.socket.connected) {
-                    p.socket.disconnect(true);
-                }
-            });
-
-            // 룸 삭제
-            roomManager.deleteRoom(roomId);
-
-            callback({ success: true });
-
-        } catch (error) {
-            console.error('End meeting error:', error);
-            callback({ error: error.message });
-        }
-    });
-
-
-
-    // Spring Boot 서버와 통신하는 헬퍼 함수들
-    async function getMeetingInfo(roomId) {
-        try {
-            const response = await axios.get(
-                `http://localhost:8080/api/meetings/${roomId}/info`,
-                { timeout: 5000 } // 5초 타임아웃
-            );
-            return response.data;
-        } catch (error) {
-            console.error('Failed to get meeting info:', error.message);
-            return null;
-        }
-    }
-
-    async function updateMeetingStatus(roomId, status) {
-        try {
-            await axios.put(
-                `http://localhost:8080/api/meetings/${roomId}/status`,
-                { status },
-                { timeout: 5000 } // 5초 타임아웃
-            );
-            console.log(`Meeting ${roomId} status updated to ${status}`);
-        } catch (error) {
-            console.error('Failed to update meeting status:', error.message);
-            throw error;
-        }
-    }
 
     // Router RTP Capabilities 요청
     socket.on('get-router-rtp-capabilities', (callback) => {
