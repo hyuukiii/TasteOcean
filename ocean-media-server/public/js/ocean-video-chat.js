@@ -1540,9 +1540,11 @@
         function leaveRoom() {
             if (confirm('회의에서 나가시겠습니까? 회의는 계속 진행됩니다.')) {
                 // 서버에 나가기 알림
-                socket.emit('leave-room', { roomId, peerId });
+                if (socket && socket.connected) {
+                    socket.emit('leave-room', { roomId, peerId });
+                }
 
-                // 미디어 정리 (이미 있는 cleanupMedia 함수 사용)
+                // 미디어 정리
                 cleanupMedia();
 
                 // 회의 목록 페이지로 이동
@@ -1556,8 +1558,6 @@
                 }
             }
         }
-
-
 
         // 회의 설정 페이지로 돌아가기
         function exitToSetup() {
@@ -1754,18 +1754,16 @@
             }
         }
 
+        // 회의 상태 확인
+        // const response = await fetch(`/api/meetings/${roomId}/status`);
+        // const data = await response.json();
         // ===== 재접속 기능 =====
         async function rejoinMeeting() {
             try {
-                // 회의 상태 확인
-                const response = await fetch(`/api/meetings/${roomId}/status`);
-                const data = await response.json();
+                // API 호출 제거 - Spring Boot에 해당 API가 없음
+                // 바로 Socket.IO로 재접속 시도
 
-                if (!data.isActive) {
-                    alert('회의가 이미 종료되었습니다.');
-                    window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
-                    return;
-                }
+                showToast('회의에 재접속 시도 중...');
 
                 // 재접속 시도
                 socket.emit('rejoin-room', {

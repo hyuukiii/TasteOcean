@@ -36,6 +36,10 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        .header .control-btn {
+            margin-left: auto; /* 우측 정렬 */
+        }
+
         .meeting-info {
             display: flex;
             align-items: center;
@@ -243,12 +247,15 @@
             background: #4a9eff;
         }
 
+        /* 위험 버튼 (회의 종료) - 빨간색 */
         .control-btn.danger {
             background: #ff4444;
+            color: white;
         }
 
         .control-btn.danger:hover {
             background: #ff6666;
+            transform: scale(1.05);
         }
 
         /* 회의 종료 버튼 스타일 */
@@ -279,6 +286,7 @@
 
             .control-btn.warning:hover {
                 background-color: #f57c00;
+                transform: scale(1.05);
             }
 
             /* 호스트 배지 스타일 */
@@ -304,10 +312,11 @@
             height: 24px;
         }
 
+        /* 컨트롤 구분선 */
         .control-divider {
             width: 1px;
             height: 30px;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.2);
             margin: 0 10px;
         }
 
