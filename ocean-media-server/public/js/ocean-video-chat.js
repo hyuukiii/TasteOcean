@@ -397,27 +397,37 @@
             console.log('최종 사용할 userId:', actualUserId);
 
             // 방 참가
-                socket.emit('join-room', {
-                    roomId,
-                    workspaceId,
-                    peerId,
-                    displayName,
-                    meetingType,
-                    userId: actualUserId
+            socket.emit('join-room', {
+               roomId,
+               workspaceId,
+               peerId,
+               displayName,
+               meetingType,
+               userId: actualUserId
                 }, (response) => {
-                    // 서버로부터 호스트 정보 받기
-                    if (response && response.isHost !== undefined) {
-                        isHost = response.isHost;
-                        updateEndCallButton();  // 종료 버튼 업데이트
-                    }
+                     console.log('join-room 응답:', response);
 
-                    // 기존 참가자 정보 처리
-                    if (response && response.existingPeers) {
+                  // 서버로부터 호스트 정보 받기
+                  if (response && response.isHost !== undefined) {
+                      isHost = response.isHost;
+                      console.log('호스트 여부:', isHost);
+
+                      // 종료 버튼 상태 업데이트
+                      updateEndCallButton();
+
+                      // 호스트인 경우 안내 메시지
+                      if (isHost) {
+                          showToast('회의 호스트로 입장했습니다');
+                      }
+                  }
+
+                  // 기존 참가자 정보 처리
+                  if (response && response.existingPeers) {
                         response.existingPeers.forEach(peer => {
-                            addRemoteVideo(peer.id, peer.displayName);
+                        addRemoteVideo(peer.id, peer.displayName);
                         });
                         updateParticipantCount();
-                    }
+                  }
                 });
 
             // 디버깅을 위해 로그 추가
@@ -455,20 +465,29 @@
             });
         }
 
-        // 종료 버튼 업데이트 함수 추가
+        // 종료 버튼 업데이트 함수 (누락된 함수)
         function updateEndCallButton() {
             const endCallBtn = document.querySelector('.control-btn.danger');
 
-            if (!isHost) {
-                // 호스트가 아니면 버튼 숨기기 또는 비활성화
-                // 옵션 1: 버튼 숨기기
-                // endCallBtn.style.display = 'none';
+            if (!endCallBtn) {
+                console.warn('종료 버튼을 찾을 수 없습니다');
+                return;
+            }
 
-                // 옵션 2: 버튼 비활성화 + 툴팁 추가
-                endCallBtn.disabled = true;
+            if (!isHost) {
+                // 호스트가 아니면 버튼 비활성화 스타일 적용
                 endCallBtn.style.opacity = '0.5';
                 endCallBtn.style.cursor = 'not-allowed';
                 endCallBtn.title = '회의 종료는 호스트만 가능합니다';
+
+                // 시각적 표시를 위해 클래스 추가
+                endCallBtn.classList.add('disabled-for-non-host');
+            } else {
+                // 호스트인 경우 정상 표시
+                endCallBtn.style.opacity = '1';
+                endCallBtn.style.cursor = 'pointer';
+                endCallBtn.title = '회의 종료';
+                endCallBtn.classList.remove('disabled-for-non-host');
             }
         }
 
