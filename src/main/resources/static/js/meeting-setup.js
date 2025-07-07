@@ -513,20 +513,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkActiveMeeting();
 });
 
-// 진행 중인 회의 확인 함수
+// 진행 중인 회의 확인 함수 수정
 async function checkActiveMeeting() {
     try {
         const response = await fetch(`/api/meetings/active?workspaceCd=${workspaceCd}&userId=${currentUserId}`);
 
-        if (response.ok) {
-            const activeMeeting = await response.json();
+        // 204 No Content 응답 처리
+        if (response.status === 204) {
+            console.log('진행 중인 회의가 없습니다');
+            return;
+        }
 
-            if (activeMeeting && activeMeeting.roomId) {
-                showActiveMeetingDialog(activeMeeting);
+        if (response.ok) {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+                const activeMeeting = await response.json();
+
+                if (activeMeeting && activeMeeting.roomId) {
+                    showActiveMeetingDialog(activeMeeting);
+                }
             }
         }
     } catch (error) {
         console.error('진행 중인 회의 확인 실패:', error);
+        // API가 없어도 계속 진행
     }
 }
 

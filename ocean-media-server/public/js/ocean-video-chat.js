@@ -1,7 +1,13 @@
-        // 동적으로 SpringBoot 서버 URL 설정 하기
+        // ocean-video-chat.js 상단의 SPRING_BOOT_URL 변수 수정
+        // HTTP 대신 HTTPS 사용하거나 프로토콜 상속
         const SPRING_BOOT_URL = window.location.hostname === 'localhost'
-            ? 'http://localhost:8080'
-            : `http://${window.location.hostname}:8080`;
+            ? 'https://localhost:8080'  // HTTP를 HTTPS로 변경
+            : `https://${window.location.hostname}:8080`;
+
+        // 또는 현재 페이지의 프로토콜을 그대로 사용
+        // const SPRING_BOOT_URL = window.location.hostname === 'localhost'
+        //     ? `${window.location.protocol}//localhost:8080`
+        //     : `${window.location.protocol}//${window.location.hostname}:8080`;
 
         // ===== UI 상태 관리 =====
         let isVideoOn = true;
@@ -1547,16 +1553,14 @@
             // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
             const localPlaceholder = document.getElementById('localPlaceholder');
 
-            //console.log('페이지 로드 - 프로필 이미지 초기화');
-            //console.log('userProfileImg:', userProfileImg);
-
             if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
                 // URL 디코딩
                 let imgSrc = decodeURIComponent(userProfileImg);
 
-                // ⭐ 상대 경로를 절대 경로로 변환 (이 부분이 추가됨!)
+                // ⭐ 상대 경로를 절대 경로로 변환 - HTTPS 사용
                 if (!imgSrc.startsWith('http')) {
-                    imgSrc = 'http://localhost:8080' + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);
+                    // HTTPS로 변경
+                    imgSrc = 'https://localhost:8080' + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);
                     //console.log('프로필 이미지를 절대 경로로 변환:', imgSrc);
                 }
 
@@ -1577,11 +1581,11 @@
                 localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
             }
 
-            // ⭐ 이 줄을 삭제해야 합니다! (이미지를 덮어쓰는 문제의 원인)
-            // document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
-
             // ⭐ 회의 제목 설정
             document.getElementById('roomName').textContent = meetingTitle;
+
+            // ⭐ 종료 버튼 초기 상태 설정 (누락된 함수 호출)
+            updateEndCallButton();
 
             // 회의 옵션 적용
             if (meetingOptions.muteOnJoin) {
@@ -1600,17 +1604,25 @@
 
             // 채팅 입력 필드 이벤트 리스너 추가
             const chatInput = document.getElementById('chatInputField');
+            if (chatInput) {
+                // 포커스 아웃 시 타이핑 중지
+                chatInput.addEventListener('blur', stopTyping);
+            }
 
-            // 포커스 아웃 시 타이핑 중지
-            chatInput.addEventListener('blur', stopTyping);
+            // ⭐ init 함수 호출 시 에러 처리 추가
+            init().catch(error => {
+                console.error('초기화 중 에러 발생:', error);
+            });
 
-            init();
             updateParticipantCount();
 
             // 로컬 비디오 더블클릭 시 전체화면
-            document.getElementById('localVideoContainer').addEventListener('dblclick', function() {
-                toggleFullscreen(this);
-            });
+            const localVideoContainer = document.getElementById('localVideoContainer');
+            if (localVideoContainer) {
+                localVideoContainer.addEventListener('dblclick', function() {
+                    toggleFullscreen(this);
+                });
+            }
         });
 
         // 4. 원격 사용자의 비디오가 꺼졌을 때도 프로필 처리 (handleRemoteVideoOff 함수 추가/수정)
