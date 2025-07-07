@@ -1769,8 +1769,6 @@
         // const data = await response.json();
         // ===== 재접속 기능 =====
         async function rejoinMeeting() {
-
-        }
             try {
                 // API 호출 제거 - Spring Boot에 해당 API가 없음
                 // 바로 Socket.IO로 재접속 시도
