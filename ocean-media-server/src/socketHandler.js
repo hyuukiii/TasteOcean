@@ -37,8 +37,17 @@ module.exports = (io, worker, router) => {
         const peer = new Peer(socket, roomId, peerId, displayName);
         peer.userId = userId;
 
+        // ⭐⭐ 추가 1: 첫 번째 참가자를 호스트로 설정
+        if (room.peers.size === 0) {
+          room.hostId = userId;
+          peer.role = 'HOST';
+          console.log(`${displayName}이(가) 호스트로 설정됨`);
+        } else {
+          peer.role = 'PARTICIPANT';
+        }
+
         // ⭐ 저장 확인
-        console.log('Peer 생성 완료:', { peerId: peer.id, userId: peer.userId });
+        console.log('Peer 생성 완료:', { peerId: peer.id, userId: peer.userId, role: peer.role });
 
         peers.set(socket.id, peer);
         // 룸에 피어 추가 (Peer 인스턴스 자체를 저장)
@@ -58,6 +67,11 @@ module.exports = (io, worker, router) => {
           peers: existingPeers
         });
 
+        // ⭐⭐ 추가 2: 호스트 정보 전송
+        socket.emit('host-info', {
+          hostId: room.hostId
+        });
+
         // 다른 참가자들에게 알림
         socket.to(roomId).emit('new-peer', {
           peerId,
@@ -65,30 +79,168 @@ module.exports = (io, worker, router) => {
         });
 
         // ⭐ 타이밍 문제 해결: 1초 후 기존 참가자들의 producer 정보 전송
-            setTimeout(() => {
-              console.log(`Sending existing producers to new peer ${peerId}...`);
+        setTimeout(() => {
+          console.log(`Sending existing producers to new peer ${peerId}...`);
 
-              for (const [_, existingPeer] of room.peers) {
-                if (existingPeer.id !== peerId) {
-                  console.log(`Peer ${existingPeer.id} has ${existingPeer.producers.size} producers`);
+          for (const [_, existingPeer] of room.peers) {
+            if (existingPeer.id !== peerId) {
+              console.log(`Peer ${existingPeer.id} has ${existingPeer.producers.size} producers`);
 
-                  for (const [producerId, producer] of existingPeer.producers) {
-                    console.log(`Sending producer ${producerId} (${producer.kind})`);
+              for (const [producerId, producer] of existingPeer.producers) {
+                console.log(`Sending producer ${producerId} (${producer.kind})`);
 
-                    socket.emit('new-producer', {
-                      producerId: producer.id,
-                      peerId: existingPeer.id,
-                      kind: producer.kind
-                    });
-                  }
-                }
+                socket.emit('new-producer', {
+                  producerId: producer.id,
+                  peerId: existingPeer.id,
+                  kind: producer.kind
+                });
               }
-            }, 1000); // 1초 대기
+            }
+          }
+        }, 1000); // 1초 대기
 
       } catch (error) {
         console.error('Join room error:', error);
         socket.emit('error', { message: error.message });
       }
+    });
+
+    // 회의 종료 이벤트 핸들러 추가
+    socket.on('end-meeting', async (data, callback) => {
+        try {
+            const { roomId } = data;
+            const peer = peers.get(socket.id);
+
+            if (!peer) {
+                return callback({ error: '인증되지 않은 사용자' });
+            }
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) {
+                return callback({ error: '룸을 찾을 수 없습니다' });
+            }
+
+            // 호스트 권한 확인
+            if (peer.userId !== room.hostId) {
+                return callback({ error: '호스트만 회의를 종료할 수 있습니다' });
+            }
+
+            // 모든 참가자에게 회의 종료 알림
+            io.to(roomId).emit('meeting-ended', {
+                endedBy: peer.displayName
+            });
+
+            // 회의 상태 업데이트 (DB 연동 필요)
+            room.status = 'ENDED';
+            room.endTime = new Date();
+
+            // 모든 참가자 연결 해제
+            room.peers.forEach((p, peerId) => {
+                if (p.socket && p.socket.connected) {
+                    p.socket.disconnect(true);
+                }
+            });
+
+            // 룸 삭제
+            roomManager.deleteRoom(roomId);
+
+            callback({ success: true });
+
+        } catch (error) {
+            console.error('End meeting error:', error);
+            callback({ error: error.message });
+        }
+    });
+
+    // 회의 나가기 이벤트 핸들러 추가
+    socket.on('leave-room', async (data) => {
+        try {
+            const { roomId, peerId } = data;
+            const peer = peers.get(socket.id);
+
+            if (!peer) return;
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) return;
+
+            // 참가자 상태 업데이트 (나갔지만 재접속 가능)
+            peer.isActive = false;
+            peer.leftAt = new Date();
+
+            // 다른 참가자들에게 알림
+            socket.to(roomId).emit('peer-left-temporarily', {
+                peerId: peer.id,
+                displayName: peer.displayName
+            });
+
+            console.log(`${peer.displayName}이(가) 일시적으로 회의를 나갔습니다`);
+
+        } catch (error) {
+            console.error('Leave room error:', error);
+        }
+    });
+
+    // 재접속 이벤트 핸들러 추가
+    socket.on('rejoin-room', async (data) => {
+        try {
+            const { roomId, workspaceId, peerId, displayName, userId } = data;
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) {
+                socket.emit('error', { message: '회의가 종료되었습니다' });
+                return;
+            }
+
+            // 기존 peer 찾기
+            let existingPeer = null;
+            room.peers.forEach((p, id) => {
+                if (p.userId === userId) {
+                    existingPeer = p;
+                }
+            });
+
+            if (existingPeer) {
+                // 기존 peer 업데이트
+                existingPeer.socket = socket;
+                existingPeer.isActive = true;
+                existingPeer.rejoinedAt = new Date();
+
+                peers.set(socket.id, existingPeer);
+            } else {
+                // 새 peer 생성
+                const peer = new Peer(socket, roomId, peerId, displayName);
+                peer.userId = userId;
+                peer.role = 'PARTICIPANT';
+
+                peers.set(socket.id, peer);
+                room.peers.set(peerId, peer);
+            }
+
+            // Socket.io 룸 재참가
+            socket.join(roomId);
+
+            // 현재 참가자 정보 전송
+            const activePeers = Array.from(room.peers.values())
+                .filter(p => p.isActive && p.id !== peerId)
+                .map(p => p.toJson());
+
+            socket.emit('reconnect-success', {
+                roomId,
+                peers: activePeers
+            });
+
+            // 다른 참가자들에게 재접속 알림
+            socket.to(roomId).emit('peer-rejoined', {
+                peerId,
+                displayName
+            });
+
+            console.log(`${displayName}이(가) 회의에 재접속했습니다`);
+
+        } catch (error) {
+            console.error('Rejoin room error:', error);
+            socket.emit('error', { message: error.message });
+        }
     });
 
     // Router RTP Capabilities 요청
@@ -356,31 +508,56 @@ module.exports = (io, worker, router) => {
       }
     });
 
-    // 연결 해제
+    // disconnect 이벤트 핸들러 수정
     socket.on('disconnect', () => {
-      const peer = peers.get(socket.id);
-      if (!peer) return;
+        const peer = peers.get(socket.id);
+        if (!peer) return;
 
-      console.log(`Client disconnected: ${peer.displayName}`);
+        console.log(`Client disconnected: ${peer.displayName}`);
 
-      // 룸에서 피어 제거
-      const room = roomManager.getRoom(peer.roomId);
-      if (room) {
-        room.peers.delete(peer.id);
-        console.log(`Peer ${peer.id} removed from room ${peer.roomId}`);
+        const room = roomManager.getRoom(peer.roomId);
+        if (!room) return;
+
+        // 완전히 제거하지 않고 비활성 상태로만 변경
+        peer.isActive = false;
+        peer.disconnectedAt = new Date();
+
+        // 호스트가 나간 경우 다음 사람에게 호스트 권한 이전
+        if (peer.userId === room.hostId) {
+            const activePeers = Array.from(room.peers.values())
+                .filter(p => p.isActive && p.id !== peer.id);
+
+            if (activePeers.length > 0) {
+                const newHost = activePeers[0];
+                room.hostId = newHost.userId;
+                newHost.role = 'HOST';
+
+                // 새 호스트에게 알림
+                io.to(peer.roomId).emit('host-changed', {
+                    newHostId: newHost.userId,
+                    newHostName: newHost.displayName
+                });
+            }
+        }
 
         // 다른 참가자들에게 알림
-        socket.to(peer.roomId).emit('peer-left', { peerId: peer.id });
+        socket.to(peer.roomId).emit('peer-disconnected', {
+            peerId: peer.id,
+            isHost: peer.userId === room.hostId
+        });
 
-        // 빈 룸 삭제
-        if (room.isEmpty()) {
-          roomManager.deleteRoom(peer.roomId);
-        }
-      }
+        // 30분 후 자동으로 peer 제거 (재접속 시간 제한)
+        setTimeout(() => {
+            if (!peer.isActive) {
+                 room.peers.delete(peer.id);
+                 peers.delete(socket.id);
 
-      // 피어 정리
-      peer.close();
-      peers.delete(socket.id);
+                 // 빈 룸 삭제
+                 if (room.isEmpty()) {
+                      roomManager.deleteRoom(peer.roomId);
+                 }
+            }
+        }, 30 * 60 * 1000); // 30분
     });
 
     // 화면 공유 상태 변경 처리

@@ -2,14 +2,88 @@ const Recorder = require('./recorder');
 
 class Room {
   constructor(roomId, workspaceId, router) {
-    this.id = roomId;
+    this.roomId = roomId;
     this.workspaceId = workspaceId;
     this.router = router;
-    this.peers = new Map(); // Peer 인스턴스를 직접 저장
-    this.createdAt = new Date();
-    this.recorder = null;
+    this.peers = new Map();
+    this.hostId = null; // 호스트 ID 추가
+    this.status = 'WAITING'; // 회의 상태 추가
+    this.startTime = null;
+    this.endTime = null;
     this.recordingStatus = false;
+    this.recorder = null;
+    this.sharedFiles = [];
   }
+
+  // 호스트 설정
+  setHost(userId) {
+    this.hostId = userId;
+    this.status = 'IN_PROGRESS';
+    this.startTime = new Date();
+    console.log(`Room ${this.roomId}: 호스트 설정 - ${userId}`);
+  }
+
+  // 호스트 확인
+  isHost(userId) {
+    return this.hostId === userId;
+  }
+
+  // 호스트 권한 이전
+  transferHost(newHostId) {
+    const newHost = this.getPeerByUserId(newHostId);
+    if (!newHost) {
+        throw new Error('새 호스트를 찾을 수 없습니다');
+    }
+
+    const oldHostId = this.hostId;
+    this.hostId = newHostId;
+
+    // 역할 업데이트
+    this.peers.forEach(peer => {
+       if (peer.userId === oldHostId) {
+            peer.role = 'PARTICIPANT';
+       } else if (peer.userId === newHostId) {
+           peer.role = 'HOST';
+       }
+    });
+
+    console.log(`Room ${this.roomId}: 호스트 권한 이전 ${oldHostId} -> ${newHostId}`);
+        return { oldHostId, newHostId };
+  }
+
+  // userId로 Peer 찾기
+  getPeerByUserId(userId) {
+    for (const [peerId, peer] of this.peers) {
+       if (peer.userId === userId) {
+          return peer;
+       }
+    }
+      return null;
+  }
+
+  // 회의 종료
+  endMeeting() {
+    this.status = 'ENDED';
+    this.endTime = new Date();
+
+    // 녹화 중이면 중지
+    if (this.recordingStatus && this.recorder) {
+        this.recorder.stop();
+    }
+
+      console.log(`Room ${this.roomId}: 회의 종료됨`);
+  }
+
+  // 활성 참가자 수 확인
+  getActiveParticipants() {
+    let count = 0;
+    this.peers.forEach(peer => {
+      if (peer.isActive !== false) {
+          count++;
+      }
+    });
+      return count;
+    }
 
   // 녹화 시작 - 완전 수정 버전
   async startRecording(recorderId) {
@@ -683,23 +757,37 @@ class Room {
     return this.peers.size === 0;
   }
 
+  // 참가자 정보 JSON 변환
   toJson() {
+    const participants = [];
+    this.peers.forEach(peer => {
+      participants.push({
+      peerId: peer.id,
+      userId: peer.userId,
+      displayName: peer.displayName,
+      role: peer.role || 'PARTICIPANT',
+      isActive: peer.isActive !== false,
+      joinedAt: peer.joinedAt || new Date()
+      });
+    });
+
     return {
-      id: this.id,
-      workspaceId: this.workspaceId,
-      peers: this.getAllPeers().map(peer => {
-        // Peer 인스턴스의 toJson 메서드 호출
-        if (peer.toJson && typeof peer.toJson === 'function') {
-          return peer.toJson();
-        }
-        // 폴백: 기본 정보만 반환
-        return {
-          id: peer.id || 'unknown',
-          displayName: peer.displayName || 'Unknown User'
-        };
-      }),
-      createdAt: this.createdAt
+       roomId: this.roomId,
+       workspaceId: this.workspaceId,
+       hostId: this.hostId,
+       status: this.status,
+       startTime: this.startTime,
+       endTime: this.endTime,
+       participants: participants,
+       participantCount: this.getActiveParticipants(),
+       recordingStatus: this.recordingStatus,
+       sharedFiles: this.sharedFiles.length
     };
+  }
+
+  // 빈 방 확인 (활성 참가자가 없는 경우)
+  isEmpty() {
+    return this.getActiveParticipants() === 0;
   }
 }
 

@@ -26,6 +26,9 @@
         let videoProducer;
         let screenProducer;
         let consumers = new Map();
+        // ===== 전역 변수 추가 =====
+        let isHost = false;  // 현재 사용자가 호스트인지 여부
+        let meetingEnded = false;  // 회의가 종료되었는지 여부
 
         // ===== 녹화 기능 ======
         let currentRecordingId = null;
@@ -90,7 +93,8 @@
         // ===== 한글 입력 관련 변수 추가 =====
         window.enterPressedDuringComposition = false;
 
-        // ===== 초기화 =====
+        // ===== init() 함수 수정 =====
+        // 재접속 처리를 위해 joinRoom 함수 호출 부분 수정
         async function init() {
             try {
                 showToast('연결 중...');
@@ -101,14 +105,17 @@
                 // 2. 미디어 장치 권한 요청
                 await requestMediaPermissions();
 
-                // 3. 방 참가
-                await joinRoom();
+                // 3. 재접속 여부에 따라 다른 처리
+                if (urlParams.get('rejoin') === 'true') {
+                    await rejoinMeeting();
+                } else {
+                    await joinRoom();
+                }
 
             } catch (error) {
                 console.error('초기화 실패:', error);
                 showToast('연결 실패: ' + error.message);
 
-                // 연결 실패 시 다시 시도 버튼 표시
                 if (confirm('연결에 실패했습니다. 다시 시도하시겠습니까?')) {
                     window.location.reload();
                 } else {
@@ -160,6 +167,77 @@
                 console.log('참가자 퇴장:', peerId);
                 removeRemoteVideo(peerId);
                 updateParticipantCount();
+            });
+
+            // 호스트 권한 변경 알림
+            socket.on('host-changed', (data) => {
+                const { newHostId, newHostName } = data;
+
+                // 자신이 새 호스트가 되었는지 확인
+                if (userId === newHostId) {
+                    isHost = true;
+                    document.getElementById('endCallBtn').style.display = 'block';
+                    showToast('호스트 권한을 획득했습니다.');
+                } else {
+                    isHost = false;
+                    document.getElementById('endCallBtn').style.display = 'none';
+                    showToast(`${newHostName}님이 새로운 호스트가 되었습니다.`);
+                }
+            });
+
+            // 참가자가 일시적으로 나감
+            socket.on('peer-left-temporarily', ({ peerId, displayName }) => {
+                console.log('참가자가 일시적으로 나감:', displayName);
+
+                // 비디오 컨테이너는 유지하되 상태만 변경
+                const container = document.getElementById(`container-${peerId}`);
+                if (container) {
+                    container.style.opacity = '0.5';
+                    const nameSpan = container.querySelector('.video-info span');
+                    if (nameSpan) {
+                        nameSpan.textContent = `${displayName} (나감)`;
+                    }
+                }
+
+                showToast(`${displayName}님이 회의에서 나갔습니다`);
+            });
+
+            // 참가자 재접속
+            socket.on('peer-rejoined', ({ peerId, displayName }) => {
+                console.log('참가자 재접속:', displayName);
+
+                // 비디오 컨테이너 상태 복원
+                const container = document.getElementById(`container-${peerId}`);
+                if (container) {
+                    container.style.opacity = '1';
+                    const nameSpan = container.querySelector('.video-info span');
+                    if (nameSpan) {
+                        nameSpan.textContent = displayName;
+                    }
+                } else {
+                    // 컨테이너가 없으면 새로 추가
+                    addRemoteVideo(peerId, displayName);
+                }
+
+                showToast(`${displayName}님이 회의에 재접속했습니다`);
+            });
+
+            // 참가자 완전 연결 해제
+            socket.on('peer-disconnected', ({ peerId, isHost: wasHost }) => {
+                console.log('참가자 연결 해제:', peerId);
+
+                if (wasHost) {
+                    showToast('호스트의 연결이 끊어졌습니다. 새로운 호스트가 지정됩니다.');
+                }
+
+                // 30초 후에도 재접속하지 않으면 제거
+                setTimeout(() => {
+                    const container = document.getElementById(`container-${peerId}`);
+                    if (container && container.style.opacity === '0.5') {
+                        removeRemoteVideo(peerId);
+                        updateParticipantCount();
+                    }
+                }, 30000); // 30초
             });
 
             // 새 프로듀서 (다른 참가자의 미디어 스트림)
@@ -411,6 +489,42 @@
                 showToast('회의에 참가했습니다');
             });
         }
+
+        // 호스트 정보 수신
+        socket.on('host-info', (data) => {
+            const { hostId } = data;
+            isHost = (userId === hostId);
+
+            // 호스트인 경우 종료 버튼 표시
+            if (isHost) {
+                document.getElementById('endCallBtn').style.display = 'block';
+                showToast('호스트 권한을 획득했습니다.');
+            }
+        });
+
+        // 회의 종료 알림 수신
+        socket.on('meeting-ended', (data) => {
+            meetingEnded = true;
+            showToast('호스트가 회의를 종료했습니다.');
+
+            // 3초 후 자동으로 워크스페이스로 이동
+            setTimeout(() => {
+                window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+            }, 3000);
+        });
+
+        / 재접속 성공 알림
+        socket.on('reconnect-success', (data) => {
+            showToast('회의에 재접속했습니다.');
+
+            // 기존 참가자 정보 업데이트
+            const { peers } = data;
+            peers.forEach(peer => {
+                if (!document.getElementById(`container-${peer.peerId}`)) {
+                    addRemoteVideo(peer.peerId, peer.displayName, peer.userProfileImg);
+                }
+            });
+        });
 
         // ===== MediaSoup Device 초기화 =====
         async function initializeDevice(routerRtpCapabilities) {
@@ -1378,53 +1492,59 @@
             });
         }
 
+        // ===== 회의 종료 함수 추가 (호스트 전용) =====
+        function exitMeeting() {
+            // 호스트가 아닌 경우 경고
+            if (!isHost) {
+                alert('호스트만 회의를 종료할 수 있습니다.');
+                return;
+            }
+
+            if (confirm('정말로 회의를 종료하시겠습니까? 모든 참가자가 회의에서 나가게 됩니다.')) {
+                // 서버에 회의 종료 요청
+                socket.emit('end-meeting', { roomId }, (response) => {
+                    if (response.error) {
+                        showToast('회의 종료 실패: ' + response.error);
+                        return;
+                    }
+
+                    // 미디어 정리
+                    cleanupMedia();
+
+                    // 워크스페이스로 이동
+                    window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+                });
+            }
+        }
+
         // 참가자 수 업데이트
         function updateParticipantCount() {
             const count = document.querySelectorAll('.video-container').length;
             document.getElementById('participantCount').textContent = count;
         }
 
-        // 방 나가기 (화상채팅 완전 종료)
+        // 방 나가기 (회의에서만 나가기 - 재접속 가능)
         function leaveRoom() {
-            if (confirm('회의를 나가시겠습니까?')) {
-                // 모든 프로듀서 정리
-                if (audioProducer) audioProducer.close();
-                if (videoProducer) videoProducer.close();
-                if (screenProducer) screenProducer.close();
+            if (confirm('회의에서 나가시겠습니까? 회의는 계속 진행됩니다.')) {
+                // 서버에 나가기 알림
+                socket.emit('leave-room', { roomId, peerId });
 
-                // 모든 컨슈머 정리
-                consumers.forEach(consumer => consumer.close());
+                // 미디어 정리 (이미 있는 cleanupMedia 함수 사용)
+                cleanupMedia();
 
-                // Transport 정리
-                if (producerTransport) producerTransport.close();
-                if (consumerTransport) consumerTransport.close();
-
-                // 로컬 스트림 정리
-                if (localStream) {
-                    localStream.getTracks().forEach(track => track.stop());
-                }
-                if (screenStream) {
-                    screenStream.getTracks().forEach(track => track.stop());
-                }
-
-                // Socket 연결 종료
-                if (socket) {
-                    socket.disconnect();
-                }
-
-                // ⭐ workspaceId를 가져와서 워크스페이스 메인 페이지로 이동
+                // 회의 목록 페이지로 이동
                 const urlParams = new URLSearchParams(window.location.search);
                 const workspaceId = urlParams.get('workspaceId');
 
                 if (workspaceId) {
-                    // 워크스페이스 메인 페이지로 이동
-                    window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+                    window.location.href = `${SPRING_BOOT_URL}/meeting/list?workspaceCd=${workspaceId}`;
                 } else {
-                    // workspaceId가 없으면 기본 워크스페이스 페이지로
                     window.location.href = SPRING_BOOT_URL + '/workspace';
                 }
             }
         }
+
+
 
         // 회의 설정 페이지로 돌아가기
         function exitToSetup() {
@@ -1447,6 +1567,19 @@
         window.addEventListener('load', () => {
             // displayName과 roomName 초기화
             document.getElementById('localName').textContent = displayName;
+
+            // 종료 버튼 초기 숨김
+            const endCallBtn = document.getElementById('endCallBtn');
+            if (endCallBtn) {
+                endCallBtn.style.display = 'none';
+            }
+
+            // URL 파라미터에서 재접속 여부 확인
+            const isRejoining = urlParams.get('rejoin') === 'true';
+            if (isRejoining) {
+                // 재접속 모드로 초기화
+                showToast('회의에 재접속을 시도합니다...');
+            }
 
             // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
             const localPlaceholder = document.getElementById('localPlaceholder');
@@ -1577,6 +1710,62 @@
                 } else if (document.msExitFullscreen) {
                     document.msExitFullscreen();
                 }
+            }
+        }
+
+        // ===== 미디어 정리 함수 =====
+        function cleanupMedia() {
+            // 모든 프로듀서 정리
+            if (audioProducer) audioProducer.close();
+            if (videoProducer) videoProducer.close();
+            if (screenProducer) screenProducer.close();
+
+            // 모든 컨슈머 정리
+            consumers.forEach(consumer => consumer.close());
+
+            // Transport 정리
+            if (producerTransport) producerTransport.close();
+            if (consumerTransport) consumerTransport.close();
+
+            // 로컬 스트림 정리
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+            }
+
+            // Socket 연결 종료
+            if (socket) {
+                socket.disconnect();
+            }
+        }
+
+        // ===== 재접속 기능 =====
+        async function rejoinMeeting() {
+            try {
+                // 회의 상태 확인
+                const response = await fetch(`/api/meetings/${roomId}/status`);
+                const data = await response.json();
+
+                if (!data.isActive) {
+                    alert('회의가 이미 종료되었습니다.');
+                    window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+                    return;
+                }
+
+                // 재접속 시도
+                socket.emit('rejoin-room', {
+                    roomId,
+                    workspaceId,
+                    peerId,
+                    displayName,
+                    userId
+                });
+
+            } catch (error) {
+                console.error('재접속 실패:', error);
+                showToast('재접속에 실패했습니다.');
             }
         }
 
