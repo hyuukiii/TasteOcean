@@ -517,7 +517,7 @@ public class MeetingService {
     }
 
     /**
-     * 회의 참가자 목록 조회
+     * 특정 회의실의 참가자 목록 조회
      */
     private List<ActiveMeetingDto.ParticipantDto> getParticipantsByRoom(String roomId) {
         try {
@@ -525,12 +525,17 @@ public class MeetingService {
             SELECT 
                 mp.USER_ID,
                 u.USER_NAME,
-                u.USER_PROFILE_IMG,
-                mp.ACTIVE_STATE,
-                mp.JOINED_DATE
+                wm.USER_IMG,
+                CASE WHEN mr.HOST_ID = mp.USER_ID THEN 'Y' ELSE 'N' END as IS_HOST,
+                mp.VIDEO_STATE,
+                mp.AUDIO_STATE
             FROM MEETING_PARTICIPANTS mp
             JOIN USERS u ON mp.USER_ID = u.USER_ID
-            WHERE mp.ROOM_CD = :roomId
+            LEFT JOIN MEETING_ROOMS mr ON mp.ROOM_CD = mr.ROOM_CD
+            LEFT JOIN WORKSPACE_MEMBERS wm ON mp.USER_ID = wm.USER_ID 
+                AND mr.WORKSPACE_CD = wm.WORKSPACE_CD
+            WHERE mp.ROOM_CD = :roomId 
+            AND mp.ACTIVE_STATE = 'Y'
         """;
 
             Query nativeQuery = entityManager.createNativeQuery(query);
@@ -540,18 +545,26 @@ public class MeetingService {
             List<ActiveMeetingDto.ParticipantDto> participants = new ArrayList<>();
 
             for (Object[] row : results) {
-                ActiveMeetingDto.ParticipantDto participant = new ActiveMeetingDto.ParticipantDto(
-                        (String) row[0],  // userId
-                        (String) row[1],  // displayName
-                        (String) row[2],  // profileImage
-                        "Y".equals(row[3]), // isActive
-                        ((Timestamp) row[4]).toLocalDateTime() // joinedAt
-                );
+                String profileImg = (String) row[2];
+
+                // 프로필 이미지 경로 처리
+                if (profileImg != null && !profileImg.isEmpty() && !profileImg.startsWith("http")) {
+                    profileImg = "/images/profiles" + (profileImg.startsWith("/") ? profileImg : "/" + profileImg);
+                }
+
+                ActiveMeetingDto.ParticipantDto participant = ActiveMeetingDto.ParticipantDto.builder()
+                        .userId((String) row[0])
+                        .displayName((String) row[1])
+                        .profileImg(profileImg)
+                        .isHost("Y".equals(row[3]))
+                        .isVideoOn("ON".equals(row[4]))
+                        .isAudioOn("ON".equals(row[5]))
+                        .build();
+
                 participants.add(participant);
             }
 
             return participants;
-
         } catch (Exception e) {
             log.error("참가자 목록 조회 실패: roomId={}", roomId, e);
             return new ArrayList<>();

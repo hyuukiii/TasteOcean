@@ -1,10 +1,14 @@
 package com.example.ocean.controller.recording;
 
+import com.example.ocean.domain.WorkspaceMember;
 import com.example.ocean.dto.ActiveMeetingDto;
+import com.example.ocean.mapper.WorkspaceMapper;
 import com.example.ocean.service.MeetingService;
 import com.example.ocean.security.oauth.UserPrincipal;
+import com.example.ocean.service.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -18,21 +22,38 @@ import java.util.List;
 public class MeetingController {
 
     private final MeetingService meetingService;
+    private final WorkspaceService workspaceService;  // final 추가!
 
-    /**
-     * 진행 중인 회의 목록 조회
-     */
     @GetMapping("/active")
     public ResponseEntity<List<ActiveMeetingDto>> getActiveMeetings(
             @RequestParam String workspaceId,
             @AuthenticationPrincipal UserPrincipal user) {
 
+        log.info("진행 중인 회의 목록 조회 - workspaceId: {}, userId: {}",
+                workspaceId, user.getId());
+
         try {
+            // 워크스페이스 멤버 권한 확인
+            WorkspaceMember member = workspaceService.findMemberByWorkspaceAndUser(
+                    workspaceId,
+                    user.getId()
+            );
+
+            if (member == null) {
+                log.warn("워크스페이스 멤버가 아닙니다 - workspaceId: {}, userId: {}",
+                        workspaceId, user.getId());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+
+            // 진행 중인 회의 목록 조회
             List<ActiveMeetingDto> meetings = meetingService.getActiveMeetings(workspaceId);
+
+            log.info("진행 중인 회의 {} 개 조회됨", meetings.size());
+
             return ResponseEntity.ok(meetings);
         } catch (Exception e) {
-            log.error("진행 중인 회의 목록 조회 실패: workspaceId={}", workspaceId, e);
-            return ResponseEntity.internalServerError().build();
+            log.error("진행 중인 회의 목록 조회 실패", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

@@ -1536,25 +1536,52 @@
             document.getElementById('participantCount').textContent = count;
         }
 
-        // 방 나가기 (회의에서만 나가기 - 재접속 가능)
+        // 회의 나가기
         function leaveRoom() {
-            if (confirm('회의에서 나가시겠습니까? 회의는 계속 진행됩니다.')) {
-                // 서버에 나가기 알림
-                if (socket && socket.connected) {
-                    socket.emit('leave-room', { roomId, peerId });
-                }
+            if (confirm('정말로 회의에서 나가시겠습니까?')) {
+                meetingEnded = true;
 
-                // 미디어 정리
-                cleanupMedia();
+                try {
+                    // 소켓 연결 종료
+                    if (socket) {
+                        socket.emit('leave-room', { roomId, peerId });
+                        socket.disconnect();
+                    }
 
-                // 회의 목록 페이지로 이동
-                const urlParams = new URLSearchParams(window.location.search);
-                const workspaceId = urlParams.get('workspaceId');
+                    // 미디어 스트림 정리
+                    if (localStream) {
+                        localStream.getTracks().forEach(track => track.stop());
+                    }
+                    if (screenStream) {
+                        screenStream.getTracks().forEach(track => track.stop());
+                    }
 
-                if (workspaceId) {
+                    // Producer 정리
+                    if (audioProducer) audioProducer.close();
+                    if (videoProducer) videoProducer.close();
+                    if (screenProducer) screenProducer.close();
+
+                    // Consumer 정리
+                    consumers.forEach(consumer => consumer.close());
+                    consumers.clear();
+
+                    // Transport 정리
+                    if (producerTransport) producerTransport.close();
+                    if (consumerTransport) consumerTransport.close();
+
+                    // Spring Boot 서버로 리다이렉트 (list 페이지로)
+                    // workspaceId를 workspaceCd로 전달
+                    const redirectUrl = `${SPRING_BOOT_URL}/meeting/list?workspaceCd=${workspaceId}`;
+
+                    console.log('회의 종료, 리다이렉트:', redirectUrl);
+
+                    // 현재 창에서 이동
+                    window.location.href = redirectUrl;
+
+                } catch (error) {
+                    console.error('회의 나가기 중 오류:', error);
+                    // 오류가 발생해도 list 페이지로 이동
                     window.location.href = `${SPRING_BOOT_URL}/meeting/list?workspaceCd=${workspaceId}`;
-                } else {
-                    window.location.href = SPRING_BOOT_URL + '/workspace';
                 }
             }
         }
