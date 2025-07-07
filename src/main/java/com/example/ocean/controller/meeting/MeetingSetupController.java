@@ -1,5 +1,6 @@
 package com.example.ocean.controller.meeting;
 
+import com.example.ocean.dto.ActiveMeetingDto;
 import com.example.ocean.dto.request.MeetingCreateRequest;
 import com.example.ocean.dto.response.MeetingCreateResponse;
 import com.example.ocean.domain.WorkspaceMember;
@@ -25,7 +26,7 @@ import java.util.UUID;
  * 회의 준비 페이지 컨트롤러
  *
  * @author Ocean Team
- * @since 2024.01.15
+ * @since 2025.07.07
  */
 @Slf4j
 @Controller
@@ -222,6 +223,46 @@ public class MeetingSetupController {
         String uuid = UUID.randomUUID().toString().substring(0, 8);
 
         return String.format("%s-%s-%s", prefix, timestamp, uuid);
+    }
+
+    /**
+     * 회의 목록 페이지 표시
+     */
+    @GetMapping("/list")
+    public String showMeetingList(
+            @RequestParam String workspaceCd,
+            Model model,
+            @AuthenticationPrincipal UserPrincipal user) {
+
+        try {
+            // 워크스페이스 접근 권한 확인
+            if (!workspaceService.hasAccess(workspaceCd, user.getId())) {
+                log.warn("워크스페이스 접근 권한 없음: userId={}, workspaceCd={}",
+                        user.getId(), workspaceCd);
+                return "redirect:/error?message=access-denied";
+            }
+
+            // 워크스페이스 정보 조회
+            String workspaceName = workspaceService.getWorkspaceName(workspaceCd);
+
+            // 진행 중인 회의 목록 조회
+            List<ActiveMeetingDto> activeMeetings = meetingService.getActiveMeetings(workspaceCd);
+
+            // 모델에 데이터 추가
+            model.addAttribute("workspaceCd", workspaceCd);
+            model.addAttribute("workspaceName", workspaceName);
+            model.addAttribute("activeMeetings", activeMeetings);
+            model.addAttribute("currentUserId", user.getId());
+
+            log.info("회의 목록 페이지 접속: userId={}, workspaceCd={}",
+                    user.getId(), workspaceCd);
+
+            return "meeting/list";
+
+        } catch (Exception e) {
+            log.error("회의 목록 페이지 로드 실패", e);
+            return "redirect:/error";
+        }
     }
 
     /**
