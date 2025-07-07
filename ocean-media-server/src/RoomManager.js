@@ -11,6 +11,20 @@ class RoomManager {
       throw new Error(`Room ${roomId} already exists`);
     }
 
+    const room = {
+                id: roomId,
+                workspaceId: workspaceId,  // ⭐ 추가
+                title: null,  // ⭐ 추가 (나중에 설정)
+                router: router,
+                peers: new Map(),
+                producerTransports: new Map(),
+                consumerTransports: new Map(),
+                producers: new Map(),
+                consumers: new Map(),
+                hostId: null,  // ⭐ 추가
+                createdAt: new Date()  // ⭐ 추가
+    };
+
     const room = new Room(roomId, workspaceId, router);
     this.rooms.set(roomId, room);
 

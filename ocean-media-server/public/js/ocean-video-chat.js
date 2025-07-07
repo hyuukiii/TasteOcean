@@ -478,9 +478,8 @@
             }
         }
 
-        // ocean-video-chat.js 수정 부분만 표시
 
-        // ===== 방 참가 수정 =====
+        // ocean-video-chat.js의 joinRoom 함수 수정
         async function joinRoom() {
             // Router RTP Capabilities 가져오기
             const routerRtpCapabilities = await new Promise((resolve, reject) => {
@@ -492,20 +491,14 @@
             // MediaSoup 디바이스 초기화
             await initializeDevice(routerRtpCapabilities);
 
-            // ⭐ userId 가져오기 수정
-            let actualUserId = userId;  // 전역 변수에서 먼저 확인
-
-            // userId가 없으면 localStorage에서 확인
+            // userId 가져오기
+            let actualUserId = userId;
             if (!actualUserId) {
                 actualUserId = localStorage.getItem('userId');
             }
-
-            // 그래도 없으면 토큰에서 다시 파싱
             if (!actualUserId) {
                 const tokenUserInfo = getUserInfoFromToken();
                 actualUserId = tokenUserInfo?.userId;
-
-                // localStorage에 저장
                 if (actualUserId) {
                     localStorage.setItem('userId', actualUserId);
                 }
@@ -513,13 +506,31 @@
 
             console.log('최종 사용할 userId:', actualUserId);
 
-            // 방 참가
+            // ⭐ Spring Boot 서버에 회의 참가 정보 저장
+            try {
+                const response = await fetch(`/api/meetings/${roomId}/participants?rejoin=false`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    console.error('회의 참가 정보 저장 실패:', response.status);
+                }
+            } catch (error) {
+                console.error('회의 참가 API 호출 실패:', error);
+            }
+
+            // Socket.IO로 방 참가
             socket.emit('join-room', {
                 roomId,
                 workspaceId,
                 peerId,
                 displayName,
-                userId: actualUserId  // ⭐ 수정된 userId 전달
+                userId: actualUserId,
+                meetingTitle: meetingTitle  // ⭐ 회의 제목 추가
             });
 
             // 디버깅을 위해 로그 추가
@@ -528,10 +539,9 @@
                 workspaceId,
                 peerId,
                 displayName,
-                userId: actualUserId
+                userId: actualUserId,
+                meetingTitle: meetingTitle  // ⭐ 추가
             });
-
-            // ⭐ socket.on('room-joined', ...) 이벤트 리스너는 setupSocketListeners()로 이동!
         }
 
         // ===== MediaSoup Device 초기화 =====
@@ -1759,6 +1769,8 @@
         // const data = await response.json();
         // ===== 재접속 기능 =====
         async function rejoinMeeting() {
+
+        }
             try {
                 // API 호출 제거 - Spring Boot에 해당 API가 없음
                 // 바로 Socket.IO로 재접속 시도
@@ -1767,11 +1779,12 @@
 
                 // 재접속 시도
                 socket.emit('rejoin-room', {
-                    roomId,
-                    workspaceId,
-                    peerId,
-                    displayName,
-                    userId
+                  roomId,
+                  workspaceId,
+                  peerId,
+                  displayName,
+                  userId,
+                  meetingTitle: meetingTitle  // ⭐ 회의 제목 추가
                 });
 
             } catch (error) {

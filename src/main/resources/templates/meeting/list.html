@@ -208,12 +208,48 @@
             font-size: 11px;
             margin-left: 8px;
         }
+
+    .btn-back {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        color: #666;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-back:hover {
+        background: #f5f5f5;
+        border-color: #ccc;
+    }
     </style>
 </head>
 <body>
 <div class="container">
+    <!-- 헤더 수정 부분 -->
     <div class="header">
-        <h1>진행 중인 회의</h1>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h1>진행 중인 회의</h1>
+                <button class="btn-refresh" onclick="location.reload()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 4v6h6M23 20v-6h-6"/>
+                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                    </svg>
+                </button>
+            </div>
+            <button class="btn-back" onclick="goBackToWorkspace()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M15 18l-6-6 6-6"/>
+                </svg>
+                워크스페이스로 돌아가기
+            </button>
+        </div>
     </div>
 
     <div id="meetingGrid" class="meeting-grid">
@@ -223,28 +259,58 @@
     <div id="emptyState" class="empty-state" style="display: none;">
         <h2>진행 중인 회의가 없습니다</h2>
         <p>새로운 회의를 시작하거나 초대를 기다려주세요</p>
-        <a href="/meeting/setup" class="btn btn-primary" style="display: inline-block; width: auto;">
+        <a href="#" onclick="startNewMeeting()" class="btn btn-primary" style="display: inline-block; width: auto;">
             새 회의 시작하기
         </a>
     </div>
 </div>
 
+
+<!-- meeting/list.html의 script 부분 수정 -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="/js/token.js"></script>
 <script>
     // URL 파라미터에서 workspaceId 가져오기
     const urlParams = new URLSearchParams(window.location.search);
     const workspaceId = urlParams.get('workspaceCd');
-    const currentUserId = getUserIdFromToken(); // 토큰에서 사용자 ID 가져오기
+    const userInfo = getUserInfoFromToken();
+    const currentUserId = userInfo?.userId;
 
-    // 진행 중인 회의 목록 가져오기
-    async function fetchActiveMeetings() {
-        try {
-            const response = await fetch(`/api/meetings/active?workspaceId=${workspaceId}`);
-            const meetings = await response.json();
+    // Socket.IO 연결
+    let socket;
 
-            displayMeetings(meetings);
-        } catch (error) {
-            console.error('회의 목록 조회 실패:', error);
-        }
+    function connectToMediaServer() {
+        const serverUrl = window.location.hostname === 'localhost'
+            ? 'https://localhost:3001'
+            : `https://${window.location.hostname}:3001`;
+
+        socket = io(serverUrl, {
+            transports: ['websocket'],
+            reconnection: true
+        });
+
+        socket.on('connect', () => {
+            console.log('Media Server 연결됨');
+            // 워크스페이스의 회의 목록 요청
+            socket.emit('get-room-list', { workspaceId }, (rooms) => {
+                console.log('받은 회의 목록:', rooms);
+                displayMeetings(rooms);
+            });
+        });
+
+        socket.on('room-created', (data) => {
+            if (data.workspaceId === workspaceId) {
+                console.log('새 회의 생성됨:', data);
+                fetchMeetings();
+            }
+        });
+
+        socket.on('room-ended', (data) => {
+            if (data.workspaceId === workspaceId) {
+                console.log('회의 종료됨:', data);
+                fetchMeetings();
+            }
+        });
     }
 
     // 회의 목록 표시
@@ -254,7 +320,7 @@
 
         grid.innerHTML = '';
 
-        if (meetings.length === 0) {
+        if (!meetings || meetings.length === 0) {
             grid.style.display = 'none';
             emptyState.style.display = 'block';
             return;
@@ -274,8 +340,9 @@
         const card = document.createElement('div');
         card.className = 'meeting-card';
 
-        // 내가 참여 중인 회의인지 확인
-        const isMyMeeting = meeting.participants.some(p => p.userId === currentUserId);
+        // 참가자 정보 확인
+        const participants = Array.isArray(meeting.peers) ? meeting.peers : [];
+        const isMyMeeting = participants.some(p => p && p.userId === currentUserId);
         const amIHost = meeting.hostId === currentUserId;
 
         if (isMyMeeting) {
@@ -289,19 +356,19 @@
             </div>
 
             <h3 class="meeting-title">
-                ${meeting.title}
+                ${meeting.title || '제목 없는 회의'}
                 ${amIHost ? '<span class="host-badge">호스트</span>' : ''}
             </h3>
 
             <div class="meeting-info">
-                시작 시간: ${formatTime(meeting.startTime)}
+                시작 시간: ${formatTime(meeting.createdAt)}
             </div>
 
             <div class="meeting-participants">
                 <div class="participant-avatars">
-                    ${createParticipantAvatars(meeting.participants)}
+                    ${createParticipantAvatars(participants)}
                 </div>
-                <span>${meeting.participants.length}명 참여 중</span>
+                <span>${participants.length}명 참여 중</span>
             </div>
 
             <div class="meeting-actions">
@@ -313,11 +380,6 @@
                         참여하기
                     </button>`
                 }
-                ${amIHost ?
-                    `<button class="btn btn-secondary" onclick="endMeeting('${meeting.roomId}')">
-                        회의 종료
-                    </button>` : ''
-                }
             </div>
         `;
 
@@ -326,90 +388,39 @@
 
     // 참가자 아바타 생성
     function createParticipantAvatars(participants) {
-        const maxDisplay = 3;
-        const displayParticipants = participants.slice(0, maxDisplay);
-
-        let avatars = displayParticipants.map(p =>
-            `<div class="participant-avatar" title="${p.displayName}">
-                ${p.displayName.charAt(0).toUpperCase()}
+        return participants.slice(0, 3).map(p =>
+            `<div class="participant-avatar" title="${p.displayName || '참가자'}">
+                ${(p.displayName || '?').charAt(0).toUpperCase()}
             </div>`
         ).join('');
-
-        if (participants.length > maxDisplay) {
-            avatars += `<div class="participant-avatar">
-                +${participants.length - maxDisplay}
-            </div>`;
-        }
-
-        return avatars;
     }
 
-    // 회의 재참여
+    // 회의 재참가
     function rejoinMeeting(roomId) {
-        // 미디어 서버 URL로 리다이렉트
-        const mediaServerUrl = 'https://localhost:3001';
-        window.location.href = `${mediaServerUrl}/ocean-video-chat-complete.html?` +
-            `roomId=${roomId}&workspaceId=${workspaceId}&rejoin=true`;
+        window.location.href = `/ocean-video-chat-complete.html?roomId=${roomId}&workspaceId=${workspaceId}&rejoin=true`;
     }
 
-    // 새로운 회의 참여
+    // 회의 참가
     function joinMeeting(roomId) {
-        if (confirm('이 회의에 참여하시겠습니까?')) {
-            rejoinMeeting(roomId);
-        }
+        window.location.href = `/ocean-video-chat-complete.html?roomId=${roomId}&workspaceId=${workspaceId}`;
     }
 
-    // 회의 종료 (호스트만)
-    async function endMeeting(roomId) {
-        if (!confirm('정말로 회의를 종료하시겠습니까? 모든 참가자가 회의에서 나가게 됩니다.')) {
-            return;
-        }
+    // 페이지 로드 시 실행
+    document.addEventListener('DOMContentLoaded', () => {
+        connectToMediaServer();
+    });
 
-        try {
-            const response = await fetch(`/api/meetings/${roomId}/end`, {
-                method: 'POST'
-            });
+    // 워크스페이스로 돌아가기
+    function goBackToWorkspace() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const workspaceId = urlParams.get('workspaceCd');
 
-            if (response.ok) {
-                alert('회의가 종료되었습니다.');
-                fetchActiveMeetings(); // 목록 새로고침
-            } else {
-                alert('회의 종료에 실패했습니다.');
-            }
-        } catch (error) {
-            console.error('회의 종료 실패:', error);
-            alert('회의 종료 중 오류가 발생했습니다.');
+        if (workspaceId) {
+            window.location.href = `/wsmain?workspaceCd=${workspaceId}`;
+        } else {
+            window.location.href = '/workspace';
         }
     }
-
-    // 시간 포맷팅
-    function formatTime(timestamp) {
-        const date = new Date(timestamp);
-        return date.toLocaleTimeString('ko-KR', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    }
-
-    // 토큰에서 사용자 ID 가져오기
-    function getUserIdFromToken() {
-        // JWT 토큰 파싱 로직
-        const token = localStorage.getItem('token');
-        if (!token) return null;
-
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.userId;
-        } catch (error) {
-            return null;
-        }
-    }
-
-    // 5초마다 회의 목록 새로고침
-    setInterval(fetchActiveMeetings, 5000);
-
-    // 페이지 로드 시 회의 목록 가져오기
-    fetchActiveMeetings();
 </script>
 </body>
 </html>
