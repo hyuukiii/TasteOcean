@@ -54,7 +54,6 @@ module.exports = (io, worker, router) => {
         } catch (error) {
             console.error('Spring Boot 서버 동기화 실패:', error.message);
         }
-      }
 
         // Peer 생성
         const peer = new Peer(socket, roomId, peerId, displayName);
@@ -126,7 +125,7 @@ module.exports = (io, worker, router) => {
         console.error('Join room error:', error);
         socket.emit('error', { message: error.message });
       }
-    });
+  });
 
     // 회의 종료 이벤트 핸들러 추가
     socket.on('end-meeting', async (data, callback) => {
@@ -685,21 +684,21 @@ module.exports = (io, worker, router) => {
       try {
         const { roomId, isTyping } = data;
         const peer = peers.get(socket.id);
-        
+
         if (!peer) {
           console.error('Typing status error: Peer not found');
           return;
         }
-        
+
         // 본인을 제외한 모든 참가자에게 타이핑 상태 전달
         socket.to(roomId).emit('typing', {
           peerId: peer.id,
           displayName: peer.displayName,
           isTyping
         });
-        
+
         console.log(`Typing status from ${peer.displayName} in room ${roomId}: ${isTyping ? 'typing' : 'stopped typing'}`);
-        
+
       } catch (error) {
         console.error('Typing status error:', error);
       }
