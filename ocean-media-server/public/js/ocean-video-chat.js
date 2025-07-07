@@ -26,6 +26,7 @@
         let videoProducer;
         let screenProducer;
         let consumers = new Map();
+        let isHost = false;  // 호스트 여부
 
         // ===== 녹화 기능 ======
         let currentRecordingId = null;
@@ -246,6 +247,33 @@
                    showToast(`${stoppedBy}님이 녹화를 종료했습니다`);
                }
             });
+
+            // 회의 종료 알림 수신
+            socket.on('meeting-ended', ({ endedBy }) => {
+                // 알림 표시
+                alert(`${endedBy}님이 회의를 종료했습니다.`);
+
+                // 모든 미디어 정리
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => track.stop());
+                }
+
+                // Socket 연결 종료
+                if (socket) {
+                    socket.disconnect();
+                }
+
+                // 워크스페이스 메인으로 이동
+                const urlParams = new URLSearchParams(window.location.search);
+                const workspaceId = urlParams.get('workspaceId');
+
+                setTimeout(() => {
+                     window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+                }, 2000);
+            });
         }
 
         // 페이지 로드 시 녹화 상태 확인
@@ -369,22 +397,37 @@
             console.log('최종 사용할 userId:', actualUserId);
 
             // 방 참가
-            socket.emit('join-room', {
-                roomId,
-                workspaceId,
-                peerId,
-                displayName,
-                userId: actualUserId  // ⭐ 수정된 userId 전달
-            });
+                socket.emit('join-room', {
+                    roomId,
+                    workspaceId,
+                    peerId,
+                    displayName,
+                    meetingType,
+                    userId: actualUserId
+                }, (response) => {
+                    // 서버로부터 호스트 정보 받기
+                    if (response && response.isHost !== undefined) {
+                        isHost = response.isHost;
+                        updateEndCallButton();  // 종료 버튼 업데이트
+                    }
+
+                    // 기존 참가자 정보 처리
+                    if (response && response.existingPeers) {
+                        response.existingPeers.forEach(peer => {
+                            addRemoteVideo(peer.id, peer.displayName);
+                        });
+                        updateParticipantCount();
+                    }
+                });
 
             // 디버깅을 위해 로그 추가
-            console.log('join-room 전송 데이터:', {
-                roomId,
-                workspaceId,
-                peerId,
-                displayName,
-                userId: actualUserId
-            });
+            //console.log('join-room 전송 데이터:', {
+                //roomId,
+                //workspaceId,
+                //peerId,
+                //displayName,
+                //userId: actualUserId
+            //});
 
             socket.on('room-joined', async (data) => {
                 console.log('방 참가 성공:', data);
@@ -410,6 +453,23 @@
 
                 showToast('회의에 참가했습니다');
             });
+        }
+
+        // 종료 버튼 업데이트 함수 추가
+        function updateEndCallButton() {
+            const endCallBtn = document.querySelector('.control-btn.danger');
+
+            if (!isHost) {
+                // 호스트가 아니면 버튼 숨기기 또는 비활성화
+                // 옵션 1: 버튼 숨기기
+                // endCallBtn.style.display = 'none';
+
+                // 옵션 2: 버튼 비활성화 + 툴팁 추가
+                endCallBtn.disabled = true;
+                endCallBtn.style.opacity = '0.5';
+                endCallBtn.style.cursor = 'not-allowed';
+                endCallBtn.title = '회의 종료는 호스트만 가능합니다';
+            }
         }
 
         // ===== MediaSoup Device 초기화 =====
@@ -1386,7 +1446,24 @@
 
         // 방 나가기 (화상채팅 완전 종료)
         function leaveRoom() {
-            if (confirm('회의를 나가시겠습니까?')) {
+            // 호스트가 아닌 경우 체크
+            if (!isHost) {
+                alert('회의 종료는 호스트만 가능합니다.\n회의에서 나가려면 상단의 나가기 버튼을 사용하세요.');
+                return;
+            }
+
+            // ⭐ 호스트용 메시지로 변경
+            if (confirm('회의를 종료하시겠습니까?\n모든 참가자가 회의에서 나가게 됩니다.')) {
+
+                // ⭐ 서버에 회의 종료 알림 (다른 참가자들에게 알림이 가도록)
+                if (socket && socket.connected) {
+                    socket.emit('end-meeting', { roomId }, (response) => {
+                        if (response && response.success) {
+                            console.log('회의 종료 알림 전송 완료');
+                        }
+                    });
+                }
+
                 // 모든 프로듀서 정리
                 if (audioProducer) audioProducer.close();
                 if (videoProducer) videoProducer.close();
@@ -1412,7 +1489,7 @@
                     socket.disconnect();
                 }
 
-                // ⭐ workspaceId를 가져와서 워크스페이스 메인 페이지로 이동
+                // workspaceId를 가져와서 워크스페이스 메인 페이지로 이동
                 const urlParams = new URLSearchParams(window.location.search);
                 const workspaceId = urlParams.get('workspaceId');
 
