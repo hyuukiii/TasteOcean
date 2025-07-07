@@ -25,8 +25,8 @@ class RoomManager {
                 createdAt: new Date()  // ⭐ 추가
     };
 
-    const room = new Room(roomId, workspaceId, router);
-    this.rooms.set(roomId, room);
+    //const room = new Room(roomId, workspaceId, router);
+    //this.rooms.set(roomId, room);
 
     console.log(`Room created: ${roomId} for workspace: ${workspaceId}`);
     return room;
