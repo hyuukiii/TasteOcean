@@ -466,24 +466,20 @@ public class MeetingService {
     }
 
     /**
-     * 진행 중인 회의 목록 조회
+     * 진행 중인 회의 목록 조회 (단순화된 버전)
      */
     public List<ActiveMeetingDto> getActiveMeetings(String workspaceId) {
         try {
+            // 먼저 간단한 쿼리로 회의 정보만 가져오기
             String query = """
             SELECT 
                 mr.ROOM_CD,
                 mr.ROOM_NM,
                 mr.HOST_ID,
-                u.USER_NAME as HOST_NAME,
-                mr.ACTUAL_START_TIME,
-                COUNT(mp.USER_ID) as PARTICIPANT_COUNT
+                mr.ACTUAL_START_TIME
             FROM MEETING_ROOMS mr
-            LEFT JOIN USERS u ON mr.HOST_ID = u.USER_ID
-            LEFT JOIN MEETING_PARTICIPANTS mp ON mr.ROOM_CD = mp.ROOM_CD AND mp.ACTIVE_STATE = 'Y'
             WHERE mr.WORKSPACE_CD = :workspaceId 
             AND mr.STATUS = 'IN_PROGRESS'
-            GROUP BY mr.ROOM_CD, mr.ROOM_NM, mr.HOST_ID, u.USER_NAME, mr.ACTUAL_START_TIME
         """;
 
             Query nativeQuery = entityManager.createNativeQuery(query);
@@ -492,19 +488,43 @@ public class MeetingService {
             List<Object[]> results = nativeQuery.getResultList();
             List<ActiveMeetingDto> meetings = new ArrayList<>();
 
+            log.info("진행 중인 회의 수: {}", results.size());
+
             for (Object[] row : results) {
-                // 각 회의의 참가자 목록 조회
-                List<ActiveMeetingDto.ParticipantDto> participants = getParticipantsByRoom((String) row[0]);
+                String roomId = (String) row[0];
+                String title = (String) row[1];
+                String hostId = (String) row[2];
+
+                // 호스트 이름 별도 조회
+                String hostName = getHostName(hostId);
+
+                // 시작 시간 처리
+                LocalDateTime startTime = null;
+                if (row[3] != null) {
+                    startTime = ((Timestamp) row[3]).toLocalDateTime();
+                } else {
+                    startTime = LocalDateTime.now();
+                }
+
+                // 참가자 목록 조회
+                List<ActiveMeetingDto.ParticipantDto> participants = getParticipantsByRoom(roomId);
+
+                // 참가자 수 계산
+                int participantCount = participants.size();
 
                 ActiveMeetingDto meeting = new ActiveMeetingDto(
-                        (String) row[0],  // roomId
-                        (String) row[1],  // title
-                        (String) row[2],  // hostId
-                        (String) row[3],  // hostName
-                        ((Timestamp) row[4]).toLocalDateTime(), // startTime
+                        roomId,
+                        title,
+                        hostId,
+                        hostName,
+                        startTime,
                         participants,
-                        ((Number) row[5]).intValue() // participantCount
+                        participantCount
                 );
+
+                log.info("회의 정보: roomId={}, title={}, hostId={}, hostName={}, participantCount={}",
+                        roomId, title, hostId, hostName, participantCount);
+
                 meetings.add(meeting);
             }
 
@@ -512,7 +532,28 @@ public class MeetingService {
 
         } catch (Exception e) {
             log.error("진행 중인 회의 목록 조회 실패: workspaceId={}", workspaceId, e);
+            e.printStackTrace(); // 상세 에러 출력
             return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 호스트 이름 조회
+     */
+    private String getHostName(String hostId) {
+        try {
+            String query = "SELECT USER_NAME FROM USERS WHERE USER_ID = :hostId";
+            Query nativeQuery = entityManager.createNativeQuery(query);
+            nativeQuery.setParameter("hostId", hostId);
+
+            List<String> results = nativeQuery.getResultList();
+            if (!results.isEmpty()) {
+                return results.get(0);
+            }
+            return "Unknown User";
+        } catch (Exception e) {
+            log.error("호스트 이름 조회 실패: hostId={}", hostId, e);
+            return "Unknown User";
         }
     }
 
