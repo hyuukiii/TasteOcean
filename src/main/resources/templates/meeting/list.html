@@ -1,239 +1,15 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>진행 중인 회의 - Ocean</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f5f5f5;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-
-        .header h1 {
-            color: #333;
-            font-size: 24px;
-        }
-
-        .meeting-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
-        }
-
-        .meeting-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .meeting-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-
-        .meeting-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            margin-bottom: 10px;
-        }
-
-        .status-active {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-
-        .status-ended {
-            background: #ffebee;
-            color: #c62828;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        .meeting-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-        }
-
-        .meeting-info {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 15px;
-        }
-
-        .meeting-participants {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            color: #666;
-            font-size: 14px;
-        }
-
-        .participant-avatars {
-            display: flex;
-            margin-left: -8px;
-        }
-
-        .participant-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #2196f3;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 500;
-            border: 2px solid white;
-            margin-left: -8px;
-            position: relative;
-        }
-
-        .participant-avatar:first-child {
-            margin-left: 0;
-        }
-
-        .meeting-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 10px 16px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-            text-decoration: none;
-        }
-
-        .btn-primary {
-            background: #2196f3;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #1976d2;
-        }
-
-        .btn-secondary {
-            background: #f5f5f5;
-            color: #666;
-        }
-
-        .btn-secondary:hover {
-            background: #e0e0e0;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .empty-state h2 {
-            color: #666;
-            font-size: 20px;
-            margin-bottom: 10px;
-        }
-
-        .empty-state p {
-            color: #999;
-            margin-bottom: 20px;
-        }
-
-        .your-meeting {
-            border: 2px solid #2196f3;
-        }
-
-        .host-badge {
-            background: #ff9800;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            margin-left: 8px;
-        }
-
-    .btn-back {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        color: #666;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-back:hover {
-        background: #f5f5f5;
-        border-color: #ccc;
-    }
-    </style>
+    <link rel="stylesheet" th:href="@{/css/meeting-list.css}">
 </head>
 <body>
-<div class="container">
-    <!-- 헤더 수정 부분 -->
+<div class="meeting-list-container">
     <div class="header">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="header-content">
             <div style="display: flex; align-items: center; gap: 20px;">
                 <h1>진행 중인 회의</h1>
                 <button class="btn-refresh" onclick="location.reload()">
@@ -252,37 +28,104 @@
         </div>
     </div>
 
-    <div id="meetingGrid" class="meeting-grid">
-        <!-- 회의 카드들이 여기에 동적으로 추가됩니다 -->
+    <!-- 타임리프로 회의 목록 렌더링 -->
+    <div id="meetingGrid" class="meeting-grid" th:if="${activeMeetings != null and !activeMeetings.isEmpty()}">
+        <div th:each="meeting : ${activeMeetings}"
+             class="meeting-card"
+             th:classappend="${meeting.hostId == currentUserId} ? 'your-meeting' : ''">
+
+            <div class="meeting-status status-active">
+                <span class="status-dot"></span>
+                진행 중
+            </div>
+
+            <h3 class="meeting-title">
+                <span th:text="${meeting.title} ?: '제목 없는 회의'"></span>
+                <span th:if="${meeting.hostId == currentUserId}" class="host-badge">호스트</span>
+            </h3>
+
+            <div class="meeting-info">
+                시작 시간: <span th:text="${meeting.startTime != null ? #temporals.format(meeting.startTime, 'HH:mm') : '시간 정보 없음'}"></span>
+            </div>
+
+            <div class="meeting-participants">
+                <div class="participant-avatars">
+                    <!-- 참가자 아바타 표시 -->
+                    <div th:each="participant, iterStat : ${meeting.participants}"
+                         th:if="${iterStat.index < 3}"
+                         class="participant-avatar"
+                         th:title="${participant.displayName}">
+                        <span th:text="${#strings.substring(participant.displayName, 0, 1)}"></span>
+                    </div>
+                    <div th:if="${#lists.size(meeting.participants) > 3}"
+                         class="participant-avatar more">
+                        +<span th:text="${#lists.size(meeting.participants) - 3}"></span>
+                    </div>
+                </div>
+                <span><span th:text="${meeting.participantCount}"></span>명 참여 중</span>
+            </div>
+
+            <div class="meeting-actions">
+                <!-- 참가하기/돌아가기 버튼 -->
+                <th:block th:with="isParticipant=${#lists.contains(meeting.participants.![userId], currentUserId)}">
+                    <a th:if="${isParticipant}"
+                       th:href="@{/ocean-video-chat-complete.html(roomId=${meeting.roomId}, workspaceCd=${workspaceCd}, meetingTitle=${meeting.title}, rejoin=true)}"
+                       class="btn btn-primary">회의로 돌아가기</a>
+
+                    <a th:unless="${isParticipant}"
+                       th:href="@{/ocean-video-chat-complete.html(roomId=${meeting.roomId}, workspaceCd=${workspaceCd}, meetingTitle=${meeting.title})}"
+                       class="btn btn-primary">참가하기</a>
+                </th:block>
+
+                <button th:if="${meeting.hostId == currentUserId}"
+                        class="btn btn-danger"
+                        th:onclick="|endMeeting('${meeting.roomId}')|">
+                    회의 종료
+                </button>
+            </div>
+        </div>
     </div>
 
-    <div id="emptyState" class="empty-state" style="display: none;">
+    <!-- 빈 상태 -->
+    <div id="emptyState" class="empty-state"
+         th:if="${activeMeetings == null or activeMeetings.isEmpty()}"
+         style="display: flex;">
         <h2>진행 중인 회의가 없습니다</h2>
         <p>새로운 회의를 시작하거나 초대를 기다려주세요</p>
-        <a href="#" onclick="startNewMeeting()" class="btn btn-primary" style="display: inline-block; width: auto;">
+        <a th:href="@{/meeting/setup(workspaceCd=${workspaceCd})}"
+           class="btn btn-primary" style="display: inline-block; width: auto;">
             새 회의 시작하기
         </a>
     </div>
 </div>
 
-
-<!-- meeting/list.html의 script 부분 수정 -->
+<!-- Socket.IO는 실시간 업데이트용으로만 사용 -->
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<script src="/js/token.js"></script>
-<script>
-    // URL 파라미터에서 workspaceId 가져오기
-    const urlParams = new URLSearchParams(window.location.search);
-    const workspaceId = urlParams.get('workspaceCd');
-    const userInfo = getUserInfoFromToken();
-    const currentUserId = userInfo?.userId;
 
-    // Socket.IO 연결
+<!-- 타임리프 변수를 JavaScript로 전달 -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const workspaceCd = /*[[${workspaceCd}]]*/ '';
+    const currentUserId = /*[[${currentUserId}]]*/ '';
+    /*]]>*/
+</script>
+
+<script>
+    // Socket.IO는 실시간 업데이트용으로만 사용
     let socket;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // 디버깅
+        console.log('워크스페이스 코드:', workspaceCd);
+        console.log('현재 사용자 ID:', currentUserId);
+
+        connectToMediaServer();
+    });
 
     function connectToMediaServer() {
         const serverUrl = window.location.hostname === 'localhost'
             ? 'https://localhost:3001'
-            : `https://${window.location.hostname}:3001`;
+            : 'https://192.168.100.16:3001';
 
         socket = io(serverUrl, {
             transports: ['websocket'],
@@ -290,137 +133,62 @@
         });
 
         socket.on('connect', () => {
-            console.log('Media Server 연결됨');
-            // 워크스페이스의 회의 목록 요청
-            socket.emit('get-room-list', { workspaceId }, (rooms) => {
-                console.log('받은 회의 목록:', rooms);
-                displayMeetings(rooms);
-            });
+            console.log('미디어 서버 연결됨');
+            if (workspaceCd) {
+                socket.emit('subscribe-workspace', { workspaceId: workspaceCd });
+            }
         });
 
+        // 실시간 업데이트 이벤트
         socket.on('room-created', (data) => {
-            if (data.workspaceId === workspaceId) {
-                console.log('새 회의 생성됨:', data);
-                fetchMeetings();
+            console.log('새 회의 생성됨:', data);
+            if (data.workspaceId === workspaceCd) {
+                // 3초 후 새로고침 (사용자가 작업 중일 수 있으므로)
+                setTimeout(() => location.reload(), 3000);
             }
         });
 
         socket.on('room-ended', (data) => {
-            if (data.workspaceId === workspaceId) {
-                console.log('회의 종료됨:', data);
-                fetchMeetings();
+            console.log('회의 종료됨:', data);
+            if (data.workspaceId === workspaceCd) {
+                location.reload();
+            }
+        });
+
+        socket.on('participant-update', (data) => {
+            console.log('참가자 업데이트:', data);
+            if (data.workspaceId === workspaceCd) {
+                // 부분 업데이트 또는 새로고침
+                location.reload();
             }
         });
     }
 
-    // 회의 목록 표시
-    function displayMeetings(meetings) {
-        const grid = document.getElementById('meetingGrid');
-        const emptyState = document.getElementById('emptyState');
-
-        grid.innerHTML = '';
-
-        if (!meetings || meetings.length === 0) {
-            grid.style.display = 'none';
-            emptyState.style.display = 'block';
-            return;
-        }
-
-        grid.style.display = 'grid';
-        emptyState.style.display = 'none';
-
-        meetings.forEach(meeting => {
-            const card = createMeetingCard(meeting);
-            grid.appendChild(card);
-        });
-    }
-
-    // 회의 카드 생성
-    function createMeetingCard(meeting) {
-        const card = document.createElement('div');
-        card.className = 'meeting-card';
-
-        // 참가자 정보 확인
-        const participants = Array.isArray(meeting.peers) ? meeting.peers : [];
-        const isMyMeeting = participants.some(p => p && p.userId === currentUserId);
-        const amIHost = meeting.hostId === currentUserId;
-
-        if (isMyMeeting) {
-            card.classList.add('your-meeting');
-        }
-
-        card.innerHTML = `
-            <div class="meeting-status status-active">
-                <span class="status-dot"></span>
-                진행 중
-            </div>
-
-            <h3 class="meeting-title">
-                ${meeting.title || '제목 없는 회의'}
-                ${amIHost ? '<span class="host-badge">호스트</span>' : ''}
-            </h3>
-
-            <div class="meeting-info">
-                시작 시간: ${formatTime(meeting.createdAt)}
-            </div>
-
-            <div class="meeting-participants">
-                <div class="participant-avatars">
-                    ${createParticipantAvatars(participants)}
-                </div>
-                <span>${participants.length}명 참여 중</span>
-            </div>
-
-            <div class="meeting-actions">
-                ${isMyMeeting ?
-                    `<button class="btn btn-primary" onclick="rejoinMeeting('${meeting.roomId}')">
-                        다시 참여하기
-                    </button>` :
-                    `<button class="btn btn-secondary" onclick="joinMeeting('${meeting.roomId}')">
-                        참여하기
-                    </button>`
-                }
-            </div>
-        `;
-
-        return card;
-    }
-
-    // 참가자 아바타 생성
-    function createParticipantAvatars(participants) {
-        return participants.slice(0, 3).map(p =>
-            `<div class="participant-avatar" title="${p.displayName || '참가자'}">
-                ${(p.displayName || '?').charAt(0).toUpperCase()}
-            </div>`
-        ).join('');
-    }
-
-    // 회의 재참가
-    function rejoinMeeting(roomId) {
-        window.location.href = `/ocean-video-chat-complete.html?roomId=${roomId}&workspaceId=${workspaceId}&rejoin=true`;
-    }
-
-    // 회의 참가
-    function joinMeeting(roomId) {
-        window.location.href = `/ocean-video-chat-complete.html?roomId=${roomId}&workspaceId=${workspaceId}`;
-    }
-
-    // 페이지 로드 시 실행
-    document.addEventListener('DOMContentLoaded', () => {
-        connectToMediaServer();
-    });
-
-    // 워크스페이스로 돌아가기
     function goBackToWorkspace() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const workspaceId = urlParams.get('workspaceCd');
+        window.location.href = '/wsmain?workspaceCd=' + workspaceCd;
+    }
 
-        if (workspaceId) {
-            window.location.href = `/wsmain?workspaceCd=${workspaceId}`;
-        } else {
-            window.location.href = '/workspace';
+    function endMeeting(roomId) {
+        if (confirm('정말로 회의를 종료하시겠습니까? 모든 참가자가 회의에서 나가게 됩니다.')) {
+            // Socket.IO로 회의 종료 요청
+            socket.emit('end-meeting', { roomId }, (response) => {
+                if (response.error) {
+                    alert('회의 종료 실패: ' + response.error);
+                } else {
+                    alert('회의가 종료되었습니다.');
+                    location.reload();
+                }
+            });
         }
     }
+
+    // 페이지 가시성 변경 시 자동 새로고침 (옵션)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            // 페이지가 다시 보이면 새로고침
+            location.reload();
+        }
+    });
 </script>
 </body>
 </html>
