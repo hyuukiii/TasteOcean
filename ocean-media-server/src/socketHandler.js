@@ -1,7 +1,6 @@
 const roomManager = require('./RoomManager');
 const Peer = require('./Peer');
 const Recorder = require('./recorder');
-const axios = require('axios');
 
 const peers = new Map();
 
@@ -22,9 +21,7 @@ module.exports = (io, worker, router) => {
 
     socket.on('join-room', async (data) => {
       try {
-        const { roomId, workspaceId, peerId, displayName, userId, meetingTitle } = data;  // ⭐ meetingTitle 추가
-
-        console.log('join-room 데이터:', { roomId, workspaceId, peerId, displayName, userId, meetingTitle });
+        const { roomId, workspaceId, peerId, displayName, userId } = data;
 
         // ⭐ 디버깅 로그 추가
         console.log('join-room 데이터:', { roomId, workspaceId, peerId, displayName, userId });
@@ -32,27 +29,8 @@ module.exports = (io, worker, router) => {
 
         // 룸 가져오기 또는 생성
         let room = roomManager.getRoom(roomId);
-          if (!room) {
-              room = roomManager.createRoom(roomId, workspaceId, router);
-              // ⭐ 회의 제목 설정
-              room.title = meetingTitle || `${displayName}님의 회의`;
-          }
-
-        // ⭐ Spring Boot 서버에 회의 생성 알림
-        try {
-              await axios.post('http://localhost:8080/api/meetings/create-from-socket', {
-                roomId,
-                workspaceId,
-                title: `${displayName}님의 회의`,
-                hostId: userId
-                }, {
-                     headers: {
-                        'Content-Type': 'application/json'
-                     }
-                });
-                console.log('Spring Boot 서버에 회의 정보 동기화 완료');
-        } catch (error) {
-            console.error('Spring Boot 서버 동기화 실패:', error.message);
+        if (!room) {
+          room = roomManager.createRoom(roomId, workspaceId, router);
         }
 
         // Peer 생성
@@ -125,7 +103,7 @@ module.exports = (io, worker, router) => {
         console.error('Join room error:', error);
         socket.emit('error', { message: error.message });
       }
-  });
+    });
 
     // 회의 종료 이벤트 핸들러 추가
     socket.on('end-meeting', async (data, callback) => {
@@ -171,49 +149,6 @@ module.exports = (io, worker, router) => {
         } catch (error) {
             console.error('End meeting error:', error);
             callback({ error: error.message });
-        }
-    });
-
-    // 워크스페이스의 회의 목록 조회
-    socket.on('get-room-list', (data, callback) => {
-        try {
-            const { workspaceId } = data;
-            console.log(`워크스페이스 ${workspaceId}의 회의 목록 요청`);
-
-            // 해당 워크스페이스의 모든 활성 회의 찾기
-            const rooms = [];
-
-            roomManager.rooms.forEach((room, roomId) => {
-                if (room.workspaceId === workspaceId) {
-                    const participants = Array.from(room.peers.values()).map(peer => ({
-                        userId: peer.userId,
-                        displayName: peer.displayName,
-                        peerId: peer.id,
-                        role: peer.role
-                    }));
-
-                    rooms.push({
-                        roomId: roomId,
-                        workspaceId: room.workspaceId,
-                        title: room.title || `회의 ${roomId}`,
-                        hostId: room.hostId,
-                        peers: participants,
-                        createdAt: room.createdAt || new Date()
-                    });
-                }
-            });
-
-            console.log(`워크스페이스 ${workspaceId}의 활성 회의: ${rooms.length}개`);
-
-            // 콜백으로 회의 목록 전달
-            if (callback) {
-                callback(rooms);
-            }
-        } catch (error) {
-            console.error('회의 목록 조회 에러:', error);
-            if (callback) {
-                callback([]);
-            }
         }
     });
 
@@ -684,21 +619,21 @@ module.exports = (io, worker, router) => {
       try {
         const { roomId, isTyping } = data;
         const peer = peers.get(socket.id);
-
+        
         if (!peer) {
           console.error('Typing status error: Peer not found');
           return;
         }
-
+        
         // 본인을 제외한 모든 참가자에게 타이핑 상태 전달
         socket.to(roomId).emit('typing', {
           peerId: peer.id,
           displayName: peer.displayName,
           isTyping
         });
-
+        
         console.log(`Typing status from ${peer.displayName} in room ${roomId}: ${isTyping ? 'typing' : 'stopped typing'}`);
-
+        
       } catch (error) {
         console.error('Typing status error:', error);
       }
