@@ -1,3 +1,8 @@
+        // 동적으로 SpringBoot 서버 URL 설정 하기
+        const SPRING_BOOT_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:8080'
+            : `http://${window.location.hostname}:8080`;
+
         // ===== UI 상태 관리 =====
         let isVideoOn = true;
         let isAudioOn = true;
@@ -57,18 +62,7 @@
                 userProfileImg = userProfileImg.replace(':8081', ':8080');
                 // console.log('프로필 이미지 포트 수정: 8081 → 8080');
             }
-
-            // console.log('최종 프로필 이미지 URL:', userProfileImg);
         }
-
-        // console.log('토큰에서 추출한 사용자 정보:', userInfo);
-
-        // 디버깅 로그 추가
-        // console.log('=== 프로필 이미지 디버깅 ===');
-        // console.log('토큰에서 추출한 전체 사용자 정보:', userInfo);
-        // console.log('userProfileImg 값:', userProfileImg);
-        // console.log('URL 파라미터의 userProfileImg:', urlParams.get('userProfileImg'));
-
 
         // ⭐ 사용자 정보 설정 (순서 중요!)
         const userId = userInfo?.userId;
@@ -1390,7 +1384,7 @@
             document.getElementById('participantCount').textContent = count;
         }
 
-        // 방 나가기
+        // 방 나가기 (화상채팅 완전 종료)
         function leaveRoom() {
             if (confirm('회의를 나가시겠습니까?')) {
                 // 모든 프로듀서 정리
@@ -1418,8 +1412,34 @@
                     socket.disconnect();
                 }
 
-                // 메인 페이지로 이동
-                window.location.href = '/';
+                // ⭐ workspaceId를 가져와서 워크스페이스 메인 페이지로 이동
+                const urlParams = new URLSearchParams(window.location.search);
+                const workspaceId = urlParams.get('workspaceId');
+
+                if (workspaceId) {
+                    // 워크스페이스 메인 페이지로 이동
+                    window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+                } else {
+                    // workspaceId가 없으면 기본 워크스페이스 페이지로
+                    window.location.href = SPRING_BOOT_URL + '/workspace';
+                }
+            }
+        }
+
+        // 회의 설정 페이지로 돌아가기
+        function exitToSetup() {
+            if (confirm('회의 설정 페이지로 돌아가시겠습니까? 현재 회의는 계속 진행됩니다.')) {
+                // workspaceId를 가져오기
+                const urlParams = new URLSearchParams(window.location.search);
+                const workspaceId = urlParams.get('workspaceId');
+
+                if (workspaceId) {
+                    // ⭐ Spring Boot 서버의 meeting-setup 페이지로 이동
+                    window.location.href = `${SPRING_BOOT_URL}/meeting/setup?workspaceCd=${workspaceId}`;
+                } else {
+                    // ⭐ workspaceId가 없으면 워크스페이스 목록 페이지로
+                    window.location.href = SPRING_BOOT_URL + '/workspace';
+                }
             }
         }
 
