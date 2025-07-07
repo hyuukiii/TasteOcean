@@ -1,5 +1,6 @@
 package com.example.ocean.service;
 
+import com.example.ocean.dto.ActiveMeetingDto;
 import com.example.ocean.dto.UserMeetingPreferences;
 import com.example.ocean.dto.request.MeetingCreateRequest;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import jakarta.persistence.Query;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -460,6 +462,274 @@ public class MeetingService {
         } catch (Exception e) {
             log.error("캘린더 일정 생성 실패: roomId={}", roomId, e);
             // 캘린더 일정 생성 실패해도 회의는 진행 가능
+        }
+    }
+
+    /**
+     * 진행 중인 회의 목록 조회
+     */
+    public List<ActiveMeetingDto> getActiveMeetings(String workspaceId) {
+        try {
+            String query = """
+            SELECT 
+                mr.ROOM_CD,
+                mr.ROOM_NM,
+                mr.HOST_ID,
+                u.USER_NAME as HOST_NAME,
+                mr.ACTUAL_START_TIME,
+                COUNT(mp.USER_ID) as PARTICIPANT_COUNT
+            FROM MEETING_ROOMS mr
+            LEFT JOIN USERS u ON mr.HOST_ID = u.USER_ID
+            LEFT JOIN MEETING_PARTICIPANTS mp ON mr.ROOM_CD = mp.ROOM_CD AND mp.ACTIVE_STATE = 'Y'
+            WHERE mr.WORKSPACE_CD = :workspaceId 
+            AND mr.STATUS = 'IN_PROGRESS'
+            GROUP BY mr.ROOM_CD, mr.ROOM_NM, mr.HOST_ID, u.USER_NAME, mr.ACTUAL_START_TIME
+        """;
+
+            Query nativeQuery = entityManager.createNativeQuery(query);
+            nativeQuery.setParameter("workspaceId", workspaceId);
+
+            List<Object[]> results = nativeQuery.getResultList();
+            List<ActiveMeetingDto> meetings = new ArrayList<>();
+
+            for (Object[] row : results) {
+                // 각 회의의 참가자 목록 조회
+                List<ActiveMeetingDto.ParticipantDto> participants = getParticipantsByRoom((String) row[0]);
+
+                ActiveMeetingDto meeting = new ActiveMeetingDto(
+                        (String) row[0],  // roomId
+                        (String) row[1],  // title
+                        (String) row[2],  // hostId
+                        (String) row[3],  // hostName
+                        ((Timestamp) row[4]).toLocalDateTime(), // startTime
+                        participants,
+                        ((Number) row[5]).intValue() // participantCount
+                );
+                meetings.add(meeting);
+            }
+
+            return meetings;
+
+        } catch (Exception e) {
+            log.error("진행 중인 회의 목록 조회 실패: workspaceId={}", workspaceId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 회의 참가자 목록 조회
+     */
+    private List<ActiveMeetingDto.ParticipantDto> getParticipantsByRoom(String roomId) {
+        try {
+            String query = """
+            SELECT 
+                mp.USER_ID,
+                u.USER_NAME,
+                u.USER_PROFILE_IMG,
+                mp.ACTIVE_STATE,
+                mp.JOINED_DATE
+            FROM MEETING_PARTICIPANTS mp
+            JOIN USERS u ON mp.USER_ID = u.USER_ID
+            WHERE mp.ROOM_CD = :roomId
+        """;
+
+            Query nativeQuery = entityManager.createNativeQuery(query);
+            nativeQuery.setParameter("roomId", roomId);
+
+            List<Object[]> results = nativeQuery.getResultList();
+            List<ActiveMeetingDto.ParticipantDto> participants = new ArrayList<>();
+
+            for (Object[] row : results) {
+                ActiveMeetingDto.ParticipantDto participant = new ActiveMeetingDto.ParticipantDto(
+                        (String) row[0],  // userId
+                        (String) row[1],  // displayName
+                        (String) row[2],  // profileImage
+                        "Y".equals(row[3]), // isActive
+                        ((Timestamp) row[4]).toLocalDateTime() // joinedAt
+                );
+                participants.add(participant);
+            }
+
+            return participants;
+
+        } catch (Exception e) {
+            log.error("참가자 목록 조회 실패: roomId={}", roomId, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 회의 재참가
+     */
+    @Transactional
+    public void rejoinParticipant(String roomId, String userId) {
+        try {
+            String updateQuery = """
+            UPDATE MEETING_PARTICIPANTS 
+            SET ACTIVE_STATE = 'Y',
+                QUIT_DATE = NULL
+            WHERE ROOM_CD = :roomId 
+            AND USER_ID = :userId
+        """;
+
+            Query query = entityManager.createNativeQuery(updateQuery);
+            query.setParameter("roomId", roomId);
+            query.setParameter("userId", userId);
+
+            int updated = query.executeUpdate();
+
+            if (updated == 0) {
+                // 참가 기록이 없으면 새로 추가
+                addParticipant(roomId, userId, "PARTICIPANT");
+            }
+
+            log.info("회의 재참가 완료: roomId={}, userId={}", roomId, userId);
+
+        } catch (Exception e) {
+            log.error("회의 재참가 실패: roomId={}, userId={}", roomId, userId, e);
+            throw new RuntimeException("회의 재참가 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 호스트 여부 확인
+     */
+    public boolean isHost(String roomId, String userId) {
+        try {
+            String query = """
+            SELECT COUNT(*) FROM MEETING_ROOMS 
+            WHERE ROOM_CD = :roomId 
+            AND HOST_ID = :userId
+        """;
+
+            Query queryObj = entityManager.createNativeQuery(query);
+            queryObj.setParameter("roomId", roomId);
+            queryObj.setParameter("userId", userId);
+
+            Number count = (Number) queryObj.getSingleResult();
+            return count.intValue() > 0;
+
+        } catch (Exception e) {
+            log.error("호스트 확인 실패: roomId={}, userId={}", roomId, userId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 회의에서 나가기 (일시적)
+     */
+    @Transactional
+    public void leaveParticipant(String roomId, String userId) {
+        try {
+            String updateQuery = """
+            UPDATE MEETING_PARTICIPANTS 
+            SET ACTIVE_STATE = 'N',
+                QUIT_DATE = NOW()
+            WHERE ROOM_CD = :roomId 
+            AND USER_ID = :userId
+        """;
+
+            Query query = entityManager.createNativeQuery(updateQuery);
+            query.setParameter("roomId", roomId);
+            query.setParameter("userId", userId);
+
+            query.executeUpdate();
+
+            log.info("회의 나가기 완료: roomId={}, userId={}", roomId, userId);
+
+        } catch (Exception e) {
+            log.error("회의 나가기 실패: roomId={}, userId={}", roomId, userId, e);
+            throw new RuntimeException("회의 나가기 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 호스트 ID 조회
+     */
+    public String getHostId(String roomId) {
+        try {
+            String query = "SELECT HOST_ID FROM MEETING_ROOMS WHERE ROOM_CD = :roomId";
+
+            Query queryObj = entityManager.createNativeQuery(query);
+            queryObj.setParameter("roomId", roomId);
+
+            return (String) queryObj.getSingleResult();
+
+        } catch (Exception e) {
+            log.error("호스트 ID 조회 실패: roomId={}", roomId, e);
+            return null;
+        }
+    }
+
+    /**
+     * 호스트 권한 이전
+     */
+    @Transactional
+    public void transferHost(String roomId, String newHostId) {
+        try {
+            // 새 호스트가 참가자인지 확인
+            String checkQuery = """
+            SELECT COUNT(*) FROM MEETING_PARTICIPANTS 
+            WHERE ROOM_CD = :roomId 
+            AND USER_ID = :userId
+            AND ACTIVE_STATE = 'Y'
+        """;
+
+            Query check = entityManager.createNativeQuery(checkQuery);
+            check.setParameter("roomId", roomId);
+            check.setParameter("userId", newHostId);
+
+            Number count = (Number) check.getSingleResult();
+            if (count.intValue() == 0) {
+                throw new RuntimeException("새 호스트가 회의 참가자가 아닙니다");
+            }
+
+            // 기존 호스트를 일반 참가자로 변경
+            String oldHostId = getHostId(roomId);
+            if (oldHostId != null) {
+                String updateOldHost = """
+                UPDATE MEETING_PARTICIPANTS 
+                SET ROLE = 'PARTICIPANT'
+                WHERE ROOM_CD = :roomId 
+                AND USER_ID = :userId
+            """;
+
+                Query updateOld = entityManager.createNativeQuery(updateOldHost);
+                updateOld.setParameter("roomId", roomId);
+                updateOld.setParameter("userId", oldHostId);
+                updateOld.executeUpdate();
+            }
+
+            // 새 호스트 설정
+            String updateRoom = """
+            UPDATE MEETING_ROOMS 
+            SET HOST_ID = :newHostId
+            WHERE ROOM_CD = :roomId
+        """;
+
+            Query updateRoomQuery = entityManager.createNativeQuery(updateRoom);
+            updateRoomQuery.setParameter("roomId", roomId);
+            updateRoomQuery.setParameter("newHostId", newHostId);
+            updateRoomQuery.executeUpdate();
+
+            // 새 호스트의 역할 업데이트
+            String updateNewHost = """
+            UPDATE MEETING_PARTICIPANTS 
+            SET ROLE = 'HOST'
+            WHERE ROOM_CD = :roomId 
+            AND USER_ID = :userId
+        """;
+
+            Query updateNew = entityManager.createNativeQuery(updateNewHost);
+            updateNew.setParameter("roomId", roomId);
+            updateNew.setParameter("userId", newHostId);
+            updateNew.executeUpdate();
+
+            log.info("호스트 권한 이전 완료: roomId={}, {} -> {}", roomId, oldHostId, newHostId);
+
+        } catch (Exception e) {
+            log.error("호스트 권한 이전 실패: roomId={}, newHostId={}", roomId, newHostId, e);
+            throw new RuntimeException("호스트 권한 이전 실패: " + e.getMessage());
         }
     }
 

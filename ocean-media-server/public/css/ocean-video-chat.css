@@ -271,6 +271,16 @@
                 background-color: #f57c00;
             }
 
+            /* 경고 버튼 (나가기) */
+            .control-btn.warning {
+                background-color: #ff9800;
+                color: white;
+            }
+
+            .control-btn.warning:hover {
+                background-color: #f57c00;
+            }
+
             /* 호스트 배지 스타일 */
             .host-badge {
                 position: absolute;

@@ -513,7 +513,7 @@
             }, 3000);
         });
 
-        / 재접속 성공 알림
+        // 재접속 성공 알림
         socket.on('reconnect-success', (data) => {
             showToast('회의에 재접속했습니다.');
 

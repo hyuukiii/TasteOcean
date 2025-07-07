@@ -1,5 +1,6 @@
 package com.example.ocean.controller.recording;
 
+import com.example.ocean.dto.ActiveMeetingDto;
 import com.example.ocean.service.MeetingService;
 import com.example.ocean.security.oauth.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
