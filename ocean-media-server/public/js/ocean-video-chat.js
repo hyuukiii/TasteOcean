@@ -18,7 +18,7 @@
         const TYPING_TIMER_LENGTH = 1000; // 1초로 단축
 
         // ===== MediaSoup 관련 변수 =====
-        let socket;
+        let socket = null;
         let device;
         let producerTransport;
         let consumerTransport;
@@ -93,7 +93,7 @@
         // ===== 한글 입력 관련 변수 추가 =====
         window.enterPressedDuringComposition = false;
 
-        // ===== init() 함수 수정 =====
+
         // 재접속 처리를 위해 joinRoom 함수 호출 부분 수정
         async function init() {
             try {
@@ -151,9 +151,8 @@
             });
         }
 
-        // ===== Socket.IO 이벤트 리스너 =====
+        // setupSocketListeners 함수 수정 - 모든 socket 이벤트를 함수 안으로 이동
         function setupSocketListeners() {
-
             // 새 참가자 입장
             socket.on('new-peer', ({ peerId, displayName }) => {
                 console.log('새 참가자:', displayName);
@@ -305,36 +304,104 @@
 
             // 다른 사용자가 녹화 시작
             socket.on('recording-started', ({ recordingId, startedBy }) => {
-              if (startedBy !== displayName) {
-                  isRecording = true;
-                  currentRecordingId = recordingId;
-                  document.getElementById('recordBtn').classList.add('active');
-                  document.getElementById('recordingIndicator').style.display = 'flex';
-                  showToast(`${startedBy}님이 녹화를 시작했습니다`);
-              }
+                if (startedBy !== displayName) {
+                    isRecording = true;
+                    currentRecordingId = recordingId;
+                    document.getElementById('recordBtn').classList.add('active');
+                    document.getElementById('recordingIndicator').style.display = 'flex';
+                    showToast(`${startedBy}님이 녹화를 시작했습니다`);
+                }
             });
 
             // 다른 사용자가 녹화 종료
             socket.on('recording-stopped', ({ recordingId, stoppedBy }) => {
-               if (stoppedBy !== displayName) {
-                   isRecording = false;
-                   currentRecordingId = null;
-                   document.getElementById('recordBtn').classList.remove('active');
-                   document.getElementById('recordingIndicator').style.display = 'none';
-                   showToast(`${stoppedBy}님이 녹화를 종료했습니다`);
-               }
+                if (stoppedBy !== displayName) {
+                    isRecording = false;
+                    currentRecordingId = null;
+                    document.getElementById('recordBtn').classList.remove('active');
+                    document.getElementById('recordingIndicator').style.display = 'none';
+                    showToast(`${stoppedBy}님이 녹화를 종료했습니다`);
+                }
+            });
+
+            // ⭐ 호스트 정보 수신 (이 부분을 함수 안으로 이동!)
+            socket.on('host-info', (data) => {
+                const { hostId } = data;
+                isHost = (userId === hostId);
+
+                // 호스트인 경우 종료 버튼 표시
+                if (isHost) {
+                    document.getElementById('endCallBtn').style.display = 'block';
+                    showToast('호스트 권한을 획득했습니다.');
+                }
+            });
+
+            // ⭐ 회의 종료 알림 수신 (이 부분도 함수 안으로 이동!)
+            socket.on('meeting-ended', (data) => {
+                meetingEnded = true;
+                showToast('호스트가 회의를 종료했습니다.');
+
+                // 3초 후 자동으로 워크스페이스로 이동
+                setTimeout(() => {
+                    window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+                }, 3000);
+            });
+
+            // ⭐ 재접속 성공 알림 (이 부분도 함수 안으로 이동!)
+            socket.on('reconnect-success', (data) => {
+                showToast('회의에 재접속했습니다.');
+
+                // 기존 참가자 정보 업데이트
+                const { peers } = data;
+                peers.forEach(peer => {
+                    if (!document.getElementById(`container-${peer.peerId}`)) {
+                        addRemoteVideo(peer.peerId, peer.displayName, peer.userProfileImg);
+                    }
+                });
+            });
+
+            // ⭐ room-joined 이벤트도 여기로 이동!
+            socket.on('room-joined', async (data) => {
+                console.log('방 참가 성공:', data);
+
+                // Transport 생성
+                await createTransports();
+
+                // 미디어 전송 시작
+                await startProducing();
+
+                // 녹화 상태 확인
+                checkRecordingStatus();
+
+                // 기존 참가자들 표시
+                if (data.peers) {
+                    for (const peer of data.peers) {
+                        addParticipant(peer.peerId, peer.displayName);
+                    }
+                }
+
+                // 참가자 수 업데이트
+                updateParticipantCount();
+
+                showToast('회의에 참가했습니다');
             });
         }
 
         // 페이지 로드 시 녹화 상태 확인
         async function checkRecordingStatus() {
+            // socket이 초기화되었는지 확인
+            if (!socket || !socket.connected) {
+                console.error('Socket이 연결되지 않았습니다');
+                return;
+            }
+
             socket.emit('get-recording-status', { roomId }, (response) => {
-                if (response.isRecording) {
-                    isRecording = true;
-                    currentRecordingId = response.recordingId;
-                    document.getElementById('recordBtn').classList.add('active');
-                    document.getElementById('recordingIndicator').style.display = 'flex';
-                }
+                    if (response.isRecording) {
+                        isRecording = true;
+                        currentRecordingId = response.recordingId;
+                        document.getElementById('recordBtn').classList.add('active');
+                        document.getElementById('recordingIndicator').style.display = 'flex';
+                    }
             });
         }
 
@@ -464,67 +531,8 @@
                 userId: actualUserId
             });
 
-            socket.on('room-joined', async (data) => {
-                console.log('방 참가 성공:', data);
-
-                // Transport 생성
-                await createTransports();
-
-                // 미디어 전송 시작
-                await startProducing();
-
-                // 녹화 상태 확인
-                checkRecordingStatus();
-
-                // 기존 참가자들 표시
-                if (data.peers) {
-                    for (const peer of data.peers) {
-                        addParticipant(peer.peerId, peer.displayName);
-                    }
-                }
-
-                // 참가자 수 업데이트
-                updateParticipantCount();
-
-                showToast('회의에 참가했습니다');
-            });
+            // ⭐ socket.on('room-joined', ...) 이벤트 리스너는 setupSocketListeners()로 이동!
         }
-
-        // 호스트 정보 수신
-        socket.on('host-info', (data) => {
-            const { hostId } = data;
-            isHost = (userId === hostId);
-
-            // 호스트인 경우 종료 버튼 표시
-            if (isHost) {
-                document.getElementById('endCallBtn').style.display = 'block';
-                showToast('호스트 권한을 획득했습니다.');
-            }
-        });
-
-        // 회의 종료 알림 수신
-        socket.on('meeting-ended', (data) => {
-            meetingEnded = true;
-            showToast('호스트가 회의를 종료했습니다.');
-
-            // 3초 후 자동으로 워크스페이스로 이동
-            setTimeout(() => {
-                window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
-            }, 3000);
-        });
-
-        // 재접속 성공 알림
-        socket.on('reconnect-success', (data) => {
-            showToast('회의에 재접속했습니다.');
-
-            // 기존 참가자 정보 업데이트
-            const { peers } = data;
-            peers.forEach(peer => {
-                if (!document.getElementById(`container-${peer.peerId}`)) {
-                    addRemoteVideo(peer.peerId, peer.displayName, peer.userProfileImg);
-                }
-            });
-        });
 
         // ===== MediaSoup Device 초기화 =====
         async function initializeDevice(routerRtpCapabilities) {
@@ -1474,6 +1482,11 @@
             container.addEventListener('dblclick', function() {
                 toggleFullscreen(this);
             });
+        }
+
+        // addParticipant 함수 추가
+        function addParticipant(peerId, displayName) {
+            addRemoteVideo(peerId, displayName);
         }
 
         // 원격 비디오 제거
