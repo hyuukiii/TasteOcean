@@ -1808,9 +1808,6 @@
             // 프로필 이미지가 있으면 표시, 없으면 이니셜 표시
             const localPlaceholder = document.getElementById('localPlaceholder');
 
-            //console.log('페이지 로드 - 프로필 이미지 초기화');
-            //console.log('userProfileImg:', userProfileImg);
-
             if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
                 // URL 디코딩
                 let imgSrc = decodeURIComponent(userProfileImg);
@@ -1818,7 +1815,7 @@
                 // ⭐ 상대 경로를 절대 경로로 변환 (이 부분이 추가됨!)
                 if (!imgSrc.startsWith('http')) {
                     imgSrc = 'http://localhost:8080' + (imgSrc.startsWith('/') ? imgSrc : '/' + imgSrc);
-                    //console.log('프로필 이미지를 절대 경로로 변환:', imgSrc);
+                    console.log('프로필 이미지를 절대 경로로 변환:', imgSrc);
                 }
 
                 // 포트 변경 (이미 있음)
@@ -1826,7 +1823,7 @@
                     imgSrc = imgSrc.replace(':8081', ':8080');
                 }
 
-                // console.log('페이지 로드 - 최종 이미지 URL:', imgSrc);
+                 console.log('페이지 로드 - 최종 이미지 URL:', imgSrc);
 
                 localPlaceholder.innerHTML = `
                     <img src="${imgSrc}"
@@ -1837,9 +1834,6 @@
             } else {
                 localPlaceholder.textContent = displayName.charAt(0).toUpperCase();
             }
-
-            // ⭐ 이 줄을 삭제해야 합니다! (이미지를 덮어쓰는 문제의 원인)
-            // document.getElementById('localPlaceholder').textContent = displayName.charAt(0).toUpperCase();
 
             // ⭐ 회의 제목 설정
             document.getElementById('roomName').textContent = meetingTitle;
