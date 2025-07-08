@@ -32,6 +32,49 @@
 
         // ===== 녹화 기능 ======
         let currentRecordingId = null;
+        // 녹화 관련 전역 변수 추가
+        let recordingStartTime = null;
+        let recordingTimerInterval = null;
+
+        // 녹화 시간 포맷팅 함수
+        function formatRecordingTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+
+            if (hours > 0) {
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 녹화 타이머 시작
+        function startRecordingTimer() {
+            recordingStartTime = Date.now();
+
+            // 기존 타이머가 있다면 클리어
+            if (recordingTimerInterval) {
+                clearInterval(recordingTimerInterval);
+            }
+
+            // 1초마다 시간 업데이트
+            recordingTimerInterval = setInterval(() => {
+                const elapsedSeconds = Math.floor((Date.now() - recordingStartTime) / 1000);
+                const recordingTimeElement = document.getElementById('recordingTime');
+                if (recordingTimeElement) {
+                    recordingTimeElement.textContent = formatRecordingTime(elapsedSeconds);
+                }
+            }, 1000);
+        }
+
+        // 녹화 타이머 중지
+        function stopRecordingTimer() {
+            if (recordingTimerInterval) {
+                clearInterval(recordingTimerInterval);
+                recordingTimerInterval = null;
+            }
+            recordingStartTime = null;
+        }
 
         // 로컬 미디어 스트림
         let localStream;
@@ -1228,10 +1271,14 @@
                 currentRecordingId = response.recordingId;
 
                 const recordBtn = document.getElementById('recordBtn');
-                const recordingIndicator = document.getElementById('recordingIndicator');
-
                 if (recordBtn) recordBtn.classList.add('active');
-                if (recordingIndicator) recordingIndicator.style.display = 'flex';
+
+                // ⭐ 헤더 녹화 표시 보이기
+                const headerRecordingIndicator = document.getElementById('headerRecordingIndicator');
+                if (headerRecordingIndicator) {
+                    headerRecordingIndicator.style.display = 'flex';
+                    startRecordingTimer(); // 타이머 시작
+                }
 
                 showToast('녹화가 시작되었습니다', 'success');
                 console.log('녹화 시작 성공:', response);
@@ -1370,11 +1417,12 @@
                 }
 
                 // 녹화 종료 요청
+                // 녹화 종료 부분 수정
                 socket.emit('stopRecording', {
                     roomId: roomId,
                     recordingId: currentRecordingId
-                }, (response) => {
-                    console.log('녹화 종료 응답:', response);
+                    }, (response) => {
+                        console.log('녹화 종료 응답:', response);
 
                     if (!response) {
                         console.error('서버 응답이 없습니다');
@@ -1396,10 +1444,11 @@
                         recordBtn.classList.remove('active');
                     }
 
-                    // ⭐ recordingIndicator null 체크 추가
-                    const recordingIndicator = document.getElementById('recordingIndicator');
-                    if (recordingIndicator) {
-                        recordingIndicator.style.display = 'none';
+                    // ⭐ 헤더 녹화 표시 숨기기
+                    const headerRecordingIndicator = document.getElementById('headerRecordingIndicator');
+                    if (headerRecordingIndicator) {
+                        headerRecordingIndicator.style.display = 'none';
+                        stopRecordingTimer(); // 타이머 중지
                     }
 
                     showToast('녹화가 종료되었습니다', 'success');
@@ -1409,6 +1458,46 @@
                     if (response.fileSize) {
                         const fileSizeMB = (response.fileSize / 1024 / 1024).toFixed(2);
                         showToast(`녹화 파일 크기: ${fileSizeMB}MB`);
+                    }
+                });
+
+                // 다른 사용자가 녹화 시작했을 때
+                socket.on('recordingStarted', ({ recordingId, recorderName }) => {
+                    if (recorderName !== displayName) {
+                        isRecording = true;
+                        currentRecordingId = recordingId;
+
+                        const recordBtn = document.getElementById('recordBtn');
+                        if (recordBtn) recordBtn.classList.add('active');
+
+                        // ⭐ 헤더 녹화 표시 보이기
+                        const headerRecordingIndicator = document.getElementById('headerRecordingIndicator');
+                        if (headerRecordingIndicator) {
+                            headerRecordingIndicator.style.display = 'flex';
+                            startRecordingTimer();
+                        }
+
+                        showToast(`${recorderName}님이 녹화를 시작했습니다`);
+                    }
+                });
+
+                // 다른 사용자가 녹화 종료했을 때
+                socket.on('recording-stopped', ({ recordingId, stoppedBy }) => {
+                    if (stoppedBy !== displayName) {
+                        isRecording = false;
+                        currentRecordingId = null;
+
+                        const recordBtn = document.getElementById('recordBtn');
+                        if (recordBtn) recordBtn.classList.remove('active');
+
+                        // ⭐ 헤더 녹화 표시 숨기기
+                        const headerRecordingIndicator = document.getElementById('headerRecordingIndicator');
+                        if (headerRecordingIndicator) {
+                            headerRecordingIndicator.style.display = 'none';
+                            stopRecordingTimer();
+                        }
+
+                        showToast(`${stoppedBy}님이 녹화를 종료했습니다`);
                     }
                 });
             }
@@ -2165,6 +2254,9 @@
             if (audioProducer) audioProducer.close();
             if (videoProducer) videoProducer.close();
             if (screenProducer) screenProducer.close();
+
+            // 녹화 타이머 정리
+            stopRecordingTimer();
 
             // 모든 컨슈머 정리
             consumers.forEach(consumer => consumer.close());
