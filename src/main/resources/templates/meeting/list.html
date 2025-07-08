@@ -172,37 +172,61 @@
 
 async function rejoinMeeting(roomId, meetingTitle) {
     try {
-        // 1. 먼저 재참여 처리 (기존 API 활용)
-        await apiRequest(`/api/meetings/${roomId}/participants?rejoin=true`, {
-            method: 'POST'
-        });
-
-        // 2. 호스트 정보 확인 (기존 API 활용)
-        const hostResponse = await apiRequest(`/api/meetings/${roomId}/is-host`);
-        const hostData = await hostResponse.json();
-
-        console.log('호스트 정보:', hostData);
-
-        // 3. 미디어 서버로 이동
+        // 미디어 서버 URL
         const mediaServerUrl = window.location.hostname === 'localhost'
             ? 'https://localhost:3001'
             : 'https://192.168.0.16:3001';
 
+        // 사용자 정보 가져오기
         const userInfo = getUserInfoFromToken();
+        console.log('재참여 시 사용자 정보:', userInfo);
 
+        // ⭐ displayName이 없거나 '참가자'인 경우 localStorage에서 다시 확인
+        let actualDisplayName = userInfo?.userName;
+        if (!actualDisplayName || actualDisplayName === '참가자') {
+            actualDisplayName = localStorage.getItem('userName') || userInfo?.userName || '참가자';
+        }
+
+        // ⭐ userId도 확실히 가져오기
+        let actualUserId = userInfo?.userId;
+        if (!actualUserId) {
+            actualUserId = localStorage.getItem('userId') || userInfo?.userId;
+        }
+
+        console.log('최종 사용자 정보:', {
+            userId: actualUserId,
+            displayName: actualDisplayName
+        });
+
+        // 호스트 상태 먼저 확인
+        const hostCheckResponse = await apiRequest(`/api/meetings/${roomId}/is-host`);
+        let isHostUser = false;
+        let hostId = null;
+
+        if (hostCheckResponse.ok) {
+            const hostData = await hostCheckResponse.json();
+            isHostUser = hostData.isHost;
+            hostId = hostData.hostId;
+            console.log('호스트 확인 결과:', hostData);
+        }
+
+        // URL 파라미터 구성
         const params = new URLSearchParams({
             roomId: roomId,
             workspaceId: workspaceId,
             meetingTitle: meetingTitle || '회의',
-            peerId: userInfo?.userId || 'unknown-user',
-            userId: userInfo?.userId || 'unknown-user',
-            displayName: userInfo?.userName || '참가자',
+            peerId: actualUserId,
+            userId: actualUserId,
+            displayName: actualDisplayName,  // ⭐ 실제 사용자 이름 전달
             userProfileImg: userInfo?.userProfileImg || '',
-            isHost: hostData.isHost || false,
-            hostId: hostData.hostId,
-            rejoin: 'true'
+            rejoin: 'true',
+            isHost: isHostUser,  // ⭐ 호스트 여부 전달
+            hostId: hostId || ''
         });
 
+        console.log('재참여 URL 파라미터:', params.toString());
+
+        // 회의 페이지로 이동
         window.location.href = `${mediaServerUrl}/ocean-video-chat-complete.html?${params.toString()}`;
 
     } catch (error) {

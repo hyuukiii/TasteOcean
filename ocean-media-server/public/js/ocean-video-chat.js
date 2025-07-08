@@ -43,11 +43,71 @@
         const workspaceId = urlParams.get('workspaceId');
         const meetingTitle = urlParams.get('meetingTitle') || '회의';
 
-        // ⭐ 토큰에서 사용자 정보 가져오기 (displayName보다 먼저 실행)
+        // ⭐ 토큰에서 사용자 정보 가져오기
         const userInfo = getUserInfoFromToken();
 
+        //const displayName = userInfo?.userName || urlParams.get('displayName') || '참가자';
+        // ⭐ displayName 설정 개선
+        let displayName = urlParams.get('displayName');  // URL 파라미터 우선
+        if (!displayName || displayName === 'null' || displayName === 'undefined' || displayName === '참가자') {
+            displayName = userInfo?.userName || localStorage.getItem('userName');
+        }
+        if (!displayName || displayName === 'null' || displayName === 'undefined') {
+            displayName = '참가자';  // 최후의 대안
+        }
+
+        //const userId = userInfo?.userId || urlParams.get('peerId') || urlParams.get('userId');
+        // ⭐ userId 설정 개선
+        let userId = urlParams.get('userId') || urlParams.get('peerId');  // URL 파라미터 우선
+        if (!userId || userId === 'null' || userId === 'undefined') {
+            userId = userInfo?.userId || localStorage.getItem('userId');
+        }
+
+        // const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
+        const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
+
         // 토큰에서 사용자 이미지 가져오기
-        let userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
+        // let userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
+        // ⭐ 프로필 이미지 처리
+        let userProfileImg = urlParams.get('userProfileImg') || userInfo?.userProfileImg;
+        if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
+            userProfileImg = decodeURIComponent(userProfileImg);
+            if (!userProfileImg.startsWith('http')) {
+                userProfileImg = 'http://localhost:8080' + (userProfileImg.startsWith('/') ? userProfileImg : '/' + userProfileImg);
+            }
+            if (userProfileImg.includes(':8081')) {
+                userProfileImg = userProfileImg.replace(':8081', ':8080');
+            }
+        }
+
+        // ⭐ 호스트 정보 (URL 파라미터에서)
+        const isHostFromUrl = urlParams.get('isHost') === 'true';
+        const hostIdFromUrl = urlParams.get('hostId');
+
+        // 디버깅 로그
+        console.log('=== 사용자 정보 초기화 ===');
+        console.log('URL 파라미터:', {
+            displayName: urlParams.get('displayName'),
+            userId: urlParams.get('userId'),
+            isHost: urlParams.get('isHost'),
+            hostId: urlParams.get('hostId')
+        });
+        console.log('토큰 정보:', userInfo);
+        console.log('최종 설정:', {
+            displayName,
+            userId,
+            peerId,
+            isHostFromUrl,
+            hostIdFromUrl
+        });
+
+        // ⭐ 로컬 비디오에 이름 즉시 표시
+        document.addEventListener('DOMContentLoaded', () => {
+            const localNameSpan = document.querySelector('#localVideo .video-info span');
+            if (localNameSpan) {
+                localNameSpan.textContent = displayName;
+            }
+        });
 
         // URL 디코딩 및 절대 경로 변환
         if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
@@ -67,10 +127,10 @@
             }
         }
 
-        // ⭐ 사용자 정보 설정 (순서 중요!)
-        const userId = userInfo?.userId || urlParams.get('peerId') || urlParams.get('userId');
-        const displayName = userInfo?.userName || urlParams.get('displayName') || '참가자';
-        const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
+
+
+
+
 
         // 디버깅을 위한 로그
         console.log('사용자 정보 설정:', {
@@ -401,60 +461,69 @@
             socket.on('room-joined', async (data) => {
                 console.log('room-joined 이벤트 수신:', data);
                 const {
-                    isHost: isHostFromServer,
                     hostId,
                     peers,
-                    existingProducers,
-                    roomName: receivedRoomName
+                    isHost: isHostFromServer  // 서버에서 보낸 isHost 값
                 } = data;
 
-                // ⭐ 호스트 여부 판단 강화
-                isHost = isHostFromServer || (hostId === userId) || (hostId === peerId);
+                // ⭐ 서버에서 보낸 isHost 값을 우선적으로 사용
+                isHost = isHostFromServer;
 
-                console.log('호스트 여부 판단:', {
+                // 만약 서버에서 isHost를 안 보냈다면 hostId로 확인
+                if (isHost === undefined || isHost === null) {
+                    isHost = (hostId === userId) || (hostId === peerId);
+                }
+
+                console.log('호스트 상태 결정:', {
                     isHostFromServer,
                     hostId,
                     userId,
                     peerId,
-                    isHost
+                    최종isHost: isHost
                 });
 
-                // 호스트 버튼 표시/숨김
+                // ⭐ 호스트 버튼 즉시 표시
                 const endCallBtn = document.getElementById('endCallBtn');
                 if (endCallBtn) {
                     endCallBtn.style.display = isHost ? 'block' : 'none';
+                    console.log('호스트 버튼 표시 상태:', endCallBtn.style.display);
+                }
+
+                // ⭐ 사용자 이름 업데이트 (참가자 -> 실제 이름)
+                const localNameSpan = document.querySelector('#localVideo .video-info span');
+                if (localNameSpan && displayName !== '참가자') {
+                    localNameSpan.textContent = displayName;
                 }
 
                 // 방 이름 설정
-                if (receivedRoomName) {
-                    document.getElementById('roomName').textContent = receivedRoomName;
+                if (data.roomName) {
+                    document.getElementById('roomName').textContent = data.roomName;
                 }
 
-                showToast(isHost ? '호스트로 회의에 참가했습니다' : '회의에 참가했습니다');
+                // 토스트 메시지
+                if (isHost) {
+                    showToast('호스트로 회의에 참여했습니다');
+                } else {
+                    showToast('회의에 참여했습니다');
+                }
 
-                // 기존 피어들 추가
+                // 기존 참가자 추가
                 if (peers && peers.length > 0) {
                     peers.forEach(peer => {
-                        addRemoteVideo(peer.peerId, peer.displayName, peer.userProfileImg);
+                        addRemoteVideo(peer.peerId, peer.displayName);
                     });
                 }
 
-                // 프로듀서와 컨슈머 Transport 생성
-                await createProducerTransport();
-                await createConsumerTransport();
-
-                // 미디어 스트림 시작
-                await getLocalStream();
-
-                // 기존 프로듀서들에 대한 컨슈머 생성
-                if (existingProducers && existingProducers.length > 0) {
-                    for (const producer of existingProducers) {
-                        await consumeStream(producer.producerId);
-                    }
-                }
-
-                // 참가자 수 업데이트
                 updateParticipantCount();
+
+                // ⭐ 디버깅을 위한 추가 확인 (1초 후)
+                setTimeout(() => {
+                    const endCallBtn = document.getElementById('endCallBtn');
+                    console.log('1초 후 호스트 버튼 상태:', {
+                        isHost: isHost,
+                        display: endCallBtn ? endCallBtn.style.display : 'button not found'
+                    });
+                }, 1000);
             });
 
         }
@@ -565,29 +634,23 @@
                 // MediaSoup 디바이스 초기화
                 await initializeDevice(routerRtpCapabilities);
 
-                // ⭐ userId 가져오기 수정
-                let actualUserId = userId;  // 전역 변수에서 먼저 확인
-
-                // userId가 없으면 localStorage에서 확인
+                // userId 가져오기
+                let actualUserId = userId;
                 if (!actualUserId) {
                     actualUserId = localStorage.getItem('userId');
                 }
-
-                // 그래도 없으면 토큰에서 다시 파싱
                 if (!actualUserId) {
                     const tokenUserInfo = getUserInfoFromToken();
                     actualUserId = tokenUserInfo?.userId;
-
-                    // localStorage에 저장
                     if (actualUserId) {
                         localStorage.setItem('userId', actualUserId);
                     }
                 }
 
                 console.log('최종 사용할 userId:', actualUserId);
+                console.log('최종 displayName:', displayName);
 
                 // ⭐ rejoin 파라미터 확인
-                const urlParams = new URLSearchParams(window.location.search);
                 const isRejoining = urlParams.get('rejoin') === 'true';
 
                 // 방 참가
@@ -595,12 +658,11 @@
                     roomId,
                     workspaceId,
                     peerId,
-                    displayName,
-                    userId: actualUserId,  // ⭐ 수정된 userId 전달
-                    rejoin: isRejoining    // ⭐ rejoin 플래그 추가
+                    displayName,  // 실제 이름이 전달되도록
+                    userId: actualUserId,
+                    rejoin: isRejoining
                 });
 
-                // 디버깅을 위해 로그 추가
                 console.log('join-room 전송 데이터:', {
                     roomId,
                     workspaceId,
@@ -610,40 +672,20 @@
                     rejoin: isRejoining
                 });
 
+                // ⭐ URL에서 호스트 정보가 있으면 즉시 적용
+                if (isHostFromUrl) {
+                    isHost = true;
+                    const endCallBtn = document.getElementById('endCallBtn');
+                    if (endCallBtn) {
+                        endCallBtn.style.display = 'block';
+                        console.log('URL 파라미터로 호스트 버튼 표시');
+                    }
+                }
+
             } catch (error) {
                 console.error('joinRoom 에러:', error);
                 showToast('회의 참가 중 오류가 발생했습니다.');
             }
-
-            // ⭐ 호스트 상태 확인 (1초 후)
-            setTimeout(async () => {
-                try {
-                    const response = await fetch(`${SPRING_BOOT_URL}/api/meetings/${roomId}/is-host`, {
-                        headers: {
-                            'Authorization': 'Bearer ' + localStorage.getItem('accessToken')
-                        }
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log('호스트 상태 확인:', data);
-
-                        isHost = data.isHost;
-
-                        // 호스트 버튼 표시/숨김
-                        const endCallBtn = document.getElementById('endCallBtn');
-                        if (endCallBtn) {
-                            endCallBtn.style.display = isHost ? 'block' : 'none';
-                        }
-
-                        if (isHost) {
-                            showToast('호스트 권한이 확인되었습니다.');
-                        }
-                    }
-                } catch (error) {
-                    console.error('호스트 상태 확인 실패:', error);
-                }
-            }, 1000);
         }
 
         // ===== MediaSoup Device 초기화 =====
@@ -1902,82 +1944,48 @@
             try {
                 showToast('회의에 재접속 중...');
 
-                // Router RTP Capabilities 가져오기
                 const routerRtpCapabilities = await new Promise((resolve, reject) => {
                     socket.emit('get-router-rtp-capabilities', (capabilities) => {
                         resolve(capabilities);
                     });
                 });
 
-                // MediaSoup 디바이스 초기화
                 await initializeDevice(routerRtpCapabilities);
 
-                // userId 가져오기
                 let actualUserId = userId;
-
                 if (!actualUserId) {
                     actualUserId = localStorage.getItem('userId');
                 }
-
                 if (!actualUserId) {
                     const tokenUserInfo = getUserInfoFromToken();
                     actualUserId = tokenUserInfo?.userId;
-
                     if (actualUserId) {
                         localStorage.setItem('userId', actualUserId);
                     }
                 }
 
                 console.log('재접속 시 사용할 userId:', actualUserId);
+                console.log('재접속 시 displayName:', displayName);
 
-                // ⭐ 중요: join-room 이벤트 사용 (rejoin-room 대신)
+                // ⭐ join-room 이벤트 사용
                 socket.emit('join-room', {
                     roomId,
                     workspaceId,
                     peerId,
-                    displayName,
-                    userId: actualUserId,
-                    rejoin: true  // rejoin 플래그는 유지
-                });
-
-                console.log('재접속 요청 전송:', {
-                    roomId,
-                    workspaceId,
-                    peerId,
-                    displayName,
+                    displayName,  // 실제 이름이 전달되도록
                     userId: actualUserId,
                     rejoin: true
                 });
 
-                // 호스트 상태 확인 (2초 후)
-                setTimeout(async () => {
-                    try {
-                        const response = await fetch(`${SPRING_BOOT_URL}/api/meetings/${roomId}/is-host`, {
-                            headers: {
-                                'Authorization': 'Bearer ' + localStorage.getItem('accessToken')
-                            }
-                        });
-
-                        if (response.ok) {
-                            const data = await response.json();
-                            console.log('재접속 후 호스트 상태 확인:', data);
-
-                            isHost = data.isHost;
-
-                            // 호스트 버튼 표시/숨김
-                            const endCallBtn = document.getElementById('endCallBtn');
-                            if (endCallBtn) {
-                                endCallBtn.style.display = isHost ? 'block' : 'none';
-                            }
-
-                            if (isHost) {
-                                showToast('호스트 권한이 확인되었습니다.');
-                            }
-                        }
-                    } catch (error) {
-                        console.error('호스트 상태 확인 실패:', error);
+                // ⭐ URL에서 호스트 정보가 있으면 즉시 적용
+                if (isHostFromUrl) {
+                    isHost = true;
+                    const endCallBtn = document.getElementById('endCallBtn');
+                    if (endCallBtn) {
+                        endCallBtn.style.display = 'block';
+                        console.log('재접속 시 URL 파라미터로 호스트 버튼 표시');
                     }
-                }, 2000);
+                }
 
             } catch (error) {
                 console.error('회의 재접속 실패:', error);
