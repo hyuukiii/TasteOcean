@@ -23,26 +23,29 @@ module.exports = (io, worker, router) => {
         try {
             const { roomId, workspaceId, peerId, displayName, userId, rejoin } = data;
 
-            // 디버깅 로그
             console.log('join-room 데이터:', {
                 roomId,
                 workspaceId,
                 peerId,
                 displayName,
                 userId,
-                rejoin  // rejoin 플래그 확인
+                rejoin
             });
 
             // 룸 가져오기 또는 생성
             let room = roomManager.getRoom(roomId);
             if (!room) {
                 room = roomManager.createRoom(roomId, workspaceId, router);
+                console.log(`Room created: ${roomId} for workspace: ${workspaceId}`);
             }
 
-            // 재접속인 경우 기존 peer 확인
-            let existingPeer = null;
+            let peer;
+            let isHost = false;
+
+            // 재접속 처리
             if (rejoin) {
-                // userId로 기존 peer 찾기
+                // 기존 peer 찾기
+                let existingPeer = null;
                 room.peers.forEach((p, id) => {
                     if (p.userId === userId) {
                         existingPeer = p;
@@ -53,22 +56,34 @@ module.exports = (io, worker, router) => {
                         });
                     }
                 });
-            }
 
-            let peer;
-            let isHost = false;
+                if (existingPeer) {
+                    // 기존 peer 재사용
+                    peer = existingPeer;
+                    peer.socket = socket;
+                    peer.isActive = true;
+                    peer.rejoinedAt = new Date();
+                    peer.displayName = displayName; // displayName 업데이트
 
-            if (existingPeer && rejoin) {
-                // 재접속: 기존 peer 재사용
-                peer = existingPeer;
-                peer.socket = socket;
-                peer.isActive = true;
-                peer.rejoinedAt = new Date();
+                    // 기존 role 유지
+                    isHost = (peer.role === 'HOST');
+                    console.log(`${displayName}이(가) 재접속했습니다. 역할: ${peer.role}`);
+                } else {
+                    // 기존 peer가 없으면 새로 생성
+                    peer = new Peer(socket, roomId, peerId, displayName);
+                    peer.userId = userId;
 
-                // 기존 role 유지 (HOST 또는 PARTICIPANT)
-                isHost = (peer.role === 'HOST');
-
-                console.log(`${displayName}이(가) 재접속했습니다. 역할: ${peer.role}`);
+                    // 룸에 아무도 없으면 호스트로 설정
+                    if (room.peers.size === 0) {
+                        room.hostId = userId;
+                        peer.role = 'HOST';
+                        isHost = true;
+                        console.log(`${displayName}이(가) 호스트로 설정됨`);
+                    } else {
+                        peer.role = 'PARTICIPANT';
+                        isHost = false;
+                    }
+                }
             } else {
                 // 신규 접속
                 peer = new Peer(socket, roomId, peerId, displayName);
@@ -93,6 +108,7 @@ module.exports = (io, worker, router) => {
                 isHost: isHost
             });
 
+            // Peer 저장
             peers.set(socket.id, peer);
             room.peers.set(peerId, peer);
 
@@ -104,24 +120,22 @@ module.exports = (io, worker, router) => {
                 .filter(p => p.id !== peerId && p.isActive !== false)
                 .map(p => p.toJson());
 
-            // room-joined 이벤트에 호스트 정보 포함
+            // room-joined 이벤트 전송 (meetingTitle 제거!)
             socket.emit('room-joined', {
                 roomId,
                 peers: existingPeers,
-                hostId: room.hostId,  // 호스트 ID 전달
-                isHost: isHost,       // 현재 사용자가 호스트인지 여부
-                roomName: room.name || meetingTitle
+                hostId: room.hostId,
+                isHost: isHost
+                // meetingTitle 관련 부분 완전히 제거
             });
 
-            // 재접속인 경우
+            // 다른 참가자들에게 알림
             if (rejoin) {
-                // 다른 참가자들에게 재접속 알림
                 socket.to(roomId).emit('peer-rejoined', {
                     peerId,
                     displayName
                 });
             } else {
-                // 신규 접속인 경우
                 socket.to(roomId).emit('new-peer', {
                     peerId,
                     displayName
