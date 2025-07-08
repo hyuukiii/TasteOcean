@@ -26,10 +26,13 @@
                 </svg>
                 <span id="participantCount">0</span>
             </div>
-            <div class="recording-indicator" id="recordingIndicator">
+            <!-- 상단 녹화 중 표시 -->
+            <div class="recording-indicator" style="display: none;">
                 <div class="recording-dot"></div>
                 <span>녹화 중</span>
+                <span class="recording-time">00:00</span>
             </div>
+
         </div>
         <!-- 회의에서 나가기 버튼 (주황색) - 헤더 우측으로 이동 -->
         <button class="control-btn warning" onclick="leaveRoom()" title="회의에서 나가기">

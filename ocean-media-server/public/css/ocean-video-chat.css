@@ -60,14 +60,20 @@
         }
 
         .recording-indicator {
-            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: flex;
             align-items: center;
-            gap: 5px;
-            color: #ff4444;
+            gap: 10px;
+            z-index: 1000;
             font-size: 14px;
-            padding: 4px 12px;
-            background: rgba(255, 68, 68, 0.1);
-            border-radius: 12px;
+            font-weight: 500;
         }
 
         .recording-indicator.active {
@@ -75,11 +81,11 @@
         }
 
         .recording-dot {
-            width: 8px;
-            height: 8px;
-            background: #ff4444;
+            width: 10px;
+            height: 10px;
+            background: white;
             border-radius: 50%;
-            animation: blink 1.5s infinite;
+            animation: recording-pulse 1.5s infinite;
         }
 
         @keyframes blink {
@@ -811,6 +817,16 @@
             background-color: #f44336;
             color: white;
             animation: recording-pulse 2s infinite;
+        }
+
+        /* 녹화 버튼 스타일 */
+        #recordBtn.recording {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        #recordBtn.recording:hover {
+            background-color: #c82333;
         }
 
         @keyframes recording-pulse {
