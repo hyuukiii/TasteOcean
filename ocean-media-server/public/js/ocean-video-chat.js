@@ -43,22 +43,24 @@
         const workspaceId = urlParams.get('workspaceId');
         const meetingTitle = urlParams.get('meetingTitle') || '회의';
 
-        // ⭐ 토큰에서 사용자 정보 가져오기
-        const userInfo = getUserInfoFromToken() || {};  // 기존 코드
+        // ⭐ 토큰에서 사용자 정보 가져오기 부분을 완전히 새로 작성
+        const userInfo = {
+            userName: localStorage.getItem('userName'),
+            userId: localStorage.getItem('userId'),
+            userProfileImg: localStorage.getItem('userImg')
+        };
 
-        // ⭐⭐ localStorage에서 추가로 확인하는 코드 추가
-        if (!userInfo.userName || userInfo.userName === undefined) {
-            userInfo.userName = localStorage.getItem('userName');
-        }
-        if (!userInfo.userId || userInfo.userId === undefined) {
-            userInfo.userId = localStorage.getItem('userId');
-        }
-        if (!userInfo.userProfileImg || userInfo.userProfileImg === undefined) {
-            userInfo.userProfileImg = localStorage.getItem('userImg');
-        }
+        // 토큰 파싱은 나중에 (필요하면)
+        const tokenInfo = getUserInfoFromToken() || {};
+        if (!userInfo.userName) userInfo.userName = tokenInfo.userName;
+        if (!userInfo.userId) userInfo.userId = tokenInfo.userId;
+        if (!userInfo.userProfileImg) userInfo.userProfileImg = tokenInfo.userProfileImg;
 
-        console.log('최종 userInfo:', userInfo);  // 디버깅용
-
+        // displayName 설정
+        //let displayName = urlParams.get('displayName');
+        //if (!displayName || displayName === 'null' || displayName === 'undefined' || displayName === '참가자') {
+            //displayName = userInfo.userName || '참가자';
+        //}
 
         //const displayName = userInfo?.userName || urlParams.get('displayName') || '참가자';
         // ⭐ displayName 설정 개선
@@ -69,6 +71,8 @@
         if (!displayName || displayName === 'null' || displayName === 'undefined') {
             displayName = '참가자';  // 최후의 대안
         }
+
+         console.log('최종 displayName:', displayName);
 
         //const userId = userInfo?.userId || urlParams.get('peerId') || urlParams.get('userId');
         // ⭐ userId 설정 개선
