@@ -798,7 +798,7 @@ module.exports = (io, worker, router) => {
       }
     });
 
-    // 녹화 시작
+    // 녹화 시작 - 수정된 버전
     socket.on('startRecording', async (data, callback) => {
         const { roomId, peerId, displayName } = data;
 
@@ -831,70 +831,8 @@ module.exports = (io, worker, router) => {
                 return;
             }
 
-            const router = room.router;
-
-            console.log('=== 녹화 사전 체크 ===');
-
-            // 1. Router 체크
-            if (!router) {
-                throw new Error('Router가 없습니다');
-            }
-            console.log('✅ Router 정상');
-
-            // 2. 참가자 체크
-            const participants = room.peers || new Map();
-            if (participants.size === 0) {
-                throw new Error('참가자가 없습니다');
-            }
-            console.log(`✅ 참가자 수: ${participants.size}`);
-
-            // 3. Producer 체크 (개선된 로직)
-            let hasActiveProducer = false;
-            let producerCount = 0;
-
-            console.log('=== Producer 상태 디버깅 ===');
-
-            for (const [participantId, participant] of participants) {
-                console.log(`Peer: ${participantId}`);
-
-                if (participant.producers && participant.producers.size > 0) {
-                    for (const [producerId, producer] of participant.producers) {
-                        producerCount++;
-
-                        // Producer가 실제로 활성화되어 있는지 체크
-                        if (!producer.paused && producer.kind) {
-                            hasActiveProducer = true;
-                            console.log(`  ✅ 활성 Producer - ID: ${producerId}, Kind: ${producer.kind}, Paused: ${producer.paused}`);
-                        } else {
-                            console.log(`  ⏸️  일시정지된 Producer - ID: ${producerId}, Kind: ${producer.kind}, Paused: ${producer.paused}`);
-                        }
-                    }
-                } else {
-                    console.log('  Producer 없음');
-                }
-            }
-
-            console.log(`총 Producer 수: ${producerCount}`);
-            console.log(`활성 Producer 있음: ${hasActiveProducer}`);
-            console.log('=========================');
-
-            // 4. 최종 체크 - 더 유연한 조건
-            if (producerCount === 0) {
-                // Producer가 전혀 없는 경우에만 실패
-                callback({
-                    error: 'NO_MEDIA_STREAM',
-                    message: '녹화를 시작하려면 카메라나 마이크를 켜주세요'
-                });
-                return;
-            } else if (!hasActiveProducer) {
-                // Producer는 있지만 모두 일시정지 상태인 경우 경고만
-                console.warn('⚠️  모든 미디어가 일시정지 상태입니다. 녹화 품질이 저하될 수 있습니다.');
-            }
-
-            console.log('✅ 녹화 사전 체크 통과');
-
-            // 5. 기존 녹화 확인
-            if (room.recordingInfo && room.recordingInfo.isRecording) {
+            // 기존 녹화 확인
+            if (room.recordingStatus) {
                 callback({
                     error: 'ALREADY_RECORDING',
                     message: '이미 녹화가 진행 중입니다'
@@ -902,36 +840,16 @@ module.exports = (io, worker, router) => {
                 return;
             }
 
-            // 6. 녹화 시작
-            const recordingId = `recording-${roomId}-${Date.now()}`;
-
-            // Spring Boot 서버에 녹화 시작 알림
+            // ⭐ Room의 startRecording 메서드 호출 (중요!)
             try {
-                const springBootUrl = process.env.SPRING_BOOT_URL || 'http://localhost:8080';
-                const response = await fetch(`${springBootUrl}/api/recordings/start`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        recordingId: recordingId,
-                        roomId: roomId,
-                        recorderId: peer.userId,  // ✅ 이제 peer가 정의되어 있음
-                        recorderName: displayName,
-                        workspaceId: room.workspaceId || 'default'
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error('Spring Boot 서버 응답 오류');
-                }
-
-                const recordingData = await response.json();
+                console.log('Room.startRecording 호출 중...');
+                const recordingResult = await room.startRecording(peer.userId);
+                console.log('Room.startRecording 결과:', recordingResult);
 
                 // 녹화 정보 저장
                 room.recordingInfo = {
                     isRecording: true,
-                    recordingId: recordingData.recordingId,
+                    recordingId: recordingResult.recordingId,
                     startTime: new Date(),
                     recorderId: peer.userId,
                     recorderName: displayName
@@ -939,7 +857,7 @@ module.exports = (io, worker, router) => {
 
                 // 모든 참가자에게 녹화 시작 알림
                 io.to(roomId).emit('recordingStarted', {
-                    recordingId: recordingData.recordingId,
+                    recordingId: recordingResult.recordingId,
                     recorderName: displayName,
                     startTime: new Date()
                 });
@@ -947,18 +865,18 @@ module.exports = (io, worker, router) => {
                 // 녹화 시작한 사용자에게 성공 응답 (콜백 사용)
                 callback({
                     success: true,
-                    recordingId: recordingData.recordingId,
+                    recordingId: recordingResult.recordingId,
                     recorderName: displayName,
                     startTime: new Date()
                 });
 
-                console.log(`✅ 녹화 시작 성공 - ID: ${recordingData.recordingId}`);
+                console.log(`✅ 녹화 시작 성공 - ID: ${recordingResult.recordingId}`);
 
-            } catch (error) {
-                console.error('Spring Boot 서버 통신 오류:', error);
+            } catch (recordingError) {
+                console.error('Room 녹화 시작 실패:', recordingError);
                 callback({
-                    error: 'SERVER_ERROR',
-                    message: '녹화 서버와 통신할 수 없습니다'
+                    error: 'RECORDING_START_FAILED',
+                    message: recordingError.message || '녹화를 시작할 수 없습니다'
                 });
             }
 
@@ -968,6 +886,75 @@ module.exports = (io, worker, router) => {
                 error: 'UNKNOWN_ERROR',
                 message: error.message || '녹화를 시작할 수 없습니다'
             });
+        }
+    });
+
+    // 녹화 종료 - 수정된 버전
+    socket.on('stopRecording', async (data, callback) => {
+        try {
+            const { roomId } = data;
+            const peer = peers.get(socket.id);
+
+            if (!peer) {
+                return callback({ error: '인증되지 않은 사용자' });
+            }
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) {
+                return callback({ error: '룸을 찾을 수 없습니다' });
+            }
+
+            // 녹화 상태 확인
+            if (!room.recordingStatus) {
+                return callback({ error: '녹화 중이 아닙니다' });
+            }
+
+            // ⭐ Room의 stopRecording 메서드 호출
+            try {
+                console.log('Room.stopRecording 호출 중...');
+                const result = await room.stopRecording();
+                console.log('Room.stopRecording 결과:', result);
+
+                // 녹화 정보 초기화
+                room.recordingInfo = {
+                    isRecording: false,
+                    recordingId: null,
+                    startTime: null,
+                    recorderId: null,
+                    recorderName: null
+                };
+
+                // 모든 참가자에게 녹화 종료 알림
+                io.to(roomId).emit('recording-stopped', {
+                    recordingId: result.recordingId,
+                    stoppedBy: peer.displayName
+                });
+
+                // 녹화 종료한 사용자에게도 알림
+                socket.emit('recordingStopped', {
+                    recordingId: result.recordingId,
+                    stoppedBy: peer.displayName
+                });
+
+                callback({
+                    success: true,
+                    message: '녹화가 종료되었습니다',
+                    ...result
+                });
+
+                console.log(`✅ 녹화 종료 성공 - ID: ${result.recordingId}`);
+
+            } catch (recordingError) {
+                console.error('Room 녹화 종료 실패:', recordingError);
+                callback({
+                    error: 'RECORDING_STOP_FAILED',
+                    message: recordingError.message || '녹화를 종료할 수 없습니다'
+                });
+            }
+
+        } catch (error) {
+            console.error('녹화 종료 오류:', error);
+            callback({ error: error.message });
         }
     });
 

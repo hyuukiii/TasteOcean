@@ -1390,8 +1390,17 @@
                     // UI 업데이트
                     isRecording = false;
                     currentRecordingId = null;
-                    recordBtn.classList.remove('active');
-                    recordingIndicator.style.display = 'none';
+
+                    const recordBtn = document.getElementById('recordBtn');
+                    if (recordBtn) {
+                        recordBtn.classList.remove('active');
+                    }
+
+                    // ⭐ recordingIndicator null 체크 추가
+                    const recordingIndicator = document.getElementById('recordingIndicator');
+                    if (recordingIndicator) {
+                        recordingIndicator.style.display = 'none';
+                    }
 
                     showToast('녹화가 종료되었습니다', 'success');
                     console.log('녹화 종료:', response);
