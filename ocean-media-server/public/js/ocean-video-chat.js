@@ -1150,77 +1150,130 @@
             }
         }
 
+        // 1. 활성 미디어 스트림 체크 함수 추가
+        function checkActiveMediaStreams() {
+            // 비디오나 오디오 중 하나라도 켜져 있는지 확인
+            const hasVideo = isVideoOn && videoProducer && !videoProducer.paused;
+            const hasAudio = isAudioOn && audioProducer && !audioProducer.paused;
+
+            console.log('미디어 상태 체크:', {
+                hasVideo,
+                hasAudio,
+                isVideoOn,
+                isAudioOn,
+                videoProducer: !!videoProducer,
+                audioProducer: !!audioProducer,
+                videoProducerPaused: videoProducer ? videoProducer.paused : 'no producer',
+                audioProducerPaused: audioProducer ? audioProducer.paused : 'no producer'
+            });
+
+            return hasVideo || hasAudio;
+        }
+
+        // 2. 실제 녹화 시작 로직 분리
+        async function startRecordingInternal() {
+            if (isRecording) {
+                console.log('이미 녹화 중입니다');
+                return;
+            }
+
+            console.log('녹화 시작 요청');
+
+            // 녹화 시작 요청
+            socket.emit('start-recording', { roomId }, (response) => {
+              if (response.error) {
+                   showToast('녹화 시작 실패: ' + response.error);
+                   return;
+              }
+
+              // UI 업데이트
+              isRecording = true;
+              currentRecordingId = response.recordingId;
+              document.getElementById('recordBtn').classList.add('active');
+              document.getElementById('recordingIndicator').style.display = 'flex';
+
+              showToast('녹화가 시작되었습니다');
+              console.log('녹화 시작:', response);
+            });
+        }
+
         // ========= 녹화 기능 토글 ==========
+        // 3. toggleRecording 함수 수정 (기존 함수를 완전히 교체)
         async function toggleRecording() {
             const recordBtn = document.getElementById('recordBtn');
             const recordingIndicator = document.getElementById('recordingIndicator');
 
             if (!isRecording) {
+                // 녹화 시작 전 미디어 스트림 체크
+                const hasActiveMedia = checkActiveMediaStreams();
+
+                if (!hasActiveMedia) {
+                    // 미디어가 없는 경우 안내
+                    showToast('녹화를 시작하려면 카메라나 마이크를 켜주세요', 'warning');
+
+                    // 모달로 더 명확하게 안내
+                    const userChoice = confirm(
+                        '녹화를 시작하려면 카메라나 마이크가 켜져 있어야 합니다.\n\n' +
+                        '카메라를 켜시겠습니까?'
+                    );
+
+                    if (userChoice) {
+                        // 비디오 켜기
+                        if (!isVideoOn) {
+                            toggleVideo();
+
+                            // 비디오가 켜진 후 잠시 대기하고 녹화 시작
+                            setTimeout(() => {
+                                // 다시 체크
+                                if (checkActiveMediaStreams()) {
+                                    startRecordingInternal();
+                                } else {
+                                    showToast('미디어 활성화에 실패했습니다. 수동으로 카메라나 마이크를 켜주세요.');
+                                }
+                            }, 1000);
+                        }
+                    }
+                    return;
+                }
+
+                // 미디어가 활성화되어 있으면 녹화 시작 확인
+                if (!confirm('녹화를 시작하시겠습니까?')) {
+                    return;
+                }
+
                 // 녹화 시작
-                try {
-                    // 권한 확인 (호스트만 녹화 가능하도록 할 수도 있음)
-                    if (!confirm('녹화를 시작하시겠습니까?')) {
+                startRecordingInternal();
+
+            } else {
+                // 녹화 종료
+                if (!confirm('녹화를 종료하시겠습니까?')) {
+                    return;
+                }
+
+                // 녹화 종료 요청
+                socket.emit('stop-recording', { roomId }, (response) => {
+                    if (response.error) {
+                        showToast('녹화 종료 실패: ' + response.error);
                         return;
                     }
 
-                    // 녹화 시작 요청
-                    socket.emit('start-recording', { roomId }, (response) => {
-                        if (response.error) {
-                            showToast('녹화 시작 실패: ' + response.error);
-                            return;
-                        }
+                    // UI 업데이트
+                    isRecording = false;
+                    currentRecordingId = null;
+                    recordBtn.classList.remove('active');
+                    recordingIndicator.style.display = 'none';
 
-                        // UI 업데이트
-                        isRecording = true;
-                        currentRecordingId = response.recordingId;
-                        recordBtn.classList.add('active');
-                        recordingIndicator.style.display = 'flex';
+                    showToast('녹화가 종료되었습니다');
+                    console.log('녹화 종료:', response);
 
-                        showToast('녹화가 시작되었습니다');
-                        console.log('녹화 시작:', response);
-                    });
-
-                    } catch (error) {
-                        console.error('녹화 시작 오류:', error);
-                        showToast('녹화 시작 중 오류가 발생했습니다');
+                    // 녹화 파일 정보 표시 (선택사항)
+                    if (response.fileSize) {
+                        const fileSizeMB = (response.fileSize / 1024 / 1024).toFixed(2);
+                        showToast(`녹화 파일 크기: ${fileSizeMB}MB`);
                     }
-
-                    } else {
-                       // 녹화 종료
-                       try {
-                            if (!confirm('녹화를 종료하시겠습니까?')) {
-                              return;
-                            }
-
-                            // 녹화 종료 요청
-                            socket.emit('stop-recording', { roomId }, (response) => {
-                               if (response.error) {
-                                   showToast('녹화 종료 실패: ' + response.error);
-                                   return;
-                               }
-
-                               // UI 업데이트
-                               isRecording = false;
-                               currentRecordingId = null;
-                               recordBtn.classList.remove('active');
-                               recordingIndicator.style.display = 'none';
-
-                               showToast('녹화가 종료되었습니다');
-                               console.log('녹화 종료:', response);
-
-                               // 녹화 파일 정보 표시 (선택사항)
-                               if (response.fileSize) {
-                                  const fileSizeMB = (response.fileSize / 1024 / 1024).toFixed(2);
-                                  showToast(`녹화 파일 크기: ${fileSizeMB}MB`);
-                               }
-                            });
-
-                         } catch (error) {
-                                    console.error('녹화 종료 오류:', error);
-                                    showToast('녹화 종료 중 오류가 발생했습니다');
-                         }
-                    }
-                }
+                });
+            }
+        }
 
 
         // 채팅 토글 (수정됨)
@@ -1481,15 +1534,51 @@
             return text.replace(/[&<>"']/g, m => map[m]);
         }
 
-        // 토스트 알림 표시
-        function showToast(message) {
+        // 4. showToast 함수 개선 (warning 타입 지원 추가)
+        function showToast(message, type = 'info') {
             const toast = document.getElementById('toast');
             toast.textContent = message;
+
+            // 기존 클래스 제거
+            toast.classList.remove('show', 'warning', 'error', 'success');
+
+            // 타입에 따른 클래스 추가
+            if (type === 'warning') {
+                toast.classList.add('warning');
+            } else if (type === 'error') {
+                toast.classList.add('error');
+            } else if (type === 'success') {
+                toast.classList.add('success');
+            }
+
             toast.classList.add('show');
 
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
+        }
+
+        // 5. 추가: 자동 녹화 시작 함수 (회의 옵션에 따른 자동 녹화용)
+        async function startAutoRecording() {
+            // 미디어가 준비될 때까지 대기
+            let retryCount = 0;
+            const maxRetries = 10;
+
+            const checkAndStart = () => {
+                if (checkActiveMediaStreams()) {
+                    console.log('자동 녹화 시작 - 미디어 준비됨');
+                    startRecordingInternal();
+                } else if (retryCount < maxRetries) {
+                    retryCount++;
+                    console.log(`자동 녹화 대기 중... (${retryCount}/${maxRetries})`);
+                    setTimeout(checkAndStart, 1000);
+                } else {
+                    console.warn('자동 녹화 실패 - 미디어가 준비되지 않음');
+                    showToast('자동 녹화를 시작할 수 없습니다. 카메라나 마이크를 켜주세요.', 'warning');
+                }
+            };
+
+            checkAndStart();
         }
 
         // ===== 파일 업로드 관련 함수들 =====
@@ -1848,7 +1937,7 @@
             if (meetingOptions.autoRecord) {
                 setTimeout(() => {
                     if (socket && socket.connected) {
-                        startRecording();
+                        startAutoRecording();  // 새로 만든 함수 호출
                     }
                 }, 3000);
             }

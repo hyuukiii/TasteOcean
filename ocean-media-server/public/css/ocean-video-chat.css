@@ -790,6 +790,41 @@
             }
         }
 
+        /* Toast 메시지 타입별 스타일 추가 */
+        #toast.warning {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        #toast.error {
+            background-color: #f44336;
+            color: white;
+        }
+
+        #toast.success {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        /* 녹화 버튼 활성화 상태 개선 */
+        #recordBtn.active {
+            background-color: #f44336;
+            color: white;
+            animation: recording-pulse 2s infinite;
+        }
+
+        @keyframes recording-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(244, 67, 54, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+            }
+        }
+
         /* 여러 명 타이핑 시 스타일 */
         .typing-indicator.multiple .typing-text {
             font-weight: 500;
