@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 public class MeetingController {
 
     private final MeetingService meetingService;
-    private final WorkspaceService workspaceService;  // final 추가!
+    private final WorkspaceService workspaceService;
 
     @GetMapping("/active")
     public ResponseEntity<List<ActiveMeetingDto>> getActiveMeetings(
@@ -197,89 +197,45 @@ public class MeetingController {
     }
 
     /**
-     * 회의 재참여 처리
-     * 호스트 정보를 유지하면서 재참여를 처리합니다.
+     * 회의 재참여를 위한 정보 조회
+     * 기존 is-host API를 확장해서 재참여에 필요한 정보 제공
      */
-    @PostMapping("/{roomId}/rejoin")
-    public ResponseEntity<Map<String, Object>> rejoinMeeting(
+    @GetMapping("/{roomId}/rejoin-info")
+    public ResponseEntity<Map<String, Object>> getRejoinInfo(
             @PathVariable String roomId,
             @AuthenticationPrincipal UserPrincipal user) {
 
         try {
-            log.info("회의 재참여 요청 - roomId: {}, userId: {}", roomId, user.getId());
-
-            // 회의 정보 조회
-            MeetingRoom meeting = meetingService.getMeetingByRoomId(roomId);
-            if (meeting == null) {
-                return ResponseEntity.notFound().build();
+            // 회의 활성 상태 확인
+            boolean isActive = meetingService.isMeetingActive(roomId);
+            if (!isActive) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("error", "회의가 종료되었습니다");
+                return ResponseEntity.status(404).body(errorResponse);
             }
 
-            // 호스트 여부 확인
-            boolean isHost = meeting.getHostId().equals(user.getId());
+            // 호스트 정보 조회 (기존 메서드 활용)
+            boolean isHost = meetingService.isHost(roomId, user.getId());
+            String hostId = meetingService.getHostId(roomId);
 
-            // 참가자 상태 업데이트 (재참여로 표시)
-            meetingService.updateParticipantStatus(roomId, user.getId(), "REJOINED");
+            // 재참여 처리 (기존 메서드 활용)
+            meetingService.rejoinParticipant(roomId, user.getId());
 
-            // 응답 데이터 구성
+            // 응답 데이터
             Map<String, Object> response = new HashMap<>();
             response.put("roomId", roomId);
-            response.put("meetingTitle", meeting.getRoomNm());
-            response.put("hostId", meeting.getHostId());
+            response.put("hostId", hostId);
             response.put("isHost", isHost);
             response.put("userId", user.getId());
-            response.put("userName", user.getUsername());
-            response.put("status", meeting.getStatus());
+            response.put("isActive", isActive);
 
-            log.info("재참여 응답 - isHost: {}, hostId: {}", isHost, meeting.getHostId());
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("회의 재참여 실패: roomId={}, userId={}", roomId, user.getId(), e);
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    /**
-     * 회의 참가자 목록 조회 (호스트 정보 포함)
-     */
-    @GetMapping("/{roomId}/participants")
-    public ResponseEntity<Map<String, Object>> getParticipants(
-            @PathVariable String roomId,
-            @AuthenticationPrincipal UserPrincipal user) {
-
-        try {
-            // 회의 정보 조회
-            MeetingRoom meeting = meetingService.getMeetingByRoomId(roomId);
-            if (meeting == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            // 참가자 목록 조회
-            List<MeetingParticipant> participants = meetingService.getActiveParticipants(roomId);
-
-            // 응답 데이터 구성
-            Map<String, Object> response = new HashMap<>();
-            response.put("roomId", roomId);
-            response.put("hostId", meeting.getHostId());
-            response.put("currentUserId", user.getId());
-            response.put("isHost", meeting.getHostId().equals(user.getId()));
-            response.put("participants", participants.stream()
-                    .map(p -> {
-                        Map<String, Object> pMap = new HashMap<>();
-                        pMap.put("userId", p.getUserId());
-                        pMap.put("userName", p.getUser().getUserNm());
-                        pMap.put("role", p.getRole());
-                        pMap.put("joinedAt", p.getJoinedDate());
-                        pMap.put("isActive", "Y".equals(p.getActiveState()));
-                        return pMap;
-                    })
-                    .collect(Collectors.toList()));
+            log.info("재참여 정보 조회 - roomId: {}, userId: {}, isHost: {}",
+                    roomId, user.getId(), isHost);
 
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("참가자 목록 조회 실패: roomId={}", roomId, e);
+            log.error("재참여 정보 조회 실패: roomId={}, userId={}", roomId, user.getId(), e);
             return ResponseEntity.internalServerError().build();
         }
     }
