@@ -56,12 +56,6 @@
         if (!userInfo.userId) userInfo.userId = tokenInfo.userId;
         if (!userInfo.userProfileImg) userInfo.userProfileImg = tokenInfo.userProfileImg;
 
-        // displayName 설정
-        //let displayName = urlParams.get('displayName');
-        //if (!displayName || displayName === 'null' || displayName === 'undefined' || displayName === '참가자') {
-            //displayName = userInfo.userName || '참가자';
-        //}
-
         //const displayName = userInfo?.userName || urlParams.get('displayName') || '참가자';
         // ⭐ displayName 설정 개선
         let displayName = urlParams.get('displayName');  // URL 파라미터 우선
@@ -81,22 +75,32 @@
             userId = userInfo?.userId || localStorage.getItem('userId');
         }
 
-        // const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
         const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
 
-        // 토큰에서 사용자 이미지 가져오기
-        // let userProfileImg = userInfo?.userProfileImg || urlParams.get('userProfileImg');
-        // ⭐ 프로필 이미지 처리
-        let userProfileImg = urlParams.get('userProfileImg') || userInfo?.userProfileImg;
+        // ⭐ 프로필 이미지 처리 (이 부분 찾아서 수정)
+        let userProfileImg = urlParams.get('userProfileImg');
+
+        // URL 파라미터가 없으면 userInfo나 localStorage에서 가져오기
+        if (!userProfileImg || userProfileImg === 'null' || userProfileImg === 'undefined' || userProfileImg === '') {
+            userProfileImg = userInfo?.userProfileImg || localStorage.getItem('userImg');
+        }
+
+        // URL 디코딩 및 처리
         if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
             userProfileImg = decodeURIComponent(userProfileImg);
+
+            // 상대 경로를 절대 경로로 변환
             if (!userProfileImg.startsWith('http')) {
                 userProfileImg = 'http://localhost:8080' + (userProfileImg.startsWith('/') ? userProfileImg : '/' + userProfileImg);
             }
+
+            // 포트 수정 (필요시)
             if (userProfileImg.includes(':8081')) {
                 userProfileImg = userProfileImg.replace(':8081', ':8080');
             }
         }
+
+        console.log('최종 userProfileImg:', userProfileImg);
 
         // ⭐ 호스트 정보 (URL 파라미터에서)
         const isHostFromUrl = urlParams.get('isHost') === 'true';
@@ -125,30 +129,43 @@
             if (localNameSpan) {
                 localNameSpan.textContent = displayName;
             }
+
+            // ⭐⭐ 프로필 이미지 초기 표시
+                const localPlaceholder = document.getElementById('localPlaceholder');
+                if (localPlaceholder && userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
+                    console.log('프로필 이미지 표시 시도:', userProfileImg);
+
+                    localPlaceholder.innerHTML = `
+                        <img src="${userProfileImg}"
+                             alt="${displayName}"
+                             style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
+                             onerror="this.onerror=null; this.parentElement.textContent='${displayName.charAt(0).toUpperCase()}'">
+                    `;
+
+                    // 비디오가 꺼져있으면 placeholder 보이게
+                    if (!isVideoOn) {
+                        localPlaceholder.style.display = 'flex';
+                    }
+                }
         });
 
         // URL 디코딩 및 절대 경로 변환
-        if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
+        //if (userProfileImg && userProfileImg !== 'null' && userProfileImg !== 'undefined') {
             userProfileImg = decodeURIComponent(userProfileImg);
 
             // 프로필 이미지가 http로 시작하지 않으면 절대 경로로 변환
-            if (!userProfileImg.startsWith('http')) {
+            //if (!userProfileImg.startsWith('http')) {
                 // Spring Boot 서버의 절대 URL로 변환
-                userProfileImg = 'http://localhost:8080' + (userProfileImg.startsWith('/') ? userProfileImg : '/' + userProfileImg);
+                //userProfileImg = 'http://localhost:8080' + (userProfileImg.startsWith('/') ? userProfileImg : '/' + userProfileImg);
                 // console.log('프로필 이미지를 절대 경로로 변환:', userProfileImg);
-            }
+            //}
 
             // 8081 포트를 8080으로 변경 (만약 있다면)
-            if (userProfileImg.includes(':8081')) {
+            //if (userProfileImg.includes(':8081')) {
                 userProfileImg = userProfileImg.replace(':8081', ':8080');
                 // console.log('프로필 이미지 포트 수정: 8081 → 8080');
-            }
-        }
-
-
-
-
-
+            //}
+        //}
 
         // 디버깅을 위한 로그
         console.log('사용자 정보 설정:', {
@@ -170,11 +187,6 @@
             videoQuality: urlParams.get('videoQuality') || 'HD',
             waitingRoom: urlParams.get('waitingRoom') === 'true'
         };
-
-        // console.log('회의 옵션:', meetingOptions);
-
-        // console.log('최종 userId:', userId);
-        // console.log('최종 displayName:', displayName);
 
         // userId가 없으면 경고
         if (!userId) {
