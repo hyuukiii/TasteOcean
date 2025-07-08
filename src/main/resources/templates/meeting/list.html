@@ -26,7 +26,7 @@
     </div>
 </div>
 
-<!-- Token.js 먼저 로드 -->
+<!-- Token.js 먼저 로드 (파일명 대소문자 주의!) -->
 <script src="/js/Token.js"></script>
 
 <script>
@@ -104,6 +104,9 @@
             card.classList.add('your-meeting');
         }
 
+        // 제목에서 작은따옴표 이스케이프 처리
+        const escapedTitle = (meeting.title || '제목 없음').replace(/'/g, "\\'");
+
         card.innerHTML = `
             <div class="meeting-status status-active">
                 <span class="status-dot"></span>
@@ -128,10 +131,10 @@
 
             <div class="meeting-actions">
                 ${isMyMeeting ?
-                    `<button class="btn btn-primary" onclick="rejoinMeeting('${meeting.roomId}')">
+                    `<button class="btn btn-primary" onclick="rejoinMeeting('${meeting.roomId}', '${escapedTitle}')">
                         다시 참여하기
                     </button>` :
-                    `<button class="btn btn-secondary" onclick="joinMeeting('${meeting.roomId}')">
+                    `<button class="btn btn-secondary" onclick="joinMeeting('${meeting.roomId}', '${escapedTitle}')">
                         참여하기
                     </button>`
                 }
@@ -167,21 +170,45 @@
     }
 
     // 회의 재참여
-    function rejoinMeeting(roomId) {
+    function rejoinMeeting(roomId, meetingTitle) {
         // 미디어 서버 URL 가져오기
         const mediaServerUrl = window.location.hostname === 'localhost'
             ? 'https://localhost:3001'
             : 'https://192.168.0.16:3001';
 
+        // 사용자 정보 가져오기
+        const userInfo = getUserInfoFromToken();
+        console.log('사용자 정보:', userInfo); // 디버깅용
+
+        // userInfo가 없으면 토큰 확인
+        if (!userInfo || !userInfo.userId) {
+            console.error('사용자 정보를 가져올 수 없습니다');
+            // 토큰 재확인
+            const token = localStorage.getItem('accessToken');
+            console.log('토큰:', token);
+        }
+
+        // URL 파라미터 구성
+        const params = new URLSearchParams({
+            roomId: roomId,
+            workspaceId: workspaceId,
+            meetingTitle: meetingTitle || '회의',
+            peerId: userInfo?.userId || 'unknown-user',
+            displayName: userInfo?.userName || '참가자',
+            userProfileImg: userInfo?.userProfileImg || '',
+            rejoin: 'true'
+        });
+
+        console.log('전송할 파라미터:', params.toString()); // 디버깅용
+
         // 회의 페이지로 이동
-        window.location.href = `${mediaServerUrl}/ocean-video-chat-complete.html?` +
-            `roomId=${roomId}&workspaceId=${workspaceId}&rejoin=true`;
+        window.location.href = `${mediaServerUrl}/ocean-video-chat-complete.html?${params.toString()}`;
     }
 
     // 새로운 회의 참여
-    function joinMeeting(roomId) {
+    function joinMeeting(roomId, meetingTitle) {
         if (confirm('이 회의에 참여하시겠습니까?')) {
-            rejoinMeeting(roomId);
+            rejoinMeeting(roomId, meetingTitle);
         }
     }
 

@@ -13,7 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -162,6 +164,33 @@ public class MeetingController {
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             log.error("호스트 권한 이전 실패: roomId={}, newHostId={}", roomId, newHostId, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 현재 사용자가 특정 회의의 호스트인지 확인
+     */
+    @GetMapping("/{roomId}/is-host")
+    public ResponseEntity<Map<String, Object>> checkIfHost(
+            @PathVariable String roomId,
+            @AuthenticationPrincipal UserPrincipal user) {
+
+        try {
+            boolean isHost = meetingService.isHost(roomId, user.getId());
+            String hostId = meetingService.getHostId(roomId);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("isHost", isHost);
+            response.put("hostId", hostId);
+            response.put("currentUserId", user.getId());
+
+            log.info("호스트 확인 - roomId: {}, userId: {}, isHost: {}",
+                    roomId, user.getId(), isHost);
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("호스트 확인 실패: roomId={}, userId={}", roomId, user.getId(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

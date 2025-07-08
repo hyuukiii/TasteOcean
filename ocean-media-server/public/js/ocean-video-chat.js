@@ -68,9 +68,22 @@
         }
 
         // ⭐ 사용자 정보 설정 (순서 중요!)
-        const userId = userInfo?.userId;
+        const userId = userInfo?.userId || urlParams.get('peerId') || urlParams.get('userId');
         const displayName = userInfo?.userName || urlParams.get('displayName') || '참가자';
         const peerId = userId || 'peer-' + Math.random().toString(36).substr(2, 9);
+
+        // 디버깅을 위한 로그
+        console.log('사용자 정보 설정:', {
+            userInfo,
+            userId,
+            displayName,
+            peerId,
+            urlParams: {
+                peerId: urlParams.get('peerId'),
+                displayName: urlParams.get('displayName'),
+                userId: urlParams.get('userId')
+            }
+        });
 
         // 회의 옵션 파라미터 읽기
         const meetingOptions = {
@@ -92,6 +105,16 @@
 
         // ===== 한글 입력 관련 변수 추가 =====
         window.enterPressedDuringComposition = false;
+
+        // 토큰 확인 및 사용자 정보 재설정
+        (function checkAuth() {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                console.error('인증 토큰이 없습니다. 로그인이 필요합니다.');
+                // 로그인 페이지로 리다이렉트할 수도 있음
+                // window.location.href = '/login';
+            }
+        })();
 
 
         // 재접속 처리를 위해 joinRoom 함수 호출 부분 수정
@@ -324,15 +347,29 @@
                 }
             });
 
-            // ⭐ 호스트 정보 수신 (이 부분을 함수 안으로 이동!)
+            // 호스트 정보 수신 시 처리 개선
             socket.on('host-info', (data) => {
                 const { hostId } = data;
-                isHost = (userId === hostId);
+                console.log('호스트 정보 수신:', hostId);
+
+                // 다양한 방법으로 호스트 여부 확인
+                isHost = (userId === hostId) || (peerId === hostId);
+
+                console.log('호스트 여부 재확인:', {
+                    hostId,
+                    userId,
+                    peerId,
+                    isHost
+                });
 
                 // 호스트인 경우 종료 버튼 표시
+                const endCallBtn = document.getElementById('endCallBtn');
+                if (endCallBtn) {
+                    endCallBtn.style.display = isHost ? 'block' : 'none';
+                }
+
                 if (isHost) {
-                    document.getElementById('endCallBtn').style.display = 'block';
-                    showToast('호스트 권한을 획득했습니다.');
+                    showToast('호스트 권한을 확인했습니다.');
                 }
             });
 
@@ -360,31 +397,66 @@
                 });
             });
 
-            // ⭐ room-joined 이벤트도 여기로 이동!
+            // room-joined 이벤트 핸들러 개선
             socket.on('room-joined', async (data) => {
-                console.log('방 참가 성공:', data);
+                console.log('room-joined 이벤트 수신:', data);
+                const {
+                    isHost: isHostFromServer,
+                    hostId,
+                    peers,
+                    existingProducers,
+                    roomName: receivedRoomName
+                } = data;
 
-                // Transport 생성
-                await createTransports();
+                // ⭐ 호스트 여부 판단 강화
+                isHost = isHostFromServer || (hostId === userId) || (hostId === peerId);
 
-                // 미디어 전송 시작
-                await startProducing();
+                console.log('호스트 여부 판단:', {
+                    isHostFromServer,
+                    hostId,
+                    userId,
+                    peerId,
+                    isHost
+                });
 
-                // 녹화 상태 확인
-                checkRecordingStatus();
+                // 호스트 버튼 표시/숨김
+                const endCallBtn = document.getElementById('endCallBtn');
+                if (endCallBtn) {
+                    endCallBtn.style.display = isHost ? 'block' : 'none';
+                }
 
-                // 기존 참가자들 표시
-                if (data.peers) {
-                    for (const peer of data.peers) {
-                        addParticipant(peer.peerId, peer.displayName);
+                // 방 이름 설정
+                if (receivedRoomName) {
+                    document.getElementById('roomName').textContent = receivedRoomName;
+                }
+
+                showToast(isHost ? '호스트로 회의에 참가했습니다' : '회의에 참가했습니다');
+
+                // 기존 피어들 추가
+                if (peers && peers.length > 0) {
+                    peers.forEach(peer => {
+                        addRemoteVideo(peer.peerId, peer.displayName, peer.userProfileImg);
+                    });
+                }
+
+                // 프로듀서와 컨슈머 Transport 생성
+                await createProducerTransport();
+                await createConsumerTransport();
+
+                // 미디어 스트림 시작
+                await getLocalStream();
+
+                // 기존 프로듀서들에 대한 컨슈머 생성
+                if (existingProducers && existingProducers.length > 0) {
+                    for (const producer of existingProducers) {
+                        await consumeStream(producer.producerId);
                     }
                 }
 
                 // 참가자 수 업데이트
                 updateParticipantCount();
-
-                showToast('회의에 참가했습니다');
             });
+
         }
 
         // 페이지 로드 시 녹화 상태 확인
@@ -480,58 +552,98 @@
 
         // ocean-video-chat.js 수정 부분만 표시
 
-        // ===== 방 참가 수정 =====
+        // joinRoom 함수에서 사용자 정보 확인 강화
         async function joinRoom() {
-            // Router RTP Capabilities 가져오기
-            const routerRtpCapabilities = await new Promise((resolve, reject) => {
-                socket.emit('get-router-rtp-capabilities', (capabilities) => {
-                    resolve(capabilities);
+            try {
+                // Router RTP Capabilities 가져오기
+                const routerRtpCapabilities = await new Promise((resolve, reject) => {
+                    socket.emit('get-router-rtp-capabilities', (capabilities) => {
+                        resolve(capabilities);
+                    });
                 });
-            });
 
-            // MediaSoup 디바이스 초기화
-            await initializeDevice(routerRtpCapabilities);
+                // MediaSoup 디바이스 초기화
+                await initializeDevice(routerRtpCapabilities);
 
-            // ⭐ userId 가져오기 수정
-            let actualUserId = userId;  // 전역 변수에서 먼저 확인
+                // ⭐ userId 가져오기 수정
+                let actualUserId = userId;  // 전역 변수에서 먼저 확인
 
-            // userId가 없으면 localStorage에서 확인
-            if (!actualUserId) {
-                actualUserId = localStorage.getItem('userId');
-            }
-
-            // 그래도 없으면 토큰에서 다시 파싱
-            if (!actualUserId) {
-                const tokenUserInfo = getUserInfoFromToken();
-                actualUserId = tokenUserInfo?.userId;
-
-                // localStorage에 저장
-                if (actualUserId) {
-                    localStorage.setItem('userId', actualUserId);
+                // userId가 없으면 localStorage에서 확인
+                if (!actualUserId) {
+                    actualUserId = localStorage.getItem('userId');
                 }
+
+                // 그래도 없으면 토큰에서 다시 파싱
+                if (!actualUserId) {
+                    const tokenUserInfo = getUserInfoFromToken();
+                    actualUserId = tokenUserInfo?.userId;
+
+                    // localStorage에 저장
+                    if (actualUserId) {
+                        localStorage.setItem('userId', actualUserId);
+                    }
+                }
+
+                console.log('최종 사용할 userId:', actualUserId);
+
+                // ⭐ rejoin 파라미터 확인
+                const urlParams = new URLSearchParams(window.location.search);
+                const isRejoining = urlParams.get('rejoin') === 'true';
+
+                // 방 참가
+                socket.emit('join-room', {
+                    roomId,
+                    workspaceId,
+                    peerId,
+                    displayName,
+                    userId: actualUserId,  // ⭐ 수정된 userId 전달
+                    rejoin: isRejoining    // ⭐ rejoin 플래그 추가
+                });
+
+                // 디버깅을 위해 로그 추가
+                console.log('join-room 전송 데이터:', {
+                    roomId,
+                    workspaceId,
+                    peerId,
+                    displayName,
+                    userId: actualUserId,
+                    rejoin: isRejoining
+                });
+
+            } catch (error) {
+                console.error('joinRoom 에러:', error);
+                showToast('회의 참가 중 오류가 발생했습니다.');
             }
 
-            console.log('최종 사용할 userId:', actualUserId);
+            // ⭐ 호스트 상태 확인 (1초 후)
+            setTimeout(async () => {
+                try {
+                    const response = await fetch(`${SPRING_BOOT_URL}/api/meetings/${roomId}/is-host`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('accessToken')
+                        }
+                    });
 
-            // 방 참가
-            socket.emit('join-room', {
-                roomId,
-                workspaceId,
-                peerId,
-                displayName,
-                userId: actualUserId  // ⭐ 수정된 userId 전달
-            });
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('호스트 상태 확인:', data);
 
-            // 디버깅을 위해 로그 추가
-            console.log('join-room 전송 데이터:', {
-                roomId,
-                workspaceId,
-                peerId,
-                displayName,
-                userId: actualUserId
-            });
+                        isHost = data.isHost;
 
-            // ⭐ socket.on('room-joined', ...) 이벤트 리스너는 setupSocketListeners()로 이동!
+                        // 호스트 버튼 표시/숨김
+                        const endCallBtn = document.getElementById('endCallBtn');
+                        if (endCallBtn) {
+                            endCallBtn.style.display = isHost ? 'block' : 'none';
+                        }
+
+                        if (isHost) {
+                            showToast('호스트 권한이 확인되었습니다.');
+                        }
+                    }
+                } catch (error) {
+                    console.error('호스트 상태 확인 실패:', error);
+                }
+            }, 1000);
         }
 
         // ===== MediaSoup Device 초기화 =====
