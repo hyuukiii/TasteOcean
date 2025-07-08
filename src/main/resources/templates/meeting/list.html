@@ -169,8 +169,23 @@
         return avatars;
     }
 
-    // 회의 재참여
-    function rejoinMeeting(roomId, meetingTitle) {
+
+// 회의 재참여 (호스트 정보 확인 추가)
+async function rejoinMeeting(roomId, meetingTitle) {
+    try {
+        // 먼저 회의 정보와 호스트 상태를 확인
+        const response = await apiRequest(`/api/meetings/${roomId}/rejoin`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            alert('회의 정보를 확인할 수 없습니다.');
+            return;
+        }
+
+        const meetingInfo = await response.json();
+        console.log('회의 재참여 정보:', meetingInfo);
+
         // 미디어 서버 URL 가져오기
         const mediaServerUrl = window.location.hostname === 'localhost'
             ? 'https://localhost:3001'
@@ -178,39 +193,79 @@
 
         // 사용자 정보 가져오기
         const userInfo = getUserInfoFromToken();
-        console.log('사용자 정보:', userInfo); // 디버깅용
 
-        // userInfo가 없으면 토큰 확인
-        if (!userInfo || !userInfo.userId) {
-            console.error('사용자 정보를 가져올 수 없습니다');
-            // 토큰 재확인
-            const token = localStorage.getItem('accessToken');
-            console.log('토큰:', token);
-        }
-
-        // URL 파라미터 구성
+        // URL 파라미터 구성 (호스트 정보 포함)
         const params = new URLSearchParams({
             roomId: roomId,
             workspaceId: workspaceId,
-            meetingTitle: meetingTitle || '회의',
-            peerId: userInfo?.userId || 'unknown-user',
-            displayName: userInfo?.userName || '참가자',
+            meetingTitle: meetingInfo.meetingTitle || meetingTitle || '회의',
+            peerId: meetingInfo.userId || userInfo?.userId || 'unknown-user',
+            userId: meetingInfo.userId || userInfo?.userId || 'unknown-user',  // userId 명시적 전달
+            displayName: meetingInfo.userName || userInfo?.userName || '참가자',
             userProfileImg: userInfo?.userProfileImg || '',
+            isHost: meetingInfo.isHost || false,  // 호스트 여부 전달
+            hostId: meetingInfo.hostId,  // 호스트 ID 전달
             rejoin: 'true'
         });
 
-        console.log('전송할 파라미터:', params.toString()); // 디버깅용
+        console.log('재참여 파라미터:', {
+            roomId,
+            userId: params.get('userId'),
+            displayName: params.get('displayName'),
+            isHost: params.get('isHost'),
+            hostId: params.get('hostId')
+        });
 
         // 회의 페이지로 이동
         window.location.href = `${mediaServerUrl}/ocean-video-chat-complete.html?${params.toString()}`;
-    }
 
-    // 새로운 회의 참여
-    function joinMeeting(roomId, meetingTitle) {
-        if (confirm('이 회의에 참여하시겠습니까?')) {
-            rejoinMeeting(roomId, meetingTitle);
-        }
+    } catch (error) {
+        console.error('회의 재참여 실패:', error);
+        alert('회의 재참여 중 오류가 발생했습니다.');
     }
+}
+
+
+// 새로운 회의 참여
+async function joinMeeting(roomId, meetingTitle) {
+    if (confirm('이 회의에 참여하시겠습니까?')) {
+        await rejoinMeeting(roomId, meetingTitle);
+    }
+}
+
+// 호스트 표시를 위한 회의 카드 렌더링 개선
+function renderMeetingCard(meeting) {
+    const isHost = meeting.hostId === currentUserId;  // 현재 사용자가 호스트인지 확인
+
+    return `
+        <div class="meeting-card">
+            <div class="meeting-header">
+                <h3>${meeting.meetingTitle}</h3>
+                ${isHost ? '<span class="host-badge">호스트</span>' : ''}
+            </div>
+            <div class="meeting-info">
+                <p>시작 시간: ${formatTime(meeting.actualStartTime)}</p>
+                <p>참가자: ${meeting.participantCount}명</p>
+                <p>호스트: ${meeting.hostName}</p>
+            </div>
+            <div class="meeting-participants">
+                ${createParticipantAvatars(meeting.participants)}
+            </div>
+            <div class="meeting-actions">
+                <button onclick="rejoinMeeting('${meeting.roomId}', '${meeting.meetingTitle}')"
+                        class="btn btn-primary">
+                    회의 참여
+                </button>
+                ${isHost ? `
+                    <button onclick="endMeeting('${meeting.roomId}')"
+                            class="btn btn-danger">
+                        회의 종료
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
 
     // 회의 종료 (호스트만)
     async function endMeeting(roomId) {

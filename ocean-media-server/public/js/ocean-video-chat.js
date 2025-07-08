@@ -1896,26 +1896,98 @@
         // 회의 상태 확인
         // const response = await fetch(`/api/meetings/${roomId}/status`);
         // const data = await response.json();
-        // ===== 재접속 기능 =====
+
+        // 재접속 처리 함수 수정
         async function rejoinMeeting() {
             try {
-                // API 호출 제거 - Spring Boot에 해당 API가 없음
-                // 바로 Socket.IO로 재접속 시도
+                showToast('회의에 재접속 중...');
 
-                showToast('회의에 재접속 시도 중...');
+                // Router RTP Capabilities 가져오기
+                const routerRtpCapabilities = await new Promise((resolve, reject) => {
+                    socket.emit('get-router-rtp-capabilities', (capabilities) => {
+                        resolve(capabilities);
+                    });
+                });
 
-                // 재접속 시도
-                socket.emit('rejoin-room', {
+                // MediaSoup 디바이스 초기화
+                await initializeDevice(routerRtpCapabilities);
+
+                // userId 가져오기
+                let actualUserId = userId;
+
+                if (!actualUserId) {
+                    actualUserId = localStorage.getItem('userId');
+                }
+
+                if (!actualUserId) {
+                    const tokenUserInfo = getUserInfoFromToken();
+                    actualUserId = tokenUserInfo?.userId;
+
+                    if (actualUserId) {
+                        localStorage.setItem('userId', actualUserId);
+                    }
+                }
+
+                console.log('재접속 시 사용할 userId:', actualUserId);
+
+                // ⭐ 중요: join-room 이벤트 사용 (rejoin-room 대신)
+                socket.emit('join-room', {
                     roomId,
                     workspaceId,
                     peerId,
                     displayName,
-                    userId
+                    userId: actualUserId,
+                    rejoin: true  // rejoin 플래그는 유지
                 });
 
+                console.log('재접속 요청 전송:', {
+                    roomId,
+                    workspaceId,
+                    peerId,
+                    displayName,
+                    userId: actualUserId,
+                    rejoin: true
+                });
+
+                // 호스트 상태 확인 (2초 후)
+                setTimeout(async () => {
+                    try {
+                        const response = await fetch(`${SPRING_BOOT_URL}/api/meetings/${roomId}/is-host`, {
+                            headers: {
+                                'Authorization': 'Bearer ' + localStorage.getItem('accessToken')
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log('재접속 후 호스트 상태 확인:', data);
+
+                            isHost = data.isHost;
+
+                            // 호스트 버튼 표시/숨김
+                            const endCallBtn = document.getElementById('endCallBtn');
+                            if (endCallBtn) {
+                                endCallBtn.style.display = isHost ? 'block' : 'none';
+                            }
+
+                            if (isHost) {
+                                showToast('호스트 권한이 확인되었습니다.');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('호스트 상태 확인 실패:', error);
+                    }
+                }, 2000);
+
             } catch (error) {
-                console.error('재접속 실패:', error);
-                showToast('재접속에 실패했습니다.');
+                console.error('회의 재접속 실패:', error);
+                showToast('재접속 실패: ' + error.message);
+
+                if (confirm('재접속에 실패했습니다. 다시 시도하시겠습니까?')) {
+                    window.location.reload();
+                } else {
+                    window.location.href = `${SPRING_BOOT_URL}/wsmain?workspaceCd=${workspaceId}`;
+                }
             }
         }
 
