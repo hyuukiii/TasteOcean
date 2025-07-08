@@ -44,7 +44,21 @@
         const meetingTitle = urlParams.get('meetingTitle') || '회의';
 
         // ⭐ 토큰에서 사용자 정보 가져오기
-        const userInfo = getUserInfoFromToken();
+        const userInfo = getUserInfoFromToken() || {};  // 기존 코드
+
+        // ⭐⭐ localStorage에서 추가로 확인하는 코드 추가
+        if (!userInfo.userName || userInfo.userName === undefined) {
+            userInfo.userName = localStorage.getItem('userName');
+        }
+        if (!userInfo.userId || userInfo.userId === undefined) {
+            userInfo.userId = localStorage.getItem('userId');
+        }
+        if (!userInfo.userProfileImg || userInfo.userProfileImg === undefined) {
+            userInfo.userProfileImg = localStorage.getItem('userImg');
+        }
+
+        console.log('최종 userInfo:', userInfo);  // 디버깅용
+
 
         //const displayName = userInfo?.userName || urlParams.get('displayName') || '참가자';
         // ⭐ displayName 설정 개선
