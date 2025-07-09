@@ -99,29 +99,29 @@ class Recorder {
                 fs.mkdirSync(localDir, { recursive: true });
             }
 
-            // GStreamer는 SDP 파일이 필요 없음
+            // GStreamer 녹화 준비
             console.log('GStreamer 녹화 준비 중...');
 
-            // SSRC 정보 추출
-            const videoSsrc = videoRtpParams?.encodings?.[0]?.ssrc;
-            const audioSsrc = audioRtpParams?.encodings?.[0]?.ssrc;
+            // SSRC 정보 추출 - 변수명 수정!
+            const videoSsrc = videoRtpParameters?.encodings?.[0]?.ssrc;
+            const audioSsrc = audioRtpParameters?.encodings?.[0]?.ssrc;
 
             console.log('RTP 파라미터 정보:', {
                 video: {
                     ssrc: videoSsrc,
-                    payloadType: videoRtpParams?.codecs?.[0]?.payloadType,
-                    clockRate: videoRtpParams?.codecs?.[0]?.clockRate
+                    payloadType: videoRtpParameters?.codecs?.[0]?.payloadType,
+                    clockRate: videoRtpParameters?.codecs?.[0]?.clockRate
                 },
                 audio: {
                     ssrc: audioSsrc,
-                    payloadType: audioRtpParams?.codecs?.[0]?.payloadType,
-                    clockRate: audioRtpParams?.codecs?.[0]?.clockRate
+                    payloadType: audioRtpParameters?.codecs?.[0]?.payloadType,
+                    clockRate: audioRtpParameters?.codecs?.[0]?.clockRate
                 }
             });
 
-            // ⭐ GStreamer 파이프라인 구성
-            const videoCaps = `application/x-rtp,media=video,encoding-name=VP8,payload=${videoRtpParameters?.codecs?.[0]?.payloadType || 101},clock-rate=90000`;
-            const audioCaps = `application/x-rtp,media=audio,encoding-name=OPUS,payload=${audioRtpParameters?.codecs?.[0]?.payloadType || 100},clock-rate=48000`;
+            // ⭐ GStreamer 파이프라인 구성 - 변수명 수정!
+            const videoCaps = `application/x-rtp,media=video,encoding-name=VP8,payload=${videoRtpParameters?.codecs?.[0]?.payloadType || 101},clock-rate=90000${videoSsrc ? `,ssrc=${videoSsrc}` : ''}`;
+            const audioCaps = `application/x-rtp,media=audio,encoding-name=OPUS,payload=${audioRtpParameters?.codecs?.[0]?.payloadType || 100},clock-rate=48000${audioSsrc ? `,ssrc=${audioSsrc}` : ''}`;
 
             console.log('비디오 Caps:', videoCaps);
             console.log('오디오 Caps:', audioCaps);
@@ -182,6 +182,12 @@ class Recorder {
                 }
             });
 
+            // 프로세스 오류 처리
+            this.gstreamerProcess.on('error', (error) => {
+                console.error('GStreamer 프로세스 오류:', error);
+                this.handleRecordingError(error.message);
+            });
+
             // 프로세스 종료 처리
             this.gstreamerProcess.on('close', (code) => {
                 console.log(`GStreamer 프로세스 종료 (코드: ${code})`);
@@ -197,14 +203,14 @@ class Recorder {
             });
 
             // 프로세스 시작 확인
-            await new Promise((resolve) => {
+            await new Promise((resolve, reject) => {
                 setTimeout(() => {
                     if (this.gstreamerProcess && !this.gstreamerProcess.killed) {
                         this.isRecording = true;
                         console.log('✅ GStreamer 녹화 시작됨');
                         resolve();
                     } else {
-                        throw new Error('GStreamer 프로세스 시작 실패');
+                        reject(new Error('GStreamer 프로세스 시작 실패'));
                     }
                 }, 1000);
             });
