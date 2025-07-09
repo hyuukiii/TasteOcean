@@ -889,7 +889,7 @@ module.exports = (io, worker, router) => {
             });
         }
     });
-
+    /*
     // 녹화 종료 - 수정된 버전
     socket.on('stopRecording', async (data, callback) => {
         try {
@@ -958,7 +958,7 @@ module.exports = (io, worker, router) => {
             callback({ error: error.message });
         }
     });
-
+    */
     // 녹화 종료
     socket.on('stopRecording', async (data, callback) => {
         try {
