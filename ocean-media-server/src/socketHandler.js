@@ -889,76 +889,7 @@ module.exports = (io, worker, router) => {
             });
         }
     });
-    /*
-    // 녹화 종료 - 수정된 버전
-    socket.on('stopRecording', async (data, callback) => {
-        try {
-            const { roomId } = data;
-            const peer = peers.get(socket.id);
-
-            if (!peer) {
-                return callback({ error: '인증되지 않은 사용자' });
-            }
-
-            const room = roomManager.getRoom(roomId);
-            if (!room) {
-                return callback({ error: '룸을 찾을 수 없습니다' });
-            }
-
-            // 녹화 상태 확인
-            if (!room.recordingStatus) {
-                return callback({ error: '녹화 중이 아닙니다' });
-            }
-
-            // ⭐ Room의 stopRecording 메서드 호출
-            try {
-                console.log('Room.stopRecording 호출 중...');
-                const result = await room.stopRecording();
-                console.log('Room.stopRecording 결과:', result);
-
-                // 녹화 정보 초기화
-                room.recordingInfo = {
-                    isRecording: false,
-                    recordingId: null,
-                    startTime: null,
-                    recorderId: null,
-                    recorderName: null
-                };
-
-                // 모든 참가자에게 녹화 종료 알림
-                io.to(roomId).emit('recording-stopped', {
-                    recordingId: result.recordingId,
-                    stoppedBy: peer.displayName
-                });
-
-                // 녹화 종료한 사용자에게도 알림
-                socket.emit('recordingStopped', {
-                    recordingId: result.recordingId,
-                    stoppedBy: peer.displayName
-                });
-
-                callback({
-                    success: true,
-                    message: '녹화가 종료되었습니다',
-                    ...result
-                });
-
-                console.log(`✅ 녹화 종료 성공 - ID: ${result.recordingId}`);
-
-            } catch (recordingError) {
-                console.error('Room 녹화 종료 실패:', recordingError);
-                callback({
-                    error: 'RECORDING_STOP_FAILED',
-                    message: recordingError.message || '녹화를 종료할 수 없습니다'
-                });
-            }
-
-        } catch (error) {
-            console.error('녹화 종료 오류:', error);
-            callback({ error: error.message });
-        }
-    });
-    */
+     
     // 녹화 종료
     socket.on('stopRecording', async (data, callback) => {
         try {
