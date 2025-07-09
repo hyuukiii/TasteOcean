@@ -449,6 +449,7 @@
 }
 
 /* 사용자 지정 경로 입력 */
+/* 사용자 지정 경로 입력 */
 .custom-path-input {
     margin-top: 12px;
     margin-left: 32px;
@@ -552,8 +553,9 @@
 }
 
 /* 자동 녹화 옵션 개선 */
-.option-item input[type="checkbox"]:checked ~ .recording-path-section {
-    display: block;
+#autoRecord:checked ~ .recording-path-section {
+    max-height: 400px;
+    margin-top: 16px;
 }
 
 /* 반응형 디자인 */
