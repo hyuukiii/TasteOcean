@@ -131,28 +131,30 @@
                         </div>
 
                         <!-- ⭐ 녹화 경로 설정 추가 -->
+                        <!-- 녹화 경로 설정 섹션 -->
                         <div class="recording-path-section" id="recordingPathSection">
                             <label>녹화 파일 저장 위치</label>
 
                             <!-- 기본 경로 옵션 -->
-                            <div class="path-option">
+                            <div class="path-option selected" data-path-type="default">
                                 <input type="radio" name="pathType" id="defaultPath" value="default" checked>
                                 <label for="defaultPath">기본 위치 사용</label>
                                 <span class="path-display">/Users/hyunki/Ocean/recordings</span>
                             </div>
 
                             <!-- 사용자 지정 경로 옵션 -->
-                            <div class="path-option">
+                            <div class="path-option" data-path-type="custom">
                                 <input type="radio" name="pathType" id="customPath" value="custom">
                                 <label for="customPath">사용자 지정 위치</label>
-                                <div class="custom-path-input" style="display: none;">
+
+                                <div class="custom-path-input" id="customPathInput">
                                     <input type="text"
                                            id="recordingPath"
                                            name="recordingPath"
-                                           placeholder="/Users/hyunki/Documents/MyRecordings"
+                                           placeholder="경로를 입력하거나 찾아보기를 클릭하세요"
                                            class="path-input">
                                     <button type="button" onclick="selectFolder()" class="browse-btn">
-                                        찾아보기...
+                                        찾아보기
                                     </button>
                                 </div>
                             </div>
@@ -162,12 +164,12 @@
                         </div>
 
                         <!-- 파일 선택 다이얼로그 (숨김) -->
-                    <input type="file"
-                           id="folderPicker"
-                           webkitdirectory
-                           directory
-                           style="display: none;"
-                           onchange="handleFolderSelection(event)">
+                        <input type="file"
+                               id="folderPicker"
+                               webkitdirectory
+                               directory
+                               style="display: none;"
+                               onchange="handleFolderSelection(event)">
                     </label>
 
                         <label class="option-item">
