@@ -5,24 +5,23 @@ const fs = require('fs');
 const axios = require('axios');
 
 class Recorder {
-    constructor(roomId, workspaceId, recorderId, springBootUrl) {
+    constructor(roomId, workspaceId, recorderId, springBootUrl, customPath) {
         this.roomId = roomId;
         this.workspaceId = workspaceId;
         this.recorderId = recorderId;
         this.springBootUrl = springBootUrl || 'http://localhost:8080';
 
         // ⭐ 사용자 지정 경로 우선 사용
-                if (customPath) {
-                    this.recordingPath = customPath;
-                    console.log('사용자 지정 녹화 경로:', customPath);
-                } else {
-                    // 기본 경로 사용
-                    this.recordingPath = process.env.RECORDING_PATH || '/Users/hyunki/Ocean/recordings';
-                    console.log('기본 녹화 경로:', this.recordingPath);
-                }
+        if (customPath) {
+             this.recordingPath = customPath;
+             console.log('사용자 지정 녹화 경로:', customPath);
+        } else {
+                // 기본 경로 사용
+                this.recordingPath = process.env.RECORDING_PATH || '/Users/hyunki/Ocean/recordings';
+                console.log('기본 녹화 경로:', this.recordingPath);
+        }
 
         // 환경 변수에서 경로 가져오기
-        this.recordingPath = process.env.RECORDING_PATH || '/Users/hyunki/Ocean/recordings';
         this.recordingId = null;
         this.gstreamerProcess = null;
         this.videoPort = null;
