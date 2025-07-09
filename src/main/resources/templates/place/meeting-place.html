@@ -6,7 +6,9 @@
 
   <link rel="stylesheet" th:href="@{/css/placeList.css}">
   <link rel="stylesheet" th:href="@{/css/lnb.css}">
-  <link rel="stylesheet" th:href="@{/css/rnb.css}">
+  <link rel="stylesheet" th:href="@{/css/rnb.css}" />
+  <link rel="stylesheet" th:href="@{/css/invite.css}" />
+  <link rel="stylesheet" th:href="@{/css/profile-modal.css}" />
   <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1a9ca55e1cb213f15176c2b99a62db20&libraries=services"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -150,10 +152,20 @@
       </div>
     </div>
   </aside>
-  <div id="rnbContainer"></div>
-  <div th:replace="~{fragments/rnb :: rnbFragment}"></div>
-  <script th:src="@{/js/rnb-fetch.js}"></script>
+  <div id="rnbContainer" th:data-workspace-cd="${workspaceCd}"></div>
+<!-- ✅ fetch 대상 모달 -->
+<div id="profileModalContainer"></div>
+<div id="inviteModalContainer"></div>
+
+
+<!-- ✅ JS -->
+<script th:src="@{/js/Token.js}" defer></script>
+<script th:src="@{/js/wsmain.js}" defer></script>
+<script th:src="@{/js/rnb-fetch.js}" defer></script>
+<script th:src="@{/js/invite-modal.js}" defer></script>
 </div>
+
+
 
 <script th:inline="javascript">
   /*<![CDATA[*/
@@ -607,8 +619,6 @@
   });
   /*]]>*/
 </script>
-
-<script th:src="@{/js/Token.js}"></script>
 
 </body>
 </html>

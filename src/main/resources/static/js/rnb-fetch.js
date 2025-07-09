@@ -147,6 +147,12 @@
                     const isClosed = body.classList.contains('rnb-closed');
                     body.classList.toggle('rnb-closed');
                     btnImg.style.transform = isClosed ? 'rotate(0deg)' : 'rotate(180deg)';
+                    // 캘린더 잘림 현상 수정 코드
+                    setTimeout(() => {
+                    if (window.calendar) { // window.calendar로 접근하여 전역 변수임을 명시
+                        window.calendar.relayout();
+                    }
+                }, 350);
                 });
             }
 

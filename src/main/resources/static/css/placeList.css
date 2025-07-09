@@ -35,6 +35,7 @@ body {
     background-color: var(--bg-content);
     display: flex;
     flex-direction: column;
+    flex: 1;
 }
 
 .place-list {

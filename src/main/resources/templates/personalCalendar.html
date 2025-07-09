@@ -4,8 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <title>개인 캘린더</title>
-    <link th:href="@{/css/lnb.css}" rel='stylesheet' />
-    <link th:href="@{/css/calendar.css}" rel='stylesheet' />
+    <link rel='stylesheet' th:href="@{/css/lnb.css}"/>
+    <link rel='stylesheet' th:href="@{/css/calendar.css}"/>
+    <link rel="stylesheet" th:href="@{/css/rnb.css}" />
+    <link rel="stylesheet" th:href="@{/css/invite.css}" />
+    <link rel="stylesheet" th:href="@{/css/profile-modal.css}" />
     <link rel="stylesheet" href="/css/calendar.css">
 
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
@@ -28,9 +31,11 @@
             </div>
         </div>
         <div id='calendar'></div>
-    </div>
 
-    <div class="sidebar-right"></div>
+    </div>
+    <div id="rnbContainer" th:data-workspace-cd="${workspaceCd}"></div>
+    <div id="profileModalContainer"></div>
+    <div id="inviteModalContainer"></div>
 
 </div>
 
@@ -339,6 +344,12 @@
     </div>
 </div>
 
+
+<script th:src="@{/js/Token.js}" defer></script>
+<script th:src="@{/js/wsmain.js}" defer></script>
+<script th:src="@{/js/rnb-fetch.js}" defer></script>
+<script th:src="@{/js/invite-modal.js}" defer></script>
+
 <script th:inline="javascript">
     /*<![CDATA[*/
     const currentUser = /*[[${currentUser}]]*/ '';
@@ -349,6 +360,7 @@
     let detailMarker;
     let infowindow;
     let ps;
+    let calendar;
 
     console.log("currentUser: " + currentUser.userId);
     console.log("workspaceCd: " + workspaceCd);
@@ -362,7 +374,7 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         const calendarEl = document.getElementById('calendar');
-        const calendar = new FullCalendar.Calendar(calendarEl, {
+        calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'ko',
             headerToolbar: {
@@ -582,6 +594,19 @@
         });
 
         calendar.render();
+
+        // FullCalendar 크기 업데이트를 위한 ResizeObserver 추가
+        const calendarObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                if (entry.target.id === 'calendar') {
+                    // 캘린더 컨테이너의 크기 변경을 감지하면 FullCalendar를 다시 그립니다.
+                    calendar.updateSize();
+                }
+            }
+        });
+
+        // 'calendar' div를 관찰 대상에 추가
+        calendarObserver.observe(calendarEl);
 
         document.getElementById('prevMonthBtn').addEventListener('click', function () {
             calendar.prev();
