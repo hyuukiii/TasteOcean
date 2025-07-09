@@ -429,7 +429,8 @@ class MeetingSetup {
         muteOnJoin: formData.get('muteOnJoin') === 'on',
         waitingRoom: formData.get('waitingRoom') === 'on',
         videoQuality: formData.get('videoQuality'),
-        invitedMembers: invitedMembers
+        invitedMembers: invitedMembers,
+        recordingPath: recordingPath
       };
 
       // 회의 생성 API 호출
@@ -461,7 +462,8 @@ class MeetingSetup {
         muteOnJoin: requestData.muteOnJoin,
         videoQuality: requestData.videoQuality,
         meetingTitle: requestData.title,
-        userProfileImg: result.userProfileImg || ''  // ⭐ 프로필 이미지 추가
+        userProfileImg: result.userProfileImg || '',
+        recordingPath: requestData.recordingPath || ''
       })}`;
 
     } catch (error) {
@@ -728,6 +730,104 @@ function toggleAllMembers() {
         handleCheckboxChange(checkbox);
     });
 }
+
+// 경로 타입 변경 처리
+document.querySelectorAll('input[name="pathType"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        const customPathInput = document.querySelector('.custom-path-input');
+        if (e.target.value === 'custom') {
+            customPathInput.style.display = 'flex';
+        } else {
+            customPathInput.style.display = 'none';
+            clearPathValidation();
+        }
+    });
+});
+
+// 폴더 선택 (웹에서는 제한적)
+function selectFolder() {
+    // 웹 브라우저에서는 폴더 선택이 제한적이므로
+    // 경로를 직접 입력하도록 안내
+    alert('경로를 직접 입력해주세요.\n예: /Users/hyunki/Documents/MyRecordings');
+    document.getElementById('recordingPath').focus();
+}
+
+// 경로 유효성 검증
+async function validatePath(path) {
+    if (!path) return false;
+
+    try {
+        const response = await fetch('/api/validate-path', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            },
+            body: JSON.stringify({ path })
+        });
+
+        const result = await response.json();
+        return result.valid;
+    } catch (error) {
+        console.error('경로 검증 실패:', error);
+        return false;
+    }
+}
+
+// 경로 입력 시 실시간 검증
+let pathValidationTimeout;
+document.getElementById('recordingPath')?.addEventListener('input', (e) => {
+    clearTimeout(pathValidationTimeout);
+    pathValidationTimeout = setTimeout(async () => {
+        const path = e.target.value;
+        if (path) {
+            const isValid = await validatePath(path);
+            showPathValidation(isValid, path);
+        } else {
+            clearPathValidation();
+        }
+    }, 500); // 0.5초 디바운스
+});
+
+// 경로 검증 메시지 표시
+function showPathValidation(isValid, path) {
+    const validationEl = document.getElementById('pathValidation');
+
+    if (isValid) {
+        validationEl.className = 'path-validation-message success';
+        validationEl.textContent = '✓ 유효한 경로입니다';
+    } else {
+        validationEl.className = 'path-validation-message error';
+        validationEl.textContent = '✗ 유효하지 않은 경로이거나 쓰기 권한이 없습니다';
+    }
+}
+
+// 검증 메시지 제거
+function clearPathValidation() {
+    const validationEl = document.getElementById('pathValidation');
+    validationEl.className = 'path-validation-message';
+    validationEl.style.display = 'none';
+}
+
+// 회의 시작 시 경로 정보 포함
+async function startMeeting() {
+    const pathType = document.querySelector('input[name="pathType"]:checked').value;
+    let recordingPath = null;
+
+    if (pathType === 'custom') {
+        recordingPath = document.getElementById('recordingPath').value;
+        if (!recordingPath) {
+            alert('녹화 경로를 입력해주세요.');
+            return;
+        }
+
+        // 경로 유효성 최종 확인
+        const isValid = await validatePath(recordingPath);
+        if (!isValid) {
+            alert('유효하지 않은 경로입니다. 다시 확인해주세요.');
+            return;
+        }
+    }
 
 /**
  * 이메일로 초대

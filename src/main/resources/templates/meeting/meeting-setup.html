@@ -123,14 +123,52 @@
                 <!-- 회의 옵션 -->
                 <div class="form-section">
                     <h3>회의 옵션</h3>
-                    <div class="option-list">
-                        <label class="option-item">
-                            <input type="checkbox" id="autoRecord" name="autoRecord">
-                            <div class="option-content">
-                                <span class="option-title">자동 녹화</span>
-                                <span class="option-desc">회의 시작과 동시에 녹화를 시작합니다</span>
+                    <label class="option-item">
+                        <input type="checkbox" id="autoRecord" name="autoRecord">
+                        <div class="option-content">
+                            <span class="option-title">자동 녹화</span>
+                            <span class="option-desc">회의 시작과 동시에 녹화를 시작합니다</span>
+                        </div>
+
+                        <!-- ⭐ 녹화 경로 설정 추가 -->
+                        <div class="recording-path-section" id="recordingPathSection">
+                            <label>녹화 파일 저장 위치</label>
+
+                            <!-- 기본 경로 옵션 -->
+                            <div class="path-option">
+                                <input type="radio" name="pathType" id="defaultPath" value="default" checked>
+                                <label for="defaultPath">기본 위치 사용</label>
+                                <span class="path-display">/Users/hyunki/Ocean/recordings</span>
                             </div>
-                        </label>
+
+                            <!-- 사용자 지정 경로 옵션 -->
+                            <div class="path-option">
+                                <input type="radio" name="pathType" id="customPath" value="custom">
+                                <label for="customPath">사용자 지정 위치</label>
+                                <div class="custom-path-input" style="display: none;">
+                                    <input type="text"
+                                           id="recordingPath"
+                                           name="recordingPath"
+                                           placeholder="/Users/hyunki/Documents/MyRecordings"
+                                           class="path-input">
+                                    <button type="button" onclick="selectFolder()" class="browse-btn">
+                                        찾아보기...
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 경로 검증 메시지 -->
+                            <div class="path-validation-message" id="pathValidation"></div>
+                        </div>
+
+                        <!-- 파일 선택 다이얼로그 (숨김) -->
+                    <input type="file"
+                           id="folderPicker"
+                           webkitdirectory
+                           directory
+                           style="display: none;"
+                           onchange="handleFolderSelection(event)">
+                    </label>
 
                         <label class="option-item">
                             <input type="checkbox" id="muteOnJoin" name="muteOnJoin" checked>

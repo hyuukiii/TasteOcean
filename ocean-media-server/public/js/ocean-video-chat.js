@@ -35,6 +35,8 @@
         // 녹화 관련 전역 변수 추가
         let recordingStartTime = null;
         let recordingTimerInterval = null;
+        // URL 파라미터에서 녹화 경로 가져오기
+        const recordingPath = urlParams.get('recordingPath') || null;
 
         // 녹화 시간 포맷팅 함수
         function formatRecordingTime(seconds) {
@@ -1245,7 +1247,8 @@
             const recordingData = {
                 roomId: roomId,
                 peerId: peerId,
-                displayName: displayName
+                displayName: displayName,
+                recordingPath: recordingPath
             };
 
             console.log('녹화 요청 데이터:', recordingData);
