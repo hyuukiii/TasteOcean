@@ -104,13 +104,14 @@ class Room {
           }
 
           // Transport 옵션
+          // Transport 옵션
           const transportOptions = {
               listenIp: {
                   ip: '127.0.0.1',
                   announcedIp: null
               },
               rtcpMux: false,
-              comedia: false,
+              comedia: true,  // ⭐ false → true로 변경! 중요!
               enableSctp: false,
               enableSrtp: false
           };
@@ -125,42 +126,36 @@ class Room {
 
           console.log('비디오 Transport 정보:', {
               id: videoTransport.id,
-              port: ffmpegVideoPort,  // 실제 포트
+              port: ffmpegVideoPort,
               rtcpPort: videoTransport.rtcpTuple ? videoTransport.rtcpTuple.localPort : 'N/A'
           });
 
           console.log('오디오 Transport 정보:', {
               id: audioTransport.id,
-              port: ffmpegAudioPort,  // 실제 포트
+              port: ffmpegAudioPort,
               rtcpPort: audioTransport.rtcpTuple ? audioTransport.rtcpTuple.localPort : 'N/A'
           });
 
-
-
-          // FFmpeg가 리스닝할 포트
-          //const ffmpegVideoPort = 5004;
-          //const ffmpegAudioPort = 5006;
-
           // ⭐ 중요: Recorder 인스턴스 생성
           this.recorder = new Recorder(
-              this.roomId,  // ⭐ this.id → this.roomId로 변경
+              this.roomId,
               this.workspaceId,
               recorderId,
               process.env.SPRING_BOOT_URL || 'http://localhost:8080',
-              recordingPath  // ⭐ 사용자 지정 경로 전달
+              recordingPath
           );
 
-          // Consumer 생성 (⭐ paused: false로 변경)
+          // Consumer 생성
           const videoConsumer = videoProducer ? await videoTransport.consume({
               producerId: videoProducer.id,
               rtpCapabilities: this.router.rtpCapabilities,
-              paused: false  // ⭐ paused: true → false로 변경
+              paused: false
           }) : null;
 
           const audioConsumer = audioProducer ? await audioTransport.consume({
               producerId: audioProducer.id,
               rtpCapabilities: this.router.rtpCapabilities,
-              paused: false  // ⭐ paused: true → false로 변경
+              paused: false
           }) : null;
 
           // RTP Parameters 준비
@@ -177,8 +172,13 @@ class Room {
           );
           console.log('Recorder 시작 결과:', result);
 
-          // Transport 연결
-          await new Promise(resolve => setTimeout(resolve, 3000)); // FFmpeg 준비 대기
+          // ⭐⭐⭐ Transport 연결 부분 삭제 또는 주석 처리!
+          // comedia: true일 때는 connect() 호출이 필요 없습니다!
+          // 첫 번째 RTP 패킷을 받으면 자동으로 연결됩니다.
+
+          /*
+          // 이 부분을 삭제하거나 주석 처리하세요!
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
           if (videoTransport) {
               await videoTransport.connect({
@@ -197,6 +197,7 @@ class Room {
               });
               console.log('✅ 오디오 Transport 연결 성공');
           }
+          */
 
           // Consumer resume
           if (videoConsumer) {
@@ -218,7 +219,7 @@ class Room {
               audioConsumer
           };
 
-          // ⭐⭐⭐ 여기에 성공 반환을 추가! (try 블록의 마지막)
+          // 성공 반환
           return {
               success: true,
               recordingId: result.recordingId,
