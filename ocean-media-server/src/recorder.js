@@ -231,7 +231,6 @@ class Recorder {
            }
            return null;
        }
-   }
 
     /**
      * 녹화 에러 처리
