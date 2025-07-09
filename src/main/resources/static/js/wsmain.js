@@ -24,12 +24,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ✅ 상단 배너 정보 세팅
     fetch(`/api/workspaces/${workspaceCd}/info`)
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
             console.log("✅ 워크스페이스 정보:", data);
 
             // 워크스페이스 이름
-            document.querySelector('.workspace-title').textContent = data.workspaceName || '워크스페이스 이름';
+            const titleElement = document.querySelector('.workspace-title');
+            if (titleElement) {
+                titleElement.textContent = data.workspaceName || '워크스페이스 이름';
+            } else {
+                console.error("❌ workspace-title 엘리먼트를 찾을 수 없습니다");
+            }
 
             // 마감 날짜
             document.getElementById("project_endDate").textContent = data.dueDateFormatted;

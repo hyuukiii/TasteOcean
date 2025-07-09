@@ -213,24 +213,203 @@ body.rnb-closed .rnb-toggle-btn {
   color: #b5b5b5;
 }
 
-.notification {
-  position: relative;
-  width: 50px;
-  height: 50px;
-}
-
-.notification img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.notification .noti-dot {
+/* 알림 컨테이너 */
+.notification-container {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 12px;
-  height: 12px;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
+.notification-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.notification-btn:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.notification-icon {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0) invert(1); /* 완전한 흰색으로 변경 */
+}
+
+.notification-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #ff4444;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* 알림 모달 */
+.notification-modal {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  width: 360px;
+  max-height: 500px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideDown 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.notification-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.mark-all-read {
+  background: none;
+  border: none;
+  color: #0066cc;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.mark-all-read:hover {
+  background-color: #f0f0f0;
+}
+
+.notification-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.notification-item:hover {
+  background-color: #f8f8f8;
+}
+
+.notification-item.unread {
+  background-color: #f0f6ff;
+}
+
+.notification-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  background-color: #0066cc;
+  border-radius: 50%;
+}
+
+.notification-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.notification-icon-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.notification-icon-wrapper.event {
+  background-color: #e3f2fd;
+}
+
+.notification-icon-wrapper.member {
+  background-color: #e8f5e9;
+}
+
+.notification-icon-wrapper.file {
+  background-color: #fff3e0;
+}
+
+.notification-icon-wrapper.mention {
+  background-color: #fce4ec;
+}
+
+.notification-text {
+  flex: 1;
+}
+
+.notification-title {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.notification-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.notification-time {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.notification-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #999;
+}
+
+.notification-empty p {
+  margin: 0;
+  font-size: 14px;
 }
 
 /* 진도율 */

@@ -5,11 +5,15 @@ class Peer {
     this.roomId = roomId;
     this.id = peerId;
     this.displayName = displayName;
-    this.userId = null; // ⭐ 실제 사용자 ID 저장용
+    this.userId = null; // 사용자 ID
+    this.role = 'PARTICIPANT'; // 역할 (HOST/PARTICIPANT)
     this.transports = new Map();
     this.producers = new Map();
     this.consumers = new Map();
-    this.device = null;
+    this.isActive = true; // 활성 상태
+    this.joinedAt = new Date(); // 참가 시간
+    this.leftAt = null; // 나간 시간
+    this.rejoinedAt = null; // 재접속 시간
   }
 
   addTransport(transport) {
@@ -59,11 +63,16 @@ class Peer {
   }
 
   toJson() {
-    return {
-      id: this.id,
-      displayName: this.displayName,
-      producers: Array.from(this.producers.keys())
-    };
+      return {
+        peerId: this.id,
+        userId: this.userId,
+        displayName: this.displayName,
+        role: this.role,
+        isActive: this.isActive,
+        joinedAt: this.joinedAt,
+        producerCount: this.producers.size,
+        consumerCount: this.consumers.size
+      };
   }
 }
 

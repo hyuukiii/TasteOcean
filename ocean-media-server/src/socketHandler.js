@@ -20,75 +20,289 @@ module.exports = (io, worker, router) => {
     console.log('New client connected:', socket.id);
 
     socket.on('join-room', async (data) => {
-      try {
-        const { roomId, workspaceId, peerId, displayName, userId } = data;
+        try {
+            const { roomId, workspaceId, peerId, displayName, userId, rejoin } = data;
 
-        // ⭐ 디버깅 로그 추가
-        console.log('join-room 데이터:', { roomId, workspaceId, peerId, displayName, userId });
-        console.log(`${displayName} joining room ${roomId}`);
+            console.log('join-room 데이터:', {
+                roomId,
+                workspaceId,
+                peerId,
+                displayName,
+                userId,
+                rejoin
+            });
 
-        // 룸 가져오기 또는 생성
-        let room = roomManager.getRoom(roomId);
-        if (!room) {
-          room = roomManager.createRoom(roomId, workspaceId, router);
-        }
+            // 룸 가져오기 또는 생성
+            let room = roomManager.getRoom(roomId);
+            if (!room) {
+                room = roomManager.createRoom(roomId, workspaceId, router);
+                console.log(`Room created: ${roomId} for workspace: ${workspaceId}`);
+            }
 
-        // Peer 생성
-        const peer = new Peer(socket, roomId, peerId, displayName);
-        peer.userId = userId;
+            let peer;
+            let isHost = false;
 
-        // ⭐ 저장 확인
-        console.log('Peer 생성 완료:', { peerId: peer.id, userId: peer.userId });
+            // 재접속 처리
+            if (rejoin) {
+                // 기존 peer 찾기
+                let existingPeer = null;
+                room.peers.forEach((p, id) => {
+                    if (p.userId === userId) {
+                        existingPeer = p;
+                        console.log('기존 peer 발견:', {
+                            peerId: p.id,
+                            userId: p.userId,
+                            role: p.role
+                        });
+                    }
+                });
 
-        peers.set(socket.id, peer);
-        // 룸에 피어 추가 (Peer 인스턴스 자체를 저장)
-        room.peers.set(peerId, peer);
-        console.log(`Peer ${peerId} added to room ${roomId}`);
+                if (existingPeer) {
+                    // 기존 peer 재사용
+                    peer = existingPeer;
+                    peer.socket = socket;
+                    peer.isActive = true;
+                    peer.rejoinedAt = new Date();
+                    peer.displayName = displayName; // displayName 업데이트
 
-        // Socket.io 룸 참가
-        socket.join(roomId);
+                    // 기존 role 유지
+                    isHost = (peer.role === 'HOST');
+                    console.log(`${displayName}이(가) 재접속했습니다. 역할: ${peer.role}`);
+                } else {
+                    // 기존 peer가 없으면 새로 생성
+                    peer = new Peer(socket, roomId, peerId, displayName);
+                    peer.userId = userId;
 
-        // 기존 참가자 정보 전송
-        const existingPeers = Array.from(room.peers.values())
-          .filter(p => p.id !== peerId)
-          .map(p => p.toJson());
-
-        socket.emit('room-joined', {
-          roomId,
-          peers: existingPeers
-        });
-
-        // 다른 참가자들에게 알림
-        socket.to(roomId).emit('new-peer', {
-          peerId,
-          displayName
-        });
-
-        // ⭐ 타이밍 문제 해결: 1초 후 기존 참가자들의 producer 정보 전송
-            setTimeout(() => {
-              console.log(`Sending existing producers to new peer ${peerId}...`);
-
-              for (const [_, existingPeer] of room.peers) {
-                if (existingPeer.id !== peerId) {
-                  console.log(`Peer ${existingPeer.id} has ${existingPeer.producers.size} producers`);
-
-                  for (const [producerId, producer] of existingPeer.producers) {
-                    console.log(`Sending producer ${producerId} (${producer.kind})`);
-
-                    socket.emit('new-producer', {
-                      producerId: producer.id,
-                      peerId: existingPeer.id,
-                      kind: producer.kind
-                    });
-                  }
+                    // 룸에 아무도 없으면 호스트로 설정
+                    if (room.peers.size === 0) {
+                        room.hostId = userId;
+                        peer.role = 'HOST';
+                        isHost = true;
+                        console.log(`${displayName}이(가) 호스트로 설정됨`);
+                    } else {
+                        peer.role = 'PARTICIPANT';
+                        isHost = false;
+                    }
                 }
-              }
-            }, 1000); // 1초 대기
+            } else {
+                // 신규 접속
+                peer = new Peer(socket, roomId, peerId, displayName);
+                peer.userId = userId;
 
-      } catch (error) {
-        console.error('Join room error:', error);
-        socket.emit('error', { message: error.message });
-      }
+                // 첫 번째 참가자를 호스트로 설정
+                if (room.peers.size === 0) {
+                    room.hostId = userId;
+                    peer.role = 'HOST';
+                    isHost = true;
+                    console.log(`${displayName}이(가) 호스트로 설정됨`);
+                } else {
+                    peer.role = 'PARTICIPANT';
+                    isHost = false;
+                }
+            }
+
+            console.log('Peer 정보:', {
+                peerId: peer.id,
+                userId: peer.userId,
+                role: peer.role,
+                isHost: isHost
+            });
+
+            // Peer 저장
+            peers.set(socket.id, peer);
+            room.peers.set(peerId, peer);
+
+            // Socket.io 룸 참가
+            socket.join(roomId);
+
+            // 기존 참가자 정보 전송
+            const existingPeers = Array.from(room.peers.values())
+                .filter(p => p.id !== peerId && p.isActive !== false)
+                .map(p => p.toJson());
+
+            // room-joined 이벤트 전송 (meetingTitle 제거!)
+            socket.emit('room-joined', {
+                roomId,
+                peers: existingPeers,
+                hostId: room.hostId,
+                isHost: isHost
+                // meetingTitle 관련 부분 완전히 제거
+            });
+
+            // 다른 참가자들에게 알림
+            if (rejoin) {
+                socket.to(roomId).emit('peer-rejoined', {
+                    peerId,
+                    displayName
+                });
+            } else {
+                socket.to(roomId).emit('new-peer', {
+                    peerId,
+                    displayName
+                });
+            }
+
+            // 기존 producer 정보 전송 (1초 후)
+            setTimeout(() => {
+                console.log(`Sending existing producers to ${peerId}...`);
+
+                for (const [_, existingPeer] of room.peers) {
+                    if (existingPeer.id !== peerId && existingPeer.isActive !== false) {
+                        for (const [producerId, producer] of existingPeer.producers) {
+                            console.log(`Sending producer ${producerId} (${producer.kind})`);
+
+                            socket.emit('new-producer', {
+                                producerId: producer.id,
+                                peerId: existingPeer.id,
+                                kind: producer.kind
+                            });
+                        }
+                    }
+                }
+            }, 1000);
+
+        } catch (error) {
+            console.error('Join room error:', error);
+            socket.emit('error', { message: error.message });
+        }
+    });
+
+    // 회의 종료 이벤트 핸들러 추가
+    socket.on('end-meeting', async (data, callback) => {
+        try {
+            const { roomId } = data;
+            const peer = peers.get(socket.id);
+
+            if (!peer) {
+                return callback({ error: '인증되지 않은 사용자' });
+            }
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) {
+                return callback({ error: '룸을 찾을 수 없습니다' });
+            }
+
+            // 호스트 권한 확인
+            if (peer.userId !== room.hostId) {
+                return callback({ error: '호스트만 회의를 종료할 수 있습니다' });
+            }
+
+            // 모든 참가자에게 회의 종료 알림
+            io.to(roomId).emit('meeting-ended', {
+                endedBy: peer.displayName
+            });
+
+            // 회의 상태 업데이트 (DB 연동 필요)
+            room.status = 'ENDED';
+            room.endTime = new Date();
+
+            // 모든 참가자 연결 해제
+            room.peers.forEach((p, peerId) => {
+                if (p.socket && p.socket.connected) {
+                    p.socket.disconnect(true);
+                }
+            });
+
+            // 룸 삭제
+            roomManager.deleteRoom(roomId);
+
+            callback({ success: true });
+
+        } catch (error) {
+            console.error('End meeting error:', error);
+            callback({ error: error.message });
+        }
+    });
+
+    // 회의 나가기 이벤트 핸들러 추가
+    socket.on('leave-room', async (data) => {
+        try {
+            const { roomId, peerId } = data;
+            const peer = peers.get(socket.id);
+
+            if (!peer) return;
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) return;
+
+            // 참가자 상태 업데이트 (나갔지만 재접속 가능)
+            peer.isActive = false;
+            peer.leftAt = new Date();
+
+            // 다른 참가자들에게 알림
+            socket.to(roomId).emit('peer-left-temporarily', {
+                peerId: peer.id,
+                displayName: peer.displayName
+            });
+
+            console.log(`${peer.displayName}이(가) 일시적으로 회의를 나갔습니다`);
+
+        } catch (error) {
+            console.error('Leave room error:', error);
+        }
+    });
+
+    // 재접속 이벤트 핸들러 추가
+    socket.on('rejoin-room', async (data) => {
+        try {
+            const { roomId, workspaceId, peerId, displayName, userId } = data;
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) {
+                socket.emit('error', { message: '회의가 종료되었습니다' });
+                return;
+            }
+
+            // 기존 peer 찾기
+            let existingPeer = null;
+            room.peers.forEach((p, id) => {
+                if (p.userId === userId) {
+                    existingPeer = p;
+                }
+            });
+
+            if (existingPeer) {
+                // 기존 peer 업데이트
+                existingPeer.socket = socket;
+                existingPeer.isActive = true;
+                existingPeer.rejoinedAt = new Date();
+
+                peers.set(socket.id, existingPeer);
+            } else {
+                // 새 peer 생성
+                const peer = new Peer(socket, roomId, peerId, displayName);
+                peer.userId = userId;
+                peer.role = 'PARTICIPANT';
+
+                peers.set(socket.id, peer);
+                room.peers.set(peerId, peer);
+            }
+
+            // Socket.io 룸 재참가
+            socket.join(roomId);
+
+            // 현재 참가자 정보 전송
+            const activePeers = Array.from(room.peers.values())
+                .filter(p => p.isActive && p.id !== peerId)
+                .map(p => p.toJson());
+
+            socket.emit('reconnect-success', {
+                roomId,
+                peers: activePeers
+            });
+
+            // 다른 참가자들에게 재접속 알림
+            socket.to(roomId).emit('peer-rejoined', {
+                peerId,
+                displayName
+            });
+
+            console.log(`${displayName}이(가) 회의에 재접속했습니다`);
+
+        } catch (error) {
+            console.error('Rejoin room error:', error);
+            socket.emit('error', { message: error.message });
+        }
     });
 
     // Router RTP Capabilities 요청
@@ -356,31 +570,56 @@ module.exports = (io, worker, router) => {
       }
     });
 
-    // 연결 해제
+    // disconnect 이벤트 핸들러 수정
     socket.on('disconnect', () => {
-      const peer = peers.get(socket.id);
-      if (!peer) return;
+        const peer = peers.get(socket.id);
+        if (!peer) return;
 
-      console.log(`Client disconnected: ${peer.displayName}`);
+        console.log(`Client disconnected: ${peer.displayName}`);
 
-      // 룸에서 피어 제거
-      const room = roomManager.getRoom(peer.roomId);
-      if (room) {
-        room.peers.delete(peer.id);
-        console.log(`Peer ${peer.id} removed from room ${peer.roomId}`);
+        const room = roomManager.getRoom(peer.roomId);
+        if (!room) return;
+
+        // 완전히 제거하지 않고 비활성 상태로만 변경
+        peer.isActive = false;
+        peer.disconnectedAt = new Date();
+
+        // 호스트가 나간 경우 다음 사람에게 호스트 권한 이전
+        if (peer.userId === room.hostId) {
+            const activePeers = Array.from(room.peers.values())
+                .filter(p => p.isActive && p.id !== peer.id);
+
+            if (activePeers.length > 0) {
+                const newHost = activePeers[0];
+                room.hostId = newHost.userId;
+                newHost.role = 'HOST';
+
+                // 새 호스트에게 알림
+                io.to(peer.roomId).emit('host-changed', {
+                    newHostId: newHost.userId,
+                    newHostName: newHost.displayName
+                });
+            }
+        }
 
         // 다른 참가자들에게 알림
-        socket.to(peer.roomId).emit('peer-left', { peerId: peer.id });
+        socket.to(peer.roomId).emit('peer-disconnected', {
+            peerId: peer.id,
+            isHost: peer.userId === room.hostId
+        });
 
-        // 빈 룸 삭제
-        if (room.isEmpty()) {
-          roomManager.deleteRoom(peer.roomId);
-        }
-      }
+        // 30분 후 자동으로 peer 제거 (재접속 시간 제한)
+        setTimeout(() => {
+            if (!peer.isActive) {
+                 room.peers.delete(peer.id);
+                 peers.delete(socket.id);
 
-      // 피어 정리
-      peer.close();
-      peers.delete(socket.id);
+                 // 빈 룸 삭제
+                 if (room.isEmpty()) {
+                      roomManager.deleteRoom(peer.roomId);
+                 }
+            }
+        }, 30 * 60 * 1000); // 30분
     });
 
     // 화면 공유 상태 변경 처리
@@ -559,45 +798,99 @@ module.exports = (io, worker, router) => {
       }
     });
 
-    // 녹화 시작
-    socket.on('start-recording', async (data, callback) => {
-        try {
-            const room = roomManager.getRoom(data.roomId);
-            const peer = peers.get(socket.id);
+    // 녹화 시작 - 수정된 버전
+    socket.on('startRecording', async (data, callback) => {
+        const { roomId, peerId, displayName } = data;
 
-            // ⭐ 디버깅 로그
-            console.log('녹화 시작 - socket.id:', socket.id);
-            console.log('녹화 시작 - peer:', peer);
-            console.log('녹화 시작 - peer.userId:', peer ? peer.userId : 'peer가 없음');
+        // callback 함수가 없으면 에러 처리
+        if (!callback || typeof callback !== 'function') {
+            console.error('콜백 함수가 없습니다');
+            return;
+        }
 
-            if (!peer || !peer.userId) {
-                throw new Error('사용자 정보를 찾을 수 없습니다');
-            }
-
-            // ⭐⭐ 녹화 전 체크 추가 - 이 부분이 중요합니다!
-            const checkResult = await room.preRecordingCheck();
-            if (!checkResult) {
-                throw new Error('녹화 사전 체크 실패. 콘솔 로그를 확인하세요.');
-            }
-
-            // 실제 사용자 ID 사용
-            const result = await room.startRecording(peer.userId);
-
-            // 다른 사용자에게 알림
-            io.to(data.roomId).emit('recording-started', {
-                recordingId: result.recordingId,
-                startedBy: peer.displayName
+        // ⭐ peer 객체 가져오기 추가
+        const peer = peers.get(socket.id);
+        if (!peer) {
+            console.error('Peer를 찾을 수 없습니다');
+            callback({
+                error: 'PEER_NOT_FOUND',
+                message: '인증되지 않은 사용자입니다'
             });
+            return;
+        }
 
-            callback(result);
+        console.log(`녹화 시작 - roomId: ${roomId}, peer.userId: ${peer.userId}`);
+
+        try {
+            const room = roomManager.getRoom(roomId);
+            if (!room) {
+                callback({
+                    error: 'ROOM_NOT_FOUND',
+                    message: '룸을 찾을 수 없습니다'
+                });
+                return;
+            }
+
+            // 기존 녹화 확인
+            if (room.recordingStatus) {
+                callback({
+                    error: 'ALREADY_RECORDING',
+                    message: '이미 녹화가 진행 중입니다'
+                });
+                return;
+            }
+
+            // ⭐ Room의 startRecording 메서드 호출 (중요!)
+            try {
+                console.log('Room.startRecording 호출 중...');
+                const recordingResult = await room.startRecording(peer.userId);
+                console.log('Room.startRecording 결과:', recordingResult);
+
+                // 녹화 정보 저장
+                room.recordingInfo = {
+                    isRecording: true,
+                    recordingId: recordingResult.recordingId,
+                    startTime: new Date(),
+                    recorderId: peer.userId,
+                    recorderName: displayName
+                };
+
+                // 모든 참가자에게 녹화 시작 알림
+                io.to(roomId).emit('recordingStarted', {
+                    recordingId: recordingResult.recordingId,
+                    recorderName: displayName,
+                    startTime: new Date()
+                });
+
+                // 녹화 시작한 사용자에게 성공 응답 (콜백 사용)
+                callback({
+                    success: true,
+                    recordingId: recordingResult.recordingId,
+                    recorderName: displayName,
+                    startTime: new Date()
+                });
+
+                console.log(`✅ 녹화 시작 성공 - ID: ${recordingResult.recordingId}`);
+
+            } catch (recordingError) {
+                console.error('Room 녹화 시작 실패:', recordingError);
+                callback({
+                    error: 'RECORDING_START_FAILED',
+                    message: recordingError.message || '녹화를 시작할 수 없습니다'
+                });
+            }
+
         } catch (error) {
             console.error('녹화 시작 실패:', error);
-            callback({ error: error.message });
+            callback({
+                error: 'UNKNOWN_ERROR',
+                message: error.message || '녹화를 시작할 수 없습니다'
+            });
         }
     });
 
-    // 녹화 종료
-    socket.on('stop-recording', async (data, callback) => {
+    // 녹화 종료 - 수정된 버전
+    socket.on('stopRecording', async (data, callback) => {
         try {
             const { roomId } = data;
             const peer = peers.get(socket.id);
@@ -611,22 +904,139 @@ module.exports = (io, worker, router) => {
                 return callback({ error: '룸을 찾을 수 없습니다' });
             }
 
-            // 녹화 종료
-            const result = await room.stopRecording();
+            // 녹화 상태 확인
+            if (!room.recordingStatus) {
+                return callback({ error: '녹화 중이 아닙니다' });
+            }
 
-            // 모든 참가자에게 녹화 종료 알림
-            io.to(roomId).emit('recording-stopped', {
-                recordingId: result.recordingId,
-                stoppedBy: peer.displayName
-            });
+            // ⭐ Room의 stopRecording 메서드 호출
+            try {
+                console.log('Room.stopRecording 호출 중...');
+                const result = await room.stopRecording();
+                console.log('Room.stopRecording 결과:', result);
 
-            callback({ success: true, ...result });
+                // 녹화 정보 초기화
+                room.recordingInfo = {
+                    isRecording: false,
+                    recordingId: null,
+                    startTime: null,
+                    recorderId: null,
+                    recorderName: null
+                };
+
+                // 모든 참가자에게 녹화 종료 알림
+                io.to(roomId).emit('recording-stopped', {
+                    recordingId: result.recordingId,
+                    stoppedBy: peer.displayName
+                });
+
+                // 녹화 종료한 사용자에게도 알림
+                socket.emit('recordingStopped', {
+                    recordingId: result.recordingId,
+                    stoppedBy: peer.displayName
+                });
+
+                callback({
+                    success: true,
+                    message: '녹화가 종료되었습니다',
+                    ...result
+                });
+
+                console.log(`✅ 녹화 종료 성공 - ID: ${result.recordingId}`);
+
+            } catch (recordingError) {
+                console.error('Room 녹화 종료 실패:', recordingError);
+                callback({
+                    error: 'RECORDING_STOP_FAILED',
+                    message: recordingError.message || '녹화를 종료할 수 없습니다'
+                });
+            }
 
         } catch (error) {
             console.error('녹화 종료 오류:', error);
             callback({ error: error.message });
         }
     });
+
+    // 녹화 종료
+    socket.on('stopRecording', async (data, callback) => {
+        try {
+            const { roomId } = data;
+            const peer = peers.get(socket.id);
+
+            if (!peer) {
+                return callback({ error: '인증되지 않은 사용자' });
+            }
+
+            const room = roomManager.getRoom(roomId);
+            if (!room) {
+                return callback({ error: '룸을 찾을 수 없습니다' });
+            }
+
+            // 녹화 상태 확인
+            if (!room.recordingInfo || !room.recordingInfo.isRecording) {
+                return callback({ error: '녹화 중이 아닙니다' });
+            }
+
+            // Spring Boot 서버에 녹화 종료 알림
+            try {
+                const springBootUrl = process.env.SPRING_BOOT_URL || 'http://localhost:8080';
+                const response = await fetch(`${springBootUrl}/api/recordings/${room.recordingInfo.recordingId}/stop`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        fileSize: 0  // 실제 파일 크기는 recorder에서 처리
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Spring Boot 서버 응답 오류');
+                }
+
+                // 녹화 정보 초기화
+                room.recordingInfo = {
+                    isRecording: false,
+                    recordingId: null,
+                    startTime: null,
+                    recorderId: null,
+                    recorderName: null
+                };
+
+                // 모든 참가자에게 녹화 종료 알림
+                io.to(roomId).emit('recording-stopped', {
+                    recordingId: data.recordingId,
+                    stoppedBy: peer.displayName
+                });
+
+                // 녹화 종료한 사용자에게도 알림
+                socket.emit('recordingStopped', {
+                    recordingId: data.recordingId,
+                    stoppedBy: peer.displayName
+                });
+
+                callback({
+                    success: true,
+                    message: '녹화가 종료되었습니다'
+                });
+
+                console.log(`✅ 녹화 종료 성공 - ID: ${data.recordingId}`);
+
+            } catch (error) {
+                console.error('Spring Boot 서버 통신 오류:', error);
+                callback({
+                    error: 'SERVER_ERROR',
+                    message: '녹화 서버와 통신할 수 없습니다'
+                });
+            }
+
+        } catch (error) {
+            console.error('녹화 종료 오류:', error);
+            callback({ error: error.message });
+        }
+    });
+
     // 녹화 상태 확인
     socket.on('get-recording-status', async (data, callback) => {
         try {

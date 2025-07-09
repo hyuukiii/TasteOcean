@@ -70,6 +70,7 @@
             rnbContainer.innerHTML = rnbHtml;
 
             bindStatusChangeEvents();
+            initializeNotifications(); // 알림 기능 초기화
 
             const modelHtml = await fetch("/html/invite-modal.html").then(res => res.text());
             inviteModalContainer.innerHTML = modelHtml;
@@ -443,6 +444,203 @@
     window.showProfileModel = showProfileModel;
     window.closeProfileModal = closeProfileModal;
 })();
+
+// 알림 기능 초기화
+function initializeNotifications() {
+    console.log('🔔 알림 기능 초기화 시작');
+    
+    const notificationBtn = document.getElementById('notificationBtn');
+    const notificationModal = document.getElementById('notificationModal');
+    const notificationCount = document.getElementById('notificationCount');
+    const notificationList = document.getElementById('notificationList');
+    const markAllReadBtn = document.getElementById('markAllReadBtn');
+    const rnbContainer = document.getElementById('rnbContainer');
+    
+    if (!notificationBtn) {
+        console.error('❌ 알림 버튼을 찾을 수 없습니다');
+        return;
+    }
+    
+    console.log('✅ 알림 요소들 찾기 완료');
+    
+    let isModalOpen = false;
+    let notifications = [];
+    
+    // 알림 버튼 클릭 이벤트
+    notificationBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        isModalOpen = !isModalOpen;
+        notificationModal.style.display = isModalOpen ? 'block' : 'none';
+        
+        if (isModalOpen) {
+            loadNotifications();
+        }
+    });
+    
+    // 모달 외부 클릭 시 닫기
+    document.addEventListener('click', (e) => {
+        if (isModalOpen && !notificationModal.contains(e.target) && e.target !== notificationBtn) {
+            isModalOpen = false;
+            notificationModal.style.display = 'none';
+        }
+    });
+    
+    // 모두 읽음 버튼
+    markAllReadBtn.addEventListener('click', async () => {
+        try {
+            const userId = localStorage.getItem('userId');
+            const response = await fetch(`/api/userNoti/${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (response.ok) {
+                // 모든 알림을 읽음 처리
+                document.querySelectorAll('.notification-item.unread').forEach(item => {
+                    item.classList.remove('unread');
+                });
+                updateNotificationCount(0);
+            }
+        } catch (error) {
+            console.error('알림 읽음 처리 실패:', error);
+        }
+    });
+    
+    // 알림 목록 로드
+    async function loadNotifications() {
+        try {
+            const workspaceCd = rnbContainer.dataset.workspaceCd;
+            const response = await fetch(`/api/workspaces/${workspaceCd}/notifications`);
+            
+            if (!response.ok) throw new Error('알림 로드 실패');
+            
+            notifications = await response.json();
+            renderNotifications();
+            
+        } catch (error) {
+            console.error('알림 로드 에러:', error);
+        }
+    }
+    
+    // 알림 렌더링
+    function renderNotifications() {
+        if (notifications.length === 0) {
+            notificationList.innerHTML = '<div class="notification-empty"><p>새로운 알림이 없습니다</p></div>';
+            return;
+        }
+        
+        const notificationHTML = notifications.map(noti => {
+            const type = getNotificationType(noti.content);
+            const icon = getNotificationIcon(type);
+            const time = formatNotificationTime(noti.content);
+            
+            return `
+                <div class="notification-item ${noti.isRead ? '' : 'unread'}" data-id="${noti.notiId}">
+                    <div class="notification-content">
+                        <div class="notification-icon-wrapper ${type}">
+                            ${icon}
+                        </div>
+                        <div class="notification-text">
+                            <div class="notification-title">${noti.senderName}</div>
+                            <div class="notification-description">${extractMessage(noti.content)}</div>
+                            <div class="notification-time">${time}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        notificationList.innerHTML = notificationHTML;
+        
+        // 알림 아이템 클릭 이벤트
+        document.querySelectorAll('.notification-item').forEach(item => {
+            item.addEventListener('click', () => handleNotificationClick(item));
+        });
+    }
+    
+    // 알림 타입 판별
+    function getNotificationType(content) {
+        if (content.includes('일정')) return 'event';
+        if (content.includes('참가')) return 'member';
+        if (content.includes('파일')) return 'file';
+        if (content.includes('멘션')) return 'mention';
+        return 'event';
+    }
+    
+    // 알림 아이콘
+    function getNotificationIcon(type) {
+        const icons = {
+            event: '📅',
+            member: '👤',
+            file: '📎',
+            mention: '@'
+        };
+        return icons[type] || '📌';
+    }
+    
+    // 메시지 추출
+    function extractMessage(content) {
+        const match = content.match(/^(.+?)\s*\[/);
+        return match ? match[1] : content;
+    }
+    
+    // 시간 포맷
+    function formatNotificationTime(content) {
+        const match = content.match(/\[(.*?)\]/);
+        return match ? match[1] : '';
+    }
+    
+    // 알림 클릭 처리
+    async function handleNotificationClick(item) {
+        const notiId = item.dataset.id;
+        
+        if (item.classList.contains('unread')) {
+            try {
+                const response = await fetch(`/api/userNoti/${notiId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    item.classList.remove('unread');
+                    updateNotificationCount();
+                }
+            } catch (error) {
+                console.error('알림 읽음 처리 실패:', error);
+            }
+        }
+    }
+    
+    // 읽지 않은 알림 개수 업데이트
+    async function updateNotificationCount(count = null) {
+        if (count === null) {
+            try {
+                const userId = localStorage.getItem('userId');
+                const workspaceCd = rnbContainer.dataset.workspaceCd;
+                const response = await fetch(`/api/workspaces/${workspaceCd}/notifications/unread-count?userId=${userId}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    count = data.count || 0;
+                }
+            } catch (error) {
+                console.error('알림 개수 조회 실패:', error);
+                count = 0;
+            }
+        }
+        
+        notificationCount.textContent = count;
+        notificationCount.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+    
+    // 초기 알림 개수 로드
+    updateNotificationCount();
+    
+    // 주기적으로 알림 개수 업데이트 (30초마다)
+    setInterval(() => {
+        updateNotificationCount();
+    }, 30000);
+}
 
 function bindStatusChangeEvents() {
     const toggleBtn = document.getElementById("statusToggleBtn");

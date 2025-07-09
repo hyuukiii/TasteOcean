@@ -10,7 +10,6 @@ import com.example.ocean.security.oauth.UserPrincipal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,7 +25,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -463,12 +462,17 @@ public class WorkspaceService {
     }
 
     public Map<String, Object> getWorkspaceInfo(String workspaceCd) {
+        log.info("워크스페이스 정보 조회 시작: {}", workspaceCd);
         Workspace workspace = workspaceMapper.findWorkspaceByCd(workspaceCd);
-        if (workspace == null) return null;
+        if (workspace == null) {
+            log.warn("워크스페이스를 찾을 수 없음: {}", workspaceCd);
+            return null;
+        }
 
         Map<String, Object> response = new HashMap<>();
         response.put("workspaceName", workspace.getWorkspaceNm());
         response.put("inviteCode", workspace.getInviteCd());
+        log.info("워크스페이스 이름: {}", workspace.getWorkspaceNm());
 
         LocalDate today = LocalDate.now();
 
@@ -504,8 +508,54 @@ public class WorkspaceService {
         return response;
     }
 
+    /**
+     * 워크스페이스 접근 권한 확인
+     */
+    public boolean hasAccess(String workspaceCd, String userId) {
+        try {
+            List<WorkspaceMember> members = getWorkspaceMembers(workspaceCd);
 
+            // 단순히 해당 워크스페이스의 멤버인지만 확인
+            return members.stream()
+                    .anyMatch(member -> member.getUserId().equals(userId));
 
+        } catch (Exception e) {
+            log.error("워크스페이스 접근 권한 확인 실패: workspaceCd={}, userId={}",
+                    workspaceCd, userId, e);
+            return false;
+        }
+    }
 
+    /**
+     * 워크스페이스 이름 조회
+     */
+    public String getWorkspaceName(String workspaceCd) {
+        try {
+            Workspace workspace = workspaceMapper.findWorkspaceByCd(workspaceCd);
+            return workspace != null ? workspace.getWorkspaceNm() : null;
 
+        } catch (Exception e) {
+            log.error("워크스페이스 이름 조회 실패: workspaceCd={}", workspaceCd, e);
+            return null;
+        }
+    }
+
+    /**
+     * 워크스페이스의 활성 멤버 조회
+     */
+    public List<WorkspaceMember> getActiveMembers(String workspaceCd) {
+        try {
+            // 이미 getWorkspaceMembers 메서드가 있으므로 활용
+            List<WorkspaceMember> allMembers = getWorkspaceMembers(workspaceCd);
+
+            // 활성 상태(userState가 null이 아닌) 멤버만 필터링 getUserState() != null
+            return allMembers.stream()
+                    .filter(member ->"Y". equals(member.getActiveState()))
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("활성 멤버 조회 실패: workspaceCd={}", workspaceCd, e);
+            return new ArrayList<>();
+        }
+    }
 }

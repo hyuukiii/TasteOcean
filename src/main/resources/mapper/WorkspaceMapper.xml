@@ -254,7 +254,8 @@
         wm.POSITION      AS position,
         wm.EMAIL         AS email,
         wm.PHONE_NUM     AS phoneNum,
-        wm.JOINED_DATE   AS joinedDate
+        wm.JOINED_DATE   AS joinedDate,
+        wm.ACTIVE_STATE  AS activeState <!-- 화상채팅 기능 떄문에 추가 했음 -->
         FROM WORKSPACE_MEMBERS wm
         LEFT JOIN WORKSPACE_DEPT d ON wm.DEPT_CD = d.DEPT_CD
         WHERE wm.WORKSPACE_CD = #{workspaceCd}
@@ -274,7 +275,8 @@
         wm.EMAIL         AS email,
         wm.PHONE_NUM     AS phoneNum,
         wm.JOINED_DATE   AS joinedDate,
-        wm.USER_ROLE     AS userRole
+        wm.USER_ROLE     AS userRole,
+        ACTIVE_STATE     AS activeState <!-- 화상채팅 기능 떄문에 추가 했음 -->
         FROM WORKSPACE_MEMBERS wm
         LEFT JOIN WORKSPACE_DEPT d ON wm.DEPT_CD = d.DEPT_CD
         WHERE wm.WORKSPACE_CD = #{workspaceCd}

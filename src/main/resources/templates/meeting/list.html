@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>진행 중인 회의</title>
+    <link rel="stylesheet" href="/css/meeting-list.css">
+</head>
+<body>
+<div class="container">
+    <header class="meeting-header">
+        <h1>진행 중인 회의</h1>
+        <button class="btn btn-primary" onclick="window.location.href='/meeting/setup'">
+            새 회의 시작
+        </button>
+    </header>
+
+    <div class="meeting-grid" id="meetingGrid">
+        <!-- 회의 카드들이 여기에 동적으로 추가됩니다 -->
+    </div>
+
+    <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-icon">📹</div>
+        <h2>진행 중인 회의가 없습니다</h2>
+        <p>새로운 회의를 시작하거나 다른 사람이 시작한 회의를 기다려주세요.</p>
+    </div>
+</div>
+
+<!-- Token.js 먼저 로드 (파일명 대소문자 주의!) -->
+<script src="/js/Token.js"></script>
+
+<script>
+    // URL 파라미터에서 워크스페이스 ID 가져오기 (workspaceCd로 통일)
+    const urlParams = new URLSearchParams(window.location.search);
+    const workspaceId = urlParams.get('workspaceCd') || urlParams.get('workspaceId');
+
+    if (!workspaceId) {
+        console.error('워크스페이스 ID가 없습니다');
+        alert('워크스페이스 ID가 필요합니다.');
+        window.history.back();
+    }
+
+    // 토큰에서 사용자 정보 가져오기
+    const userInfo = getUserInfoFromToken();
+    const currentUserId = userInfo?.userId;
+
+    // 진행 중인 회의 목록 가져오기
+    async function fetchActiveMeetings() {
+        try {
+            console.log('진행 중인 회의 목록 조회 중... workspaceId:', workspaceId);
+
+            // apiRequest 함수 사용 (token.js에 정의됨)
+            const response = await apiRequest(`/api/meetings/active?workspaceId=${workspaceId}`);
+
+            if (!response.ok) {
+                console.error('API 응답 에러:', response.status);
+                return;
+            }
+
+            const meetings = await response.json();
+            console.log('조회된 회의 목록:', meetings);
+
+            displayMeetings(meetings);
+        } catch (error) {
+            console.error('회의 목록 조회 실패:', error);
+            // 에러 발생 시에도 빈 목록 표시
+            displayMeetings([]);
+        }
+    }
+
+    // 회의 목록 표시
+    function displayMeetings(meetings) {
+        const grid = document.getElementById('meetingGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        grid.innerHTML = '';
+
+        if (!meetings || meetings.length === 0) {
+            grid.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        grid.style.display = 'grid';
+        emptyState.style.display = 'none';
+
+        meetings.forEach(meeting => {
+            const card = createMeetingCard(meeting);
+            grid.appendChild(card);
+        });
+    }
+
+    // 회의 카드 생성
+    function createMeetingCard(meeting) {
+        const card = document.createElement('div');
+        card.className = 'meeting-card';
+
+        // 내가 참여 중인 회의인지 확인
+        const isMyMeeting = meeting.participants &&
+            meeting.participants.some(p => p.userId === currentUserId);
+        const amIHost = meeting.hostId === currentUserId;
+
+        if (isMyMeeting) {
+            card.classList.add('your-meeting');
+        }
+
+        // 제목에서 작은따옴표 이스케이프 처리
+        const escapedTitle = (meeting.title || '제목 없음').replace(/'/g, "\\'");
+
+        card.innerHTML = `
+            <div class="meeting-status status-active">
+                <span class="status-dot"></span>
+                진행 중
+            </div>
+
+            <h3 class="meeting-title">
+                ${meeting.title || '제목 없음'}
+                ${amIHost ? '<span class="host-badge">호스트</span>' : ''}
+            </h3>
+
+            <div class="meeting-info">
+                시작 시간: ${formatTime(meeting.startTime)}
+            </div>
+
+            <div class="meeting-participants">
+                <div class="participant-avatars">
+                    ${createParticipantAvatars(meeting.participants || [])}
+                </div>
+                <span>${meeting.participantCount || 0}명 참여 중</span>
+            </div>
+
+            <div class="meeting-actions">
+                ${isMyMeeting ?
+                    `<button class="btn btn-primary" onclick="rejoinMeeting('${meeting.roomId}', '${escapedTitle}')">
+                        다시 참여하기
+                    </button>` :
+                    `<button class="btn btn-secondary" onclick="joinMeeting('${meeting.roomId}', '${escapedTitle}')">
+                        참여하기
+                    </button>`
+                }
+                ${amIHost ?
+                    `<button class="btn btn-danger" onclick="endMeeting('${meeting.roomId}')">
+                        회의 종료
+                    </button>` : ''
+                }
+            </div>
+        `;
+
+        return card;
+    }
+
+    // 참가자 아바타 생성
+    function createParticipantAvatars(participants) {
+        const maxDisplay = 3;
+        const displayParticipants = participants.slice(0, maxDisplay);
+
+        let avatars = displayParticipants.map(p =>
+            `<div class="participant-avatar" title="${p.displayName || '참가자'}">
+                ${(p.displayName || '?').charAt(0).toUpperCase()}
+            </div>`
+        ).join('');
+
+        if (participants.length > maxDisplay) {
+            avatars += `<div class="participant-avatar more">
+                +${participants.length - maxDisplay}
+            </div>`;
+        }
+
+        return avatars;
+    }
+
+
+async function rejoinMeeting(roomId, meetingTitle) {
+    try {
+        // 로딩 표시 (옵션)
+        showLoadingIndicator();
+
+        // 미디어 서버 URL
+        const mediaServerUrl = window.location.hostname === 'localhost'
+            ? 'https://localhost:3001'
+            : 'https://192.168.0.16:3001';
+
+        // 1. 워크스페이스의 실제 프로필 정보 가져오기 (기존 API 사용)
+        const profileResponse = await apiRequest(`/api/workspaces/${workspaceId}/profile`);
+
+        let actualDisplayName = '참가자';
+        let actualUserId = 'unknown';
+        let actualUserImg = '';
+
+        if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+
+            // 워크스페이스 프로필 정보 사용
+            actualDisplayName = profileData.userNickname || '참가자';
+            actualUserId = profileData.userId || 'unknown';
+            actualUserImg = profileData.userImg || '';
+
+            console.log('=== 워크스페이스 프로필 정보 ===');
+            console.log('닉네임:', actualDisplayName);
+            console.log('사용자 ID:', actualUserId);
+            console.log('프로필 이미지:', actualUserImg);
+
+            // localStorage 업데이트 (선택사항)
+            if (actualUserImg) {
+                localStorage.setItem('userImg', actualUserImg);
+            }
+        } else {
+            // API 실패 시 기존 방식으로 폴백
+            const userInfo = getUserInfoFromToken() || {};
+            actualDisplayName = localStorage.getItem('userName') || userInfo.userName || '참가자';
+            actualUserId = localStorage.getItem('userId') || userInfo.userId || 'unknown';
+            actualUserImg = localStorage.getItem('userImg') || userInfo.userProfileImg || '';
+
+            console.warn('워크스페이스 프로필 조회 실패, 기존 정보 사용');
+        }
+
+        // 2. 호스트 상태 확인
+        const hostCheckResponse = await apiRequest(`/api/meetings/${roomId}/is-host`);
+        let isHostUser = false;
+        let hostId = null;
+
+        if (hostCheckResponse.ok) {
+            const hostData = await hostCheckResponse.json();
+            isHostUser = hostData.isHost;
+            hostId = hostData.hostId;
+        }
+
+        // 3. URL 파라미터 구성
+        const params = new URLSearchParams({
+            roomId: roomId,
+            workspaceId: workspaceId,
+            meetingTitle: meetingTitle || '회의',
+            peerId: actualUserId,
+            userId: actualUserId,
+            displayName: actualDisplayName,
+            userProfileImg: actualUserImg,  // 실제 워크스페이스 프로필 이미지
+            rejoin: 'true',
+            isHost: isHostUser,
+            hostId: hostId || ''
+        });
+
+        console.log('=== 최종 URL 파라미터 ===');
+        console.log('displayName:', params.get('displayName'));
+        console.log('userProfileImg:', params.get('userProfileImg'));
+        console.log('전체 URL:', `${mediaServerUrl}/ocean-video-chat-complete.html?${params.toString()}`);
+
+        // 4. 회의 페이지로 이동
+        window.location.href = `${mediaServerUrl}/ocean-video-chat-complete.html?${params.toString()}`;
+
+    } catch (error) {
+        console.error('회의 재참여 실패:', error);
+        alert('회의 재참여 중 오류가 발생했습니다.');
+    } finally {
+        hideLoadingIndicator();
+    }
+}
+
+// 로딩 인디케이터 함수들 (옵션)
+function showLoadingIndicator() {
+    const existingLoader = document.querySelector('.loading-overlay');
+    if (!existingLoader) {
+        const loader = document.createElement('div');
+        loader.className = 'loading-overlay';
+        loader.innerHTML = '<div class="spinner"></div><p>회의 준비 중...</p>';
+        document.body.appendChild(loader);
+    }
+}
+
+function hideLoadingIndicator() {
+    const loader = document.querySelector('.loading-overlay');
+    if (loader) {
+        loader.remove();
+    }
+}
+
+
+// 새로운 회의 참여
+async function joinMeeting(roomId, meetingTitle) {
+    if (confirm('이 회의에 참여하시겠습니까?')) {
+        await rejoinMeeting(roomId, meetingTitle);
+    }
+}
+
+// 호스트 표시를 위한 회의 카드 렌더링 개선
+function renderMeetingCard(meeting) {
+    const isHost = meeting.hostId === currentUserId;  // 현재 사용자가 호스트인지 확인
+
+    return `
+        <div class="meeting-card">
+            <div class="meeting-header">
+                <h3>${meeting.meetingTitle}</h3>
+                ${isHost ? '<span class="host-badge">호스트</span>' : ''}
+            </div>
+            <div class="meeting-info">
+                <p>시작 시간: ${formatTime(meeting.actualStartTime)}</p>
+                <p>참가자: ${meeting.participantCount}명</p>
+                <p>호스트: ${meeting.hostName}</p>
+            </div>
+            <div class="meeting-participants">
+                ${createParticipantAvatars(meeting.participants)}
+            </div>
+            <div class="meeting-actions">
+                <button onclick="rejoinMeeting('${meeting.roomId}', '${meeting.meetingTitle}')"
+                        class="btn btn-primary">
+                    회의 참여
+                </button>
+                ${isHost ? `
+                    <button onclick="endMeeting('${meeting.roomId}')"
+                            class="btn btn-danger">
+                        회의 종료
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+    // 회의 종료 (호스트만)
+    async function endMeeting(roomId) {
+        if (!confirm('정말로 회의를 종료하시겠습니까? 모든 참가자가 회의에서 나가게 됩니다.')) {
+            return;
+        }
+
+        try {
+            const response = await apiRequest(`/api/meetings/${roomId}/end`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                alert('회의가 종료되었습니다.');
+                fetchActiveMeetings(); // 목록 새로고침
+            } else {
+                alert('회의 종료에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('회의 종료 실패:', error);
+            alert('회의 종료 중 오류가 발생했습니다.');
+        }
+    }
+
+    // 시간 포맷팅
+    function formatTime(timestamp) {
+        if (!timestamp) return '시간 정보 없음';
+
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // 페이지 로드 시 회의 목록 가져오기
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchActiveMeetings();
+
+        // 5초마다 회의 목록 새로고침
+        setInterval(fetchActiveMeetings, 5000);
+    });
+</script>
+</body>
+</html>
