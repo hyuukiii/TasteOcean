@@ -102,13 +102,34 @@ class Recorder {
             // GStreamer는 SDP 파일이 필요 없음
             console.log('GStreamer 녹화 준비 중...');
 
+            // SSRC 정보 추출
+            const videoSsrc = videoRtpParams?.encodings?.[0]?.ssrc;
+            const audioSsrc = audioRtpParams?.encodings?.[0]?.ssrc;
+
+            console.log('RTP 파라미터 정보:', {
+                video: {
+                    ssrc: videoSsrc,
+                    payloadType: videoRtpParams?.codecs?.[0]?.payloadType,
+                    clockRate: videoRtpParams?.codecs?.[0]?.clockRate
+                },
+                audio: {
+                    ssrc: audioSsrc,
+                    payloadType: audioRtpParams?.codecs?.[0]?.payloadType,
+                    clockRate: audioRtpParams?.codecs?.[0]?.clockRate
+                }
+            });
+
             // ⭐ GStreamer 파이프라인 구성
             const videoCaps = `application/x-rtp,media=video,encoding-name=VP8,payload=${videoRtpParameters?.codecs?.[0]?.payloadType || 101},clock-rate=90000`;
             const audioCaps = `application/x-rtp,media=audio,encoding-name=OPUS,payload=${audioRtpParameters?.codecs?.[0]?.payloadType || 100},clock-rate=48000`;
 
-            // ⭐ 수정된 파이프라인 - 간단하고 직접적인 방식
+            console.log('비디오 Caps:', videoCaps);
+            console.log('오디오 Caps:', audioCaps);
+
+            // ⭐ 개선된 파이프라인 with 디버그 옵션
             const gstCommand = 'gst-launch-1.0';
             const gstArgs = [
+                '-v', // verbose 모드 추가
                 '-e',
                 // 비디오 파이프라인
                 'udpsrc', `port=${this.videoPort}`, `caps=${videoCaps}`, '!',
@@ -133,29 +154,32 @@ class Recorder {
 
             console.log('GStreamer 명령어:', gstCommand, gstArgs.join(' '));
 
-            // GStreamer 프로세스 시작 - shell 옵션 제거
+            // GStreamer 프로세스 시작
             this.gstreamerProcess = spawn(gstCommand, gstArgs);
 
             // 표준 출력 처리
             this.gstreamerProcess.stdout.on('data', (data) => {
-                console.log(`GStreamer 출력: ${data}`);
+                const message = data.toString();
+                console.log(`GStreamer 출력: ${message}`);
+
+                // UDP 소스가 데이터를 받고 있는지 확인
+                if (message.includes('caps =')) {
+                    console.log('📡 GStreamer가 RTP 스트림을 감지했습니다!');
+                }
             });
 
             // 표준 오류 처리
             this.gstreamerProcess.stderr.on('data', (data) => {
                 const message = data.toString();
-                console.log(`GStreamer 메시지: ${message}`);
 
-                // 오류가 아닌 정보성 메시지도 많이 나오므로 실제 오류만 처리
+                // 정보성 메시지와 실제 오류 구분
                 if (message.includes('ERROR') || message.includes('CRITICAL')) {
-                    console.error('GStreamer 오류 감지:', message);
+                    console.error('❌ GStreamer 오류:', message);
+                } else if (message.includes('WARNING')) {
+                    console.warn('⚠️ GStreamer 경고:', message);
+                } else {
+                    console.log('GStreamer 메시지:', message);
                 }
-            });
-
-            // 프로세스 오류 처리
-            this.gstreamerProcess.on('error', (error) => {
-                console.error('GStreamer 프로세스 오류:', error);
-                this.handleRecordingError(error.message);
             });
 
             // 프로세스 종료 처리

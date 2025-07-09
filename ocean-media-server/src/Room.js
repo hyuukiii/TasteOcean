@@ -172,34 +172,7 @@ class Room {
           );
           console.log('Recorder 시작 결과:', result);
 
-          // ⭐⭐⭐ Transport 연결 부분 삭제 또는 주석 처리!
-          // comedia: true일 때는 connect() 호출이 필요 없습니다!
-          // 첫 번째 RTP 패킷을 받으면 자동으로 연결됩니다.
-
-          /*
-          // 이 부분을 삭제하거나 주석 처리하세요!
-          await new Promise(resolve => setTimeout(resolve, 1000));
-
-          if (videoTransport) {
-              await videoTransport.connect({
-                  ip: '127.0.0.1',
-                  port: ffmpegVideoPort,
-                  rtcpPort: ffmpegVideoPort + 1
-              });
-              console.log('✅ 비디오 Transport 연결 성공');
-          }
-
-          if (audioTransport) {
-              await audioTransport.connect({
-                  ip: '127.0.0.1',
-                  port: ffmpegAudioPort,
-                  rtcpPort: ffmpegAudioPort + 1
-              });
-              console.log('✅ 오디오 Transport 연결 성공');
-          }
-          */
-
-          // Consumer resume
+          // Consumer resume 이후 부분
           if (videoConsumer) {
               await videoConsumer.resume();
               console.log('✅ 비디오 Consumer resumed');
@@ -209,6 +182,63 @@ class Room {
               await audioConsumer.resume();
               console.log('✅ 오디오 Consumer resumed');
           }
+
+          // ⭐ GStreamer가 시작되길 기다림
+          await new Promise(resolve => setTimeout(resolve, 2000));
+
+          // ⭐ Transport를 명시적으로 연결 (comedia: true여도 필요할 수 있음)
+          if (videoTransport && videoConsumer) {
+              console.log('비디오 Transport 연결 시도...');
+              await videoTransport.connect({
+                  ip: '127.0.0.1',
+                  port: ffmpegVideoPort
+              });
+              console.log('✅ 비디오 Transport 연결됨');
+          }
+
+          if (audioTransport && audioConsumer) {
+              console.log('오디오 Transport 연결 시도...');
+              await audioTransport.connect({
+                  ip: '127.0.0.1',
+                  port: ffmpegAudioPort
+              });
+              console.log('✅ 오디오 Transport 연결됨');
+          }
+
+          // ⭐ Transport 통계 모니터링 추가
+          const checkTransportStats = async () => {
+              if (!this.recordingStatus) return;
+
+              try {
+                  if (videoTransport && !videoTransport.closed) {
+                      const stats = await videoTransport.getStats();
+                      console.log('📊 비디오 Transport 통계:', stats);
+
+                      if (videoConsumer && !videoConsumer.closed) {
+                          const consumerStats = await videoConsumer.getStats();
+                          console.log('📊 비디오 Consumer 통계:', consumerStats);
+                      }
+                  }
+
+                  if (audioTransport && !audioTransport.closed) {
+                      const stats = await audioTransport.getStats();
+                      console.log('📊 오디오 Transport 통계:', stats);
+
+                      if (audioConsumer && !audioConsumer.closed) {
+                          const consumerStats = await audioConsumer.getStats();
+                          console.log('📊 오디오 Consumer 통계:', consumerStats);
+                      }
+                  }
+              } catch (error) {
+                  console.error('Transport 통계 조회 오류:', error);
+              }
+          };
+
+          // 처음 한 번 즉시 확인
+          await checkTransportStats();
+
+          // 5초마다 통계 확인
+          this._statsInterval = setInterval(checkTransportStats, 5000);
 
           // 상태 저장
           this.recordingStatus = true;
@@ -248,31 +278,41 @@ class Room {
       }
   }
 
-  // 녹화 종료
+  // Room.js의 stopRecording 메서드
   async stopRecording() {
-    if (!this.recordingStatus || !this.recorder) {
-      throw new Error('녹화 중이 아닙니다');
-    }
-
-    try {
-      const result = await this.recorder.stopRecording();
-
-      // Transport 정리
-      if (this.recordingTransports) {
-        this.recordingTransports.videoTransport.close();
-        this.recordingTransports.audioTransport.close();
+      if (!this.recordingStatus || !this.recorder) {
+          throw new Error('녹화 중이 아닙니다');
       }
 
-      this.recordingStatus = false;
-      this.recorder = null;
-      this.recordingTransports = null;
+      try {
+          // 통계 모니터링 중지
+          if (this._statsInterval) {
+              clearInterval(this._statsInterval);
+              this._statsInterval = null;
+          }
 
-      return result;
+          const result = await this.recorder.stopRecording();
 
-    } catch (error) {
-      console.error('녹화 종료 실패:', error);
-      throw error;
-    }
+          // Transport 정리
+          if (this.recordingTransports) {
+              if (this.recordingTransports.videoTransport) {
+                  this.recordingTransports.videoTransport.close();
+              }
+              if (this.recordingTransports.audioTransport) {
+                  this.recordingTransports.audioTransport.close();
+              }
+          }
+
+          this.recordingStatus = false;
+          this.recorder = null;
+          this.recordingTransports = null;
+
+          return result;
+
+      } catch (error) {
+          console.error('녹화 종료 실패:', error);
+          throw error;
+      }
   }
 
   // 첫 번째 비디오 Producer 가져오기
