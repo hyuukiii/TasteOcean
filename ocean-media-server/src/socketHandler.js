@@ -889,7 +889,7 @@ module.exports = (io, worker, router) => {
             });
         }
     });
-     
+
     // 녹화 종료
     socket.on('stopRecording', async (data, callback) => {
         try {

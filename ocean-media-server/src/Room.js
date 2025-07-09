@@ -119,21 +119,27 @@ class Room {
           const videoTransport = await this.router.createPlainTransport(transportOptions);
           const audioTransport = await this.router.createPlainTransport(transportOptions);
 
+          // ⭐ 실제 Transport 포트 사용
+          const ffmpegVideoPort = videoTransport.tuple.localPort;
+          const ffmpegAudioPort = audioTransport.tuple.localPort;
+
           console.log('비디오 Transport 정보:', {
               id: videoTransport.id,
-              port: videoTransport.tuple.localPort,
+              port: ffmpegVideoPort,  // 실제 포트
               rtcpPort: videoTransport.rtcpTuple ? videoTransport.rtcpTuple.localPort : 'N/A'
           });
 
           console.log('오디오 Transport 정보:', {
               id: audioTransport.id,
-              port: audioTransport.tuple.localPort,
+              port: ffmpegAudioPort,  // 실제 포트
               rtcpPort: audioTransport.rtcpTuple ? audioTransport.rtcpTuple.localPort : 'N/A'
           });
 
+
+
           // FFmpeg가 리스닝할 포트
-          const ffmpegVideoPort = 5004;
-          const ffmpegAudioPort = 5006;
+          //const ffmpegVideoPort = 5004;
+          //const ffmpegAudioPort = 5006;
 
           // ⭐ 중요: Recorder 인스턴스 생성
           this.recorder = new Recorder(
