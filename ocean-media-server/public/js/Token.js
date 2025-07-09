@@ -46,9 +46,8 @@ function getUserInfoFromToken() {
 
     const payload = parseJwt(token);
     return {
-            userId: payload.sub || payload.userId,
-            userName: payload.name || payload.userName || payload.userNm,
-            userProfileImg: payload.userProfileImg || payload.profileImage || payload.picture  // 프로필 이미지 추가
+        userId: payload.sub || payload.userId,
+        userName: payload.name || payload.userName || payload.userNm
     };
 }
 

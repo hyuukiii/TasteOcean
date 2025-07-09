@@ -1,0 +1,1271 @@
+:root {
+    --bg-dark: #1A1A1A;
+    --bg-medium: #2D2D2D;
+    --text-light: #E0E0E0;
+    --text-medium: #B0B0B0;
+    --text-dark: #999;
+    --accent-blue: #007bff;
+    --border-color: #444;
+    --input-bg: #3C3C3C;
+    --fc-page-bg-color: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+    display: flex;
+    min-height: 100vh;
+}
+
+/* 메인 레이아웃 */
+.app-container {
+    display: flex;
+    width: 100%;
+}
+
+/* 좌측 사이드바 */
+.sidebar-left {
+    width: 250px;
+    /* 이미지 기준 너비 */
+    background-color: var(--bg-medium);
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.sidebar-left .logo {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 40px;
+    color: var(--accent-blue);
+}
+
+.sidebar-left nav ul {
+    list-style: none;
+    padding: 0;
+    width: 100%;
+}
+
+.sidebar-left nav ul li {
+    margin-bottom: 15px;
+}
+
+.sidebar-left nav ul li a {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    border-radius: 8px;
+    color: var(--text-medium);
+    text-decoration: none;
+    font-size: 16px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.sidebar-left nav ul li a:hover,
+.sidebar-left nav ul li.active a {
+    background-color: #444;
+    color: var(--text-light);
+}
+
+.sidebar-left nav ul li a .icon {
+    margin-right: 15px;
+    font-size: 20px;
+}
+
+.sidebar-left .menu-toggle {
+    margin-top: auto;
+    /* 하단으로 밀어냄 */
+    padding: 10px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-medium);
+    cursor: pointer;
+}
+
+/* 메인 콘텐츠 영역 (캘린더) */
+.main-content {
+    flex-grow: 1;
+    padding: 30px;
+    background-color: var(--bg-dark);
+    display: flex;
+    flex-direction: column;
+}
+
+/* 요일 헤더 (일요일) 텍스트 색상 변경 */
+.fc .fc-col-header-cell.fc-day-sun {
+    /* 일요일 헤더 */
+    color: #FF6B6B;
+    /* 빨간색으로 변경 (약간 부드러운 빨강) */
+}
+
+/* 일요일 날짜 텍스트 색상 변경 */
+.fc .fc-daygrid-day.fc-day-sun .fc-daygrid-day-number {
+    color: #FF6B6B;
+    /* 빨간색으로 변경 */
+}
+
+.fc .fc-col-header-cell.fc-day-sat {
+    /* 토요일 헤더 */
+    color: #6b84ff;
+    /* 파란 계열 색 변경 */
+}
+
+/* 토요일 날짜 텍스트 색상 변경 */
+.fc .fc-daygrid-day.fc-day-sat .fc-daygrid-day-number {
+    color: #6b84ff;
+    /* 파란 계열 색 변경 */
+}
+
+.fc .fc-daygrid-day {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-medium);
+    transition: background-color 0.2s ease-in-out;
+    /* 부드러운 전환 효과 추가 */
+}
+
+.fc .fc-daygrid-day:hover {
+    background-color: #4A4A4A;
+    /* 마우스를 올렸을 때 더 진한 배경색 */
+    cursor: pointer;
+}
+
+.fc .fc-daygrid-day-number {
+    color: var(--text-light);
+    font-size: 16px;
+    padding: 8px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.calendar-header .nav-arrows button {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-size: 28px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.calendar-header .nav-arrows button:hover {
+    color: var(--accent-blue);
+}
+
+.calendar-header .current-month {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+#calendar {
+    background-color: var(--bg-medium);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    flex-grow: 1;
+    /* 남은 공간을 채우도록 */
+}
+
+/* FullCalendar 오버라이드 스타일 */
+.fc .fc-toolbar-title {
+    color: var(--text-light);
+}
+
+.fc .fc-button {
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-light);
+}
+
+.fc .fc-button:hover {
+    background-color: #555;
+    color: #FFF;
+}
+
+.fc .fc-col-header-cell {
+    background-color: #3C3C3C;
+    color: var(--text-medium);
+    font-weight: 600;
+    padding: 10px 0;
+    border: 1px solid var(--border-color);
+}
+
+.fc .fc-daygrid-day {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-medium);
+}
+
+.fc .fc-daygrid-day-number {
+    color: var(--text-light);
+    font-size: 16px;
+    padding: 8px;
+}
+
+.fc .fc-day-today {
+    background-color: #3A3A3A !important;
+    /* 오늘 날짜 배경 */
+}
+
+.fc .fc-event {
+    background-color: var(--accent-blue);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 5px;
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+
+.fc-daygrid-day-top {
+    display: flex;
+    justify-content: flex-end;
+    /* 날짜 숫자 오른쪽 정렬 */
+    padding: 5px;
+}
+
+.fc-daygrid-event-harness {
+    margin-top: 2px;
+}
+
+/* 우측 사이드바 */
+.sidebar-right {
+    width: 280px;
+    /* 이미지 기준 너비 */
+    background-color: var(--bg-medium);
+    padding: 20px;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-right .profile-card {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+    background-color: var(--input-bg);
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.sidebar-right .profile-card img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 15px;
+    border: 2px solid var(--accent-blue);
+}
+
+.sidebar-right .profile-card .details {
+    flex-grow: 1;
+}
+
+.sidebar-right .profile-card .details .name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.sidebar-right .profile-card .details .role {
+    font-size: 14px;
+    color: var(--text-medium);
+}
+
+.sidebar-right .progress-bar-container {
+    width: 100%;
+    background-color: #444;
+    border-radius: 5px;
+    height: 8px;
+    margin-top: 8px;
+}
+
+.sidebar-right .progress-bar {
+    height: 100%;
+    width: 33%;
+    /* 예시: 33% */
+    background-color: var(--accent-blue);
+    border-radius: 5px;
+}
+
+.sidebar-right h3 {
+    font-size: 18px;
+    color: var(--text-light);
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.sidebar-right .member-list {
+    list-style: none;
+    padding: 0;
+}
+
+.sidebar-right .member-list li {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.sidebar-right .member-list li img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+    border: 1px solid #555;
+}
+
+.sidebar-right .member-list li .member-name {
+    font-size: 16px;
+    color: var(--text-light);
+    flex-grow: 1;
+}
+
+.sidebar-right .member-list li .member-role {
+    font-size: 13px;
+    color: var(--text-medium);
+}
+
+.sidebar-right .invite-member {
+    display: flex;
+    align-items: center;
+    background-color: var(--input-bg);
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin-top: 30px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.sidebar-right .invite-member:hover {
+    background-color: #555;
+}
+
+.sidebar-right .invite-member .icon {
+    font-size: 20px;
+    margin-right: 10px;
+    color: var(--accent-blue);
+}
+
+.sidebar-right .invite-member span {
+    font-size: 16px;
+    color: var(--text-light);
+}
+
+/* 폰트어썸 대체 아이콘 */
+.icon-home::before {
+    content: '🏠';
+}
+
+.icon-team-calendar::before {
+    content: '🗓️';
+}
+
+.icon-personal-calendar::before {
+    content: '👤';
+}
+
+.icon-meeting-place::before {
+    content: '📍';
+}
+
+.icon-sketch-meeting::before {
+    content: '✏️';
+}
+
+.icon-menu::before {
+    content: '☰';
+}
+
+.icon-arrow-left::before {
+    content: '<';
+}
+
+.icon-arrow-right::before {
+    content: '>';
+}
+
+.icon-add-user::before {
+    content: '➕';
+}
+
+/* 모달 공통 스타일 */
+.modal-overlay {
+    display: none;
+    /* 기본 숨김 */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    /* 어두운 오버레이 */
+    z-index: 1000;
+    /* 캘린더보다 위에 */
+    justify-content: center;
+    align-items: flex-start; /* [수정] 중앙 정렬에서 상단 정렬로 변경 */
+    overflow-y: auto; /* [추가] 오버레이 자체에 스크롤 추가 (모바일 등 작은 화면 대응) */
+    padding: 30px 20px; /* [추가] 상단 및 좌우 여백 확보 */
+}
+
+.modal-content {
+    background-color: var(--bg-medium);
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    padding: 30px;
+    width: 100%;
+    max-width: 500px;
+    position: relative;
+    max-height: calc(100vh - 120px); /* 높이를 뷰포트 기준으로 직접 계산 */
+    overflow-y: auto; /* [추가] 내용이 길어지면 수직 스크롤바 생성 */
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.modal-header h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin: 0;
+}
+
+.modal-close-button {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text-medium);
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.modal-close-button:hover {
+    color: var(--text-light);
+}
+
+/* add-event.html 에서 가져온 폼 필드 스타일 (createEventModal에 적용) */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-medium);
+}
+
+.modal-content input[type="text"],
+.modal-content input[type="datetime-local"],
+.modal-content textarea,
+.modal-content select,
+.modal-content input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--input-bg);
+    color: var(--text-light);
+    font-size: 16px;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    box-sizing: border-box;
+}
+.modal-content textarea#description,
+.modal-content textarea#update-description {
+    min-height: auto; /* 기존의 최소 높이 제거 */
+    resize: none;     /* 사용자가 크기를 조절하는 기능 비활성화 */
+
+}
+
+.modal-content input[type="text"]:focus,
+.modal-content input[type="datetime-local"]:focus,
+.modal-content textarea:focus,
+.modal-content select:focus,
+.modal-content input[type="number"]:focus {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+    outline: none;
+}
+
+.modal-content textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.modal-content .flex-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-content .datetime-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px; /* 세로 간격 조정 */
+
+}
+
+.modal-content .datetime-group input {
+    flex-grow: 1;
+}
+
+.modal-content .datetime-group span {
+    color: var(--text-medium);
+}
+
+.modal-content .checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.modal-content .checkbox-container input[type="checkbox"] {
+    margin-right: 8px;
+    width: auto;
+    accent-color: var(--accent-blue);
+}
+
+.modal-content .checkbox-container label {
+    margin-bottom: 0;
+    font-weight: normal;
+}
+
+.modal-content .file-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--input-bg);
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    margin-bottom: 8px;
+}
+
+.modal-content .file-input-container:hover {
+    border-color: var(--accent-blue);
+}
+
+.modal-content .file-input-container input[type="file"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1; /* 파일 선택 영역이 텍스트 위에 오도록 */
+}
+
+.modal-content .file-input-container .icon {
+    margin-right: 10px;
+    color: var(--text-medium);
+    font-size: 18px;
+}
+
+.modal-content .file-input-container span {
+    color: var(--text-light);
+    font-size: 16px;
+}
+
+
+.modal-content .map-placeholder {
+    border: 1px dashed #555;
+    height: 120px;
+    /* 모달 안에서 지도 높이 조정 */
+    background-color: var(--input-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--text-dark);
+    margin-top: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.modal-content .submit-button-wrapper {
+    text-align: right;
+    margin-top: 30px;
+}
+
+.modal-content button[type="submit"],
+.modal-content .modal-footer button {
+    background-color: var(--accent-blue);
+    color: white;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.modal-content button[type="submit"]:hover,
+.modal-content .modal-footer button:hover {
+    background-color: #0056b3;
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+}
+
+.modal-content button[type="button"].cancel-button {
+    background-color: #555;
+    margin-left: 10px;
+}
+
+.modal-content button[type="button"].cancel-button:hover {
+    background-color: #777;
+}
+
+/* 색상 피커 커스터마이징 */
+.modal-content input[type="color"] {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.modal-content input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.modal-content input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+/* select 박스 화살표 커스터마이징 */
+.modal-content select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg fill="%23E0E0E0" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px;
+    padding-right: 40px;
+}
+
+/* "파일 선택" 텍스트 */
+.file-input-container .file-select-text { /* 새로 추가된 클래스 */
+    display: flex; /* 아이콘과 텍스트 정렬 */
+    align-items: center;
+    color: var(--text-light);
+    flex-grow: 1; /* 남은 공간 차지 */
+    cursor: pointer; /* 클릭 가능함을 시각적으로 표시 */
+}
+.file-input-container .file-select-text .icon {
+    margin-right: 10px;
+}
+
+
+ul#updateFiles{
+    padding-inline-start: 0px;
+}
+
+/* 모달 내 아이콘을 위한 기본 스타일 */
+.modal-content .icon-clock::before {
+    content: '⏱️';
+    margin-right: 5px;
+}
+
+.modal-content .icon-description::before {
+    margin-right: 5px;
+    content: '📝';
+}
+
+.modal-content .icon-attach::before {
+    margin-right: 5px;
+    content: '📎';
+}
+
+.modal-content .icon-bell::before {
+    margin-right: 5px;
+    content: '🔔';
+}
+
+.modal-content .icon-location::before {
+    margin-right: 5px;
+    content: '📍';
+}
+
+.modal-content .icon-priority::before {
+    margin-right: 5px;
+    content: '⭐';
+}
+
+/* ===== 일정 상세 모달 (eventDetailModal) ===== */
+#eventDetailModal .modal-content {
+    max-width: 450px;
+    /* 상세 모달은 조금 더 작게 */
+}
+
+#eventDetailModal .header-actions {
+    margin-bottom: 15px;
+    /* 헤더 액션과 제목 사이 간격 */
+}
+
+#eventDetailModal .title-section {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#eventDetailModal .title-section .color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+#eventDetailModal .title-section .main-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+#eventDetailModal .info-item {
+    border-bottom: 1px solid white;
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    line-height: 1.5;
+    padding-bottom: 20px;
+}
+
+#eventDetailModal .info-item .icon {
+    display: flex;
+    font-size: 20px;
+    margin-right: 15px;
+    color: var(--text-medium);
+    flex-shrink: 0;
+    margin-top: 5px;
+}
+
+/* [추가] 상세정보 팝업창: 레이블 및 값 정렬 */
+#eventDetailModal .info-item .value-wrapper {
+    display: flex;
+    flex-direction: column; /* 세로로 쌓이도록 */
+    flex-grow: 1; /* 남은 공간을 차지하도록 */
+    min-width: 0; /* flex item 내부에서 내용이 넘치지 않도록 */
+}
+#eventDetailModal .info-item .value-wrapper label {
+    display: block; /* 레이블을 블록 요소로 */
+    margin-bottom: 5px; /* 레이블과 값 사이 간격 */
+    font-size: 14px;
+    font-weight: 500;
+    color: #8acdff;
+    white-space: nowrap; /* 레이블은 줄바꿈되지 않도록 */
+}
+
+#eventDetailModal .info-item.description .value {
+    background-color: var(--input-bg);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 80px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#eventDetailModal .attachments-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+#eventDetailModal .attachments-list li {
+    background-color: var(--input-bg);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 15px;
+}
+
+#eventDetailModal .attachments-list li a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    min-width: 0; /* 링크 내부 텍스트가 넘치지 않도록 */
+}
+
+#eventDetailModal .attachments-list li .file-icon {
+    margin-right: 10px;
+    color: var(--text-medium);
+    font-size: 18px;
+}
+
+#eventDetailModal .modal-footer {
+    text-align: right;
+    margin-top: 20px;
+}
+
+#eventDetailModal .info-item .value {
+    font-size: 16px;
+    color: var(--text-light);
+    white-space: pre-wrap; /* 줄바꿈을 유지하면서 자동 줄바꿈 */
+    word-break: break-word; /* 긴 단어 강제 줄바꿈 */
+    overflow-wrap: break-word; /* 단어가 길어도 넘치지 않게 */
+}
+
+#eventDetailModal .info-item.description .value {
+    background-color: var(--input-bg);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 80px;
+    width: 100%;
+}
+
+#eventDetailModal .attachments-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+#eventDetailModal .attachments-list li {
+    background-color: var(--input-bg);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 15px;
+}
+
+#eventDetailModal .attachments-list li a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+}
+
+#eventDetailModal .attachments-list li .file-icon {
+    margin-right: 10px;
+    color: var(--text-medium);
+    font-size: 18px;
+}
+
+#eventDetailModal .modal-footer {
+    text-align: right;
+    margin-top: 20px;
+}
+
+/* 아이콘 */
+.icon-edit::before {
+    content: '✏️';
+}
+
+.icon-delete::before {
+    content: '🗑️';
+}
+
+.icon-close::before {
+    content: '❌';
+}
+
+.icon-calendar-day::before {
+    content: '🗓️';
+}
+
+.icon-user-detail::before {
+    margin-right: 5px;
+    content: '👤';
+}
+
+.icon-location-detail::before {
+    content: '📍';
+}
+
+.icon-description-detail::before {
+    content: '💬';
+}
+
+.icon-bell-detail::before {
+    content: '🔔';
+}
+
+.icon-attachment-detail::before {
+    content: '📎';
+}
+
+.icon-file-doc::before {
+    content: '📄';
+}
+
+.icon-download::before {
+    content: '⬇️';
+}
+
+/* ===== 일정 수정 모달 (updateEventModal) ===== */
+#updateEventModal .modal-content {
+    max-width: 500px;
+}
+
+#updateEventModal .file-delete-button {
+    background-color: #dc3545;
+    /* 빨간색 삭제 버튼 */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+    transition: background-color 0.2s;
+    flex-shrink: 0; /* 버튼이 줄어들지 않도록 */
+}
+
+#updateEventModal .file-delete-button:hover {
+    background-color: #c82333;
+}
+
+#updateEventModal .current-files-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--input-bg);
+    border-radius: 8px;
+    padding: 10px 15px;
+    margin-bottom: 8px;
+    font-size: 15px;
+    max-width: 100%; /* 부모 너비를 따르도록 */
+    box-sizing: border-box; /* 패딩 포함 너비 계산 */
+}
+
+#updateEventModal .current-files-list li .file-name-display,
+#eventDetailModal .attachments-list li span {
+    white-space: nowrap; /* 텍스트가 한 줄로 표시되도록 함 */
+    overflow: hidden; /* 내용이 넘치면 숨김 */
+    text-overflow: ellipsis; /* 넘치는 텍스트를 줄임표(...)로 표시 */
+    flex-grow: 1; /* 남는 공간을 모두 차지하도록 하여 버튼을 오른쪽 끝으로 밀어냄 */
+    margin-right: 10px; /* 삭제 버튼과의 간격 */
+}
+
+/* [추가] 수정 모달 - 새 파일 첨부 레이블 스타일 조정 */
+#updateEventModal .file-attach-label {
+    margin-top: 15px; /* 상단 여백 추가 */
+    margin-bottom: 8px; /* 하단 여백 추가 */
+    color: #bfd0ff;
+}
+
+/* 지도 검색 UI 관련 스타일 */
+.search-wrapper {
+    display: flex;
+    gap: 8px;
+}
+.search-wrapper input {
+    flex-grow: 1;
+}
+.search-wrapper button {
+    flex-shrink: 0;
+    padding: 0 15px;
+    background-color: var(--accent-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+#placesList, #update-placesList {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+#placesList li, #update-placesList li {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 14px;
+}
+#placesList li:last-child, #update-placesList li:last-child {
+    border-bottom: none;
+}
+#placesList li:hover, #update-placesList li:hover {
+    background-color: var(--input-bg);
+}
+#placesList .item .info {
+    color: var(--text-medium);
+    font-size: 12px;
+    margin-top: 4px;
+}
+#placesList .item .info .jibun {
+    margin-left: 5px;
+    color: var(--text-dark);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.header-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 15px;
+}
+
+.header-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    margin-left: 10px;
+    padding: 8px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.header-actions button:hover {
+    background-color: #f0f0f0;
+}
+
+.header-actions .icon {
+    font-size: 18px; /* Adjust icon size */
+}
+
+.title-section {
+    display: flex;
+    align-items: center;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 20px;
+}
+
+.color-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.text-content .main-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.text-content .sub-text {
+    font-size: 14px;
+    color: #777;
+}
+/**/
+/*.info-item {*/
+/*    display: flex;*/
+/*    align-items: flex-start;*/
+/*    padding: 10px 0;*/
+/*    border-bottom: 1px solid #eee;*/
+/*}*/
+
+/*.info-item:last-child {*/
+/*    border-bottom: none;*/
+/*}*/
+
+/*.info-item .icon {*/
+/*    font-size: 16px;*/
+/*    color: #555;*/
+/*    margin-right: 10px;*/
+/*    width: 20px; !* Adjust width for consistent icon spacing /*/
+/*text-align: center;*/
+/*line-height: 1.5; / Vertically align the icon *!*/
+/*}*/
+
+/*.info-item .value {*/
+/*    flex-grow: 1;*/
+/*    line-height: 1.5;*/
+/*    word-break: break-word; !* Prevent long words from breaking layout *!*/
+/*}*/
+
+/*.info-item.description .icon {*/
+/*    margin-top: 5px; !* Align with the top of the text *!*/
+/*}*/
+
+/*.attachments-list {*/
+/*    list-style: none;*/
+/*    padding: 0;*/
+/*    margin: 0;*/
+/*}*/
+
+/*.attachments-list li {*/
+/*    padding: 5px 0;*/
+/*}*/
+
+.modal-footer {
+    padding-top: 20px;
+    text-align: right;
+}
+
+.modal-footer button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007bff; /* Example button color */
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+.file-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 200px; /* 적절한 최대 너비 설정 */
+    overflow: hidden; /* 내용이 넘치면 숨김 */
+    padding-right: 5px; /* 삭제 버튼과의 간격 유지 */
+}
+
+.file-list li span {
+    white-space: nowrap; /* 텍스트가 한 줄로 표시되도록 함 */
+    overflow: hidden; /* 내용이 넘치면 숨김 */
+    text-overflow: ellipsis; /* 넘치는 텍스트를 줄임표(...)로 표시 */
+    flex-grow: 1; /* 남는 공간을 모두 차지하도록 하여 삭제 버튼을 오른쪽 끝으로 밀어냄 */
+    margin-right: 5px; /* 삭제 버튼과의 간격 */
+}
+
+/* ===== 파일 첨부 UI 개선 (수정 모달) ===== */
+
+/* 새 파일 첨부 컨테이너 */
+#update-new-files-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* 개별 파일 입력 래퍼 */
+.file-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--input-bg);
+    padding: 8px 12px;
+    transition: border-color 0.3s;
+    min-height: 45px; /* 높이 고정 */
+}
+
+.file-input-wrapper.has-file {
+    justify-content: space-between;
+}
+
+.file-input-wrapper:hover {
+    border-color: var(--accent-blue);
+}
+
+/* 파일 입력(input) 숨기기 */
+.file-input-wrapper input[type="file"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* "파일 선택" 텍스트 */
+.file-input-wrapper .file-select-prompt {
+    display: flex;
+    align-items: center;
+    color: var(--text-light);
+}
+.file-input-wrapper .file-select-prompt .icon {
+    margin-right: 10px;
+}
+
+/* 선택된 파일명 표시 */
+.file-input-wrapper .file-name-display {
+    color: var(--text-light);
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 10px; /* X 버튼과의 간격 */
+    z-index: 2; /* 파일명 텍스트가 파일 선택 input 위에 오도록 */
+}
+
+/* 새 파일 삭제 버튼 */
+.new-file-delete-button {
+    position: absolute; /* [수정] 절대 위치 지정 */
+    right: 10px;        /* [수정] 오른쪽에서 10px */
+    top: 50%;           /* [수정] 상단에서 50% */
+    transform: translateY(-50%); /* [수정] Y축 중앙 정렬 */
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    font-size: 18px;    /* [수정] 아이콘 크기 조정 */
+    cursor: pointer;
+    padding: 5px;       /* [수정] 클릭 영역 확보 */
+    z-index: 3;         /* [수정] 가장 위에 오도록 z-index 높임 */
+}
+.new-file-delete-button:hover {
+    color: #cc0000;
+}
+
+
+/* ===== 상세 정보 모달 - 파일 다운로드 버튼 ===== */
+
+#eventDetailModal .attachments-list li {
+    justify-content: space-between; /* 기존 스타일 변경 */
+}
+
+#eventDetailModal .attachments-list .file-info {
+    display: flex;
+    align-items: center;
+    flex-grow: 1; /* 이름 영역이 늘어나도록 */
+    min-width: 0; /* flex 버그 방지 */
+}
+
+#eventDetailModal .attachments-list .file-info a {
+    text-decoration: none;
+    color: var(--accent-blue);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#eventDetailModal .file-download-button {
+    background-color: var(--accent-blue);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: 10px;
+    text-decoration: none; /* 링크 스타일 제거 */
+    flex-shrink: 0; /* 버튼이 줄어들지 않도록 */
+}
+
+#eventDetailModal .file-download-button:hover {
+    background-color: #0056b3;
+}

@@ -37,6 +37,8 @@
              name="inviteCd"
              class="space-item"
              placeholder="초대 코드를 입력해주세요"
+             oninvalid="this.setCustomValidity('초대 코드는 필수 입력 사항입니다.')"
+             oninput="this.setCustomValidity('')"
              required>
     </div>
   </div>

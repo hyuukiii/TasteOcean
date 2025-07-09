@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.ocean.mapper.NotificationMapper">
+
+    <!-- 알림 등록 -->
+    <insert id="insertNotification">
+        INSERT INTO MAIN_NOTIFICATION (
+        NOTI_ID,
+        WORKSPACE_CD,
+        CREATED_BY,
+        CREATED_DATE,
+        NOTI_STATE
+        ) VALUES (
+        #{notiId},
+        #{workspaceCd},
+        #{createdBy},
+        NOW(),
+        #{notiState}
+        )
+    </insert>
+
+    <select id="selectNotificationsByWorkspace" resultType="com.example.ocean.domain.Notification">
+        SELECT
+        N.NOTI_ID         AS notiId,
+        N.WORKSPACE_CD    AS workspaceCd,
+        M.USER_NICKNAME   AS createdBy,     -- 닉네임으로 대체
+        N.CREATED_DATE    AS createdDate,
+        N.NOTI_STATE      AS notiState
+        FROM main_notification N
+        JOIN WORKSPACE_MEMBERS M
+        ON N.CREATED_BY = M.USER_ID
+        AND N.WORKSPACE_CD = M.WORKSPACE_CD
+        WHERE N.WORKSPACE_CD = #{workspaceCd}
+        ORDER BY N.CREATED_DATE DESC
+    </select>
+
+</mapper>

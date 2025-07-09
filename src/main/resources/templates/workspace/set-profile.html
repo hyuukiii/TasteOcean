@@ -77,7 +77,9 @@
                    name="userNickname"
                    th:value="${member?.userNickname}"
                    placeholder="닉네임을 입력하세요"
-                   required>
+                   required
+                   oninvalid="this.setCustomValidity('닉네임을 입력해 주세요.')"
+                   oninput="this.setCustomValidity('')">
           </div>
 
           <div class="form-group">
@@ -87,7 +89,9 @@
                    name="email"
                    th:value="${member?.email}"
                    placeholder="이메일을 입력하세요"
-                   required>
+                   required
+                   oninvalid="this.setCustomValidity('이메일을 입력해 주세요.')"
+                   oninput="this.setCustomValidity('')">
           </div>
 
           <div class="form-group">
@@ -120,7 +124,9 @@
 
           <div class="form-group">
             <label for="deptCd">부서</label>
-            <select id="deptCd" name="deptCd" required>
+            <select id="deptCd" name="deptCd" required
+                    oninvalid="this.setCustomValidity('부서를 선택해 주세요.')"
+                    oninput="this.setCustomValidity('')">
               <option value="">부서를 선택하세요</option>
               <option th:each="dept : ${departments}"
                       th:value="${dept.deptCd}"
@@ -137,7 +143,9 @@
                    name="position"
                    th:value="${member?.position}"
                    placeholder="직급을 입력하세요"
-                   required>
+                   required
+                   oninvalid="this.setCustomValidity('직급을 입력해 주세요.')"
+                   oninput="this.setCustomValidity('')">
           </div>
 
           <div class="navigation">

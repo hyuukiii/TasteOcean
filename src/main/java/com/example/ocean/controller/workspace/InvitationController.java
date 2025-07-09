@@ -89,7 +89,8 @@ public class InvitationController {
             @PathVariable String userId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        workspaceService.approveInvitation(workspaceCd, userId);
+        // 🔐 현재 로그인한 사용자가 owner인지 확인해야 하므로 ID 전달
+        workspaceService.approveInvitation(workspaceCd, userId, userPrincipal.getId());
         return ResponseEntity.ok().build();
     }
 
@@ -100,7 +101,8 @@ public class InvitationController {
             @PathVariable String userId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
-        workspaceService.rejectInvitation(workspaceCd, userId);
+        workspaceService.rejectInvitation(workspaceCd, userId, userPrincipal.getId());
         return ResponseEntity.ok().build();
     }
+
 }

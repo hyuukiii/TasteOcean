@@ -1,0 +1,121 @@
+/* 오버레이 */
+#profileModalOverlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: none;
+}
+
+/* 모달 전체 */
+#profileModal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: transparent;
+  z-index: 1001;
+  display: none;
+}
+
+/* 닫기 버튼 */
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #2b2b2b;
+  border: none;
+  color: white;
+  font-size: 20px;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* 모달 내부 카드 */
+.modal-card {
+  display: flex;
+  gap: 32px;
+  background-color: #2b2b2b;
+  padding: 32px;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  min-width: 600px;
+  color: white;
+  align-items: center;
+  font-family: 'Noto Sans KR', sans-serif;
+  position: relative;
+}
+
+/* 왼쪽: 프로필 이미지 */
+.profile-left {
+  flex-shrink: 0;
+}
+
+.profile-image {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff;
+}
+
+/* 오른쪽 정보 + 버튼 묶음 래퍼 */
+.profile-right-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+/* 오른쪽: 정보 그리드 */
+.profile-right {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  row-gap: 16px;
+  column-gap: 20px;
+}
+
+.profile-item .label {
+  font-size: 14px;
+  color: #aaa;
+}
+
+.profile-item .value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+}
+
+/* 하단 버튼 */
+.bottom-buttons {
+  position: absolute;
+  bottom: 24px;
+  right: 32px;
+  display: flex;
+  z-index: 10;
+}
+
+.edit-btn {
+  padding: 8px 20px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.edit-input {
+  padding: 6px;
+  border: 1px solid #888;
+  background: #fff;
+  color: #000;
+  border-radius: 4px;
+  font-size: 14px;
+}
+

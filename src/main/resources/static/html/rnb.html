@@ -1,0 +1,77 @@
+<!-- static/html/rnb.html -->
+<div class="rnb">
+        <div class="user-box">
+                <img id="myProfileImg" class="user-img" src="/images/default.png" alt="프로필 이미지">
+            <div class="user-info">
+                <div id="myProfileName" class="name">사용자명</div>
+                <div id="myProfileRole" class="role">직급  </div><span class="user-status-display" style="color:white">aa</span>
+            </div>
+
+            <div class="mini-profile">
+                <img class="mpImg" src="/images/default.png" alt="내 이미지">
+                <div class="mp-name">병아리</div>
+                <div class="mp-role">학생</div>
+                <ul class="mini-menu">
+                    <li class="myInfo">
+                        <button type="button" id="myInfoBtn">
+                            <img src="/images/myinfo.png">
+                            <span class="btn-text">내 정보</span>
+                        </button>
+                    </li>
+                    <li class="status-item">
+                        <button type="button" id="statusToggleBtn">
+                            <img id="statusIcon" src="/images/green_circle.png">
+                            <span id="statusText" class="btn-text">온라인</span>
+                        </button>
+
+                        <div class="status-dropdown" id="statusDropdown">
+                            <div class="status-option" data-icon="/images/green_circle.png" data-text="온라인">
+                                <img src="/images/green_circle.png" />
+                                <span>온라인</span>
+                            </div>
+                            <div class="status-option" data-icon="/images/red_circle.png" data-text="자리 비움">
+                                <img src="/images/red_circle.png" />
+                                <span>자리 비움</span>
+                            </div>
+                            <div class="status-option" data-icon="/images/gray_circle.png" data-text="오프라인">
+                                <img src="/images/gray_circle.png" />
+                                <span>오프라인</span>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <button type="button" onclick="logout()">
+                            <img src="/images/logout.png">
+                            <span class="btn-text">로그아웃</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+
+
+    <div class="progress-box">
+        <label>전체 진도율</label>
+        <div class="bar">
+            <span id="myProgressBar" style="width: 0%"></span>
+        </div>
+        <div id="myProgressPercent" class="percent">0%</div>
+    </div>
+
+    <div class="member-list-box">
+        <label>워크스페이스 멤버 (<span id="memberCount">0</span>)</label>
+        <div id="memberListContainer" class="member-list"></div>
+        <div class="invite-btn-wrapper">
+            <button class="invite-member">
+                <img src="/images/invite_plus.png" alt="초대" class="invite-icon">
+                멤버 초대하기
+            </button>
+        </div>
+
+    </div>
+
+    <button class="rnb-toggle-btn">
+        <img id="toggleArrow" src="/images/arrow-right.png" alt="토글">
+    </button>
+</div>

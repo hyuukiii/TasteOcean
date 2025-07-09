@@ -19,13 +19,13 @@
             </a>
         </li>
         <li class="nav-item">
-            <a th:href="@{/meeting-place(workspaceCd=${workspaceCd})}">
+            <a th:href="@{/workspaces/{workspaceCd}/meeting-place(workspaceCd=${workspaceCd})}" class="lnb-item">
                 <img src="/images/location.png" alt="Location">
                 <span>모임 장소</span>
             </a>
         </li>
         <li class="nav-item">
-            <a th:href="@{/meeting/setup(workspaceCd=${workspaceCd})}">
+            <a th:href="@{/sketch(workspaceCd=${workspaceCd})}">
                 <img src="/images/sketch.png" alt="Sketch">
                 <span>스케치 회의</span>
             </a>
@@ -33,6 +33,9 @@
     </ul>
 
     <div class="lnb-footer">
-        <img src="/images/menu.png" alt="menu">
+        <a th:href="@{/workspace}">
+            <img src="/images/menu.png" alt="워크스페이스 리스트로 이동" style="cursor: pointer;">
+        </a>
     </div>
+
 </div>

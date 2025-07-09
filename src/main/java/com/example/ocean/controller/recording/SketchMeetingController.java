@@ -1,8 +1,6 @@
 package com.example.ocean.controller.recording;
 
-import com.example.ocean.domain.WorkspaceMember;
 import com.example.ocean.service.MeetingService;
-import com.example.ocean.service.WorkspaceService;  // 추가
 import com.example.ocean.security.oauth.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,11 +23,7 @@ public class SketchMeetingController {
     @Value("${media.server.url:https://localhost:3001}")
     private String mediaServerUrl;
 
-    @Value("${app.frontend.url:http://localhost:8080}")
-    private String frontendUrl;  // Spring Boot 서버 URL 추가
-
-    private final MeetingService meetingService;
-    private final WorkspaceService workspaceService;  // 추가
+    private final MeetingService meetingService;  // ⭐ MeetingService 주입
 
     /**
      * 스케치 회의 시작 (워크스페이스 파라미터 포함)
@@ -52,30 +46,11 @@ public class SketchMeetingController {
                 log.info("워크스페이스 CD가 없어 기본값 사용: {}", workspaceCd);
             }
 
-            // 워크스페이스 멤버 정보 조회 (프로필 이미지 포함)
-            WorkspaceMember member = workspaceService.findMemberByWorkspaceAndUser(
-                    workspaceCd,
-                    user.getId()
-            );
-
-            String userProfileImg = "";
-            if (member != null && member.getUserImg() != null && !member.getUserImg().isEmpty()) {
-                // 프로필 이미지를 절대 URL로 변환
-                String imagePath = member.getUserImg();
-                if (!imagePath.startsWith("http")) {
-                    // 상대 경로인 경우 Spring Boot 서버의 절대 URL로 변환
-                    userProfileImg = frontendUrl + (imagePath.startsWith("/") ? imagePath : "/" + imagePath);
-                } else {
-                    userProfileImg = imagePath;
-                }
-                log.info("사용자 프로필 이미지 절대 경로: {}", userProfileImg);
-            }
-
             // 고유한 룸 ID 생성 (스케치 회의용)
             String roomId = "sketch-" + LocalDateTime.now().toString().replace(":", "-")
                     + "-" + UUID.randomUUID().toString().substring(0, 8);
 
-            // ⭐ 미팅룸 생성 (DB에 저장)
+            // ⭐ DB에 미팅룸 생성
             try {
                 meetingService.createMeetingRoom(
                         roomId,
@@ -84,31 +59,87 @@ public class SketchMeetingController {
                         user.getId(),
                         "sketch"
                 );
-                log.info("스케치 미팅룸 생성 완료: roomId={}", roomId);
+                log.info("스케치 미팅룸 생성 성공: roomId={}", roomId);
             } catch (Exception e) {
                 log.error("스케치 미팅룸 생성 실패", e);
-                return new RedirectView("/error?message=meeting-creation-failed");
+                // 실패해도 일단 진행 (미디어 서버에서 처리)
             }
 
-            // 미디어 서버로 리다이렉트할 URL 생성
-            String redirectUrl = String.format(
-                    "%s/ocean-video-chat-complete.html?roomId=%s&workspaceId=%s&peerId=%s&displayName=%s&meetingType=sketch&meetingTitle=%s&userProfileImg=%s",
-                    mediaServerUrl,
-                    URLEncoder.encode(roomId, StandardCharsets.UTF_8),
-                    URLEncoder.encode(workspaceCd, StandardCharsets.UTF_8),
-                    URLEncoder.encode(user.getId(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(user.getName(), StandardCharsets.UTF_8),
-                    URLEncoder.encode("스케치 회의 - " + user.getName(), StandardCharsets.UTF_8),
-                    URLEncoder.encode(userProfileImg, StandardCharsets.UTF_8)  // 절대 URL로 인코딩
-            );
+            // URL 파라미터 구성
+            StringBuilder urlBuilder = new StringBuilder(mediaServerUrl);
+            urlBuilder.append("/ocean-video-chat-complete.html");
+            urlBuilder.append("?roomId=").append(URLEncoder.encode(roomId, StandardCharsets.UTF_8));
+            urlBuilder.append("&workspaceId=").append(URLEncoder.encode(workspaceCd, StandardCharsets.UTF_8));
+            urlBuilder.append("&peerId=").append(URLEncoder.encode(user.getId(), StandardCharsets.UTF_8));
+            urlBuilder.append("&displayName=").append(URLEncoder.encode(user.getName(), StandardCharsets.UTF_8));
+            urlBuilder.append("&meetingType=sketch");
 
-            log.info("스케치 회의 시작 - 사용자: {}, 룸ID: {}, 워크스페이스: {}, 프로필이미지: {}",
-                    user.getId(), roomId, workspaceCd, userProfileImg);
+            String redirectUrl = urlBuilder.toString();
+
+            log.info("스케치 회의 시작 - 사용자: {}, 룸ID: {}, 워크스페이스CD: {}, 리다이렉트: {}",
+                    user.getName(), roomId, workspaceCd, redirectUrl);
+
+            // 미디어 서버로 리다이렉트
+            return new RedirectView(redirectUrl);
+
+        } catch (Exception e) {
+            log.error("스케치 회의 시작 중 오류", e);
+            return new RedirectView("/error");
+        }
+    }
+
+    /**
+     * 스케치 회의 참가 (초대 링크)
+     */
+    @GetMapping("/sketch/join")
+    public RedirectView joinSketchMeeting(
+            @RequestParam String roomId,
+            @RequestParam(required = false) String workspaceCd,
+            @AuthenticationPrincipal UserPrincipal user) {
+
+        try {
+            // 사용자 인증 확인
+            if (user == null) {
+                log.warn("인증되지 않은 사용자의 스케치 회의 참가 시도");
+                return new RedirectView("/login");
+            }
+
+            // ⭐ 미팅룸 활성 상태 확인
+            if (!meetingService.isMeetingActive(roomId)) {
+                log.warn("비활성 미팅룸 참가 시도: roomId={}", roomId);
+                return new RedirectView("/error?message=meeting-not-found");
+            }
+
+            // ⭐ 참가자로 추가
+            try {
+                meetingService.addParticipant(roomId, user.getId(), "PARTICIPANT");
+                log.info("미팅 참가자 추가: roomId={}, userId={}", roomId, user.getId());
+            } catch (Exception e) {
+                log.error("참가자 추가 실패", e);
+                // 실패해도 일단 진행
+            }
+
+            // URL 파라미터 구성
+            StringBuilder urlBuilder = new StringBuilder(mediaServerUrl);
+            urlBuilder.append("/ocean-video-chat-complete.html");
+            urlBuilder.append("?roomId=").append(URLEncoder.encode(roomId, StandardCharsets.UTF_8));
+
+            if (workspaceCd != null) {
+                urlBuilder.append("&workspaceId=").append(URLEncoder.encode(workspaceCd, StandardCharsets.UTF_8));
+            }
+
+            urlBuilder.append("&peerId=").append(URLEncoder.encode(user.getId(), StandardCharsets.UTF_8));
+            urlBuilder.append("&displayName=").append(URLEncoder.encode(user.getName(), StandardCharsets.UTF_8));
+            urlBuilder.append("&meetingType=sketch");
+
+            String redirectUrl = urlBuilder.toString();
+
+            log.info("스케치 회의 참가 - 사용자: {}, 룸ID: {}", user.getName(), roomId);
 
             return new RedirectView(redirectUrl);
 
         } catch (Exception e) {
-            log.error("스케치 회의 시작 실패", e);
+            log.error("스케치 회의 참가 중 오류", e);
             return new RedirectView("/error");
         }
     }

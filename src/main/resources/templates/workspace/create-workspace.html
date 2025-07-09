@@ -80,7 +80,9 @@
 
                     <div class="form-group">
                         <label for="workspaceNm">워크스페이스 이름</label>
-                        <input type="text" id="workspaceNm" name="workspaceNm" placeholder="예: 디자인 팀 프로젝트" required>
+                        <input type="text" id="workspaceNm" name="workspaceNm" placeholder="예: 디자인 팀 프로젝트" required
+                               oninvalid="this.setCustomValidity('워크스페이스 이름은 필수 입력 사항입니다.')"
+                               oninput="this.setCustomValidity('')">
                     </div>
 
                     <div class="form-group">
@@ -106,7 +108,9 @@
                     <div class="form-group" id="department-section">
                         <label>부서 추가</label>
                         <div class="department-input-group">
-                            <input type="text" name="departments" placeholder="부서명" required>
+                            <input type="text" name="departments" placeholder="부서명" required
+                                   oninvalid="this.setCustomValidity('부서명은 공백으로 작성하실 수 없습니다.')"
+                                   oninput="this.setCustomValidity('')">
                             <button type="button" class="btn-remove-department" onclick="removeDepartment(this)">×</button>
                         </div>
                     </div>
@@ -135,6 +139,7 @@
 <script src="https://unpkg.com/swiper@8/swiper-bundle.min.js"></script>
 <script th:inline="javascript"></script>
 <script th:src="@{/js/CreateWorkspace.js}"></script>
+<script src="/static/js/CreateWorkSpace.js"></script>
 
 </body>
 </html>

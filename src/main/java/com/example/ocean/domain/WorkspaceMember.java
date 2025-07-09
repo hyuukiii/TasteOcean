@@ -17,9 +17,6 @@ public class WorkspaceMember {
     private String email;
     private String phoneNum;
     private String userImg;
+    private String userState;
     private LocalDateTime joinedDate;
-
-    // 미팅룸에 필요한 새로운 필드
-    private String activeState;
-    //private String userState;
 }

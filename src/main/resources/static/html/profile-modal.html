@@ -1,0 +1,46 @@
+<div id="aaa" class="aaa">
+    <!-- 오버레이 -->
+    <div id="profileModalOverlay" class="modal-overlay"></div>
+
+    <!-- 프로필 모달 -->
+    <div id="profileModal" class="profile-modal">
+        <button id="closeProfileModal" class="close-btn">✕</button>
+
+        <div class="modal-card">
+            <!-- 좌측 프로필 이미지 -->
+            <div class="profile-left">
+                <img id="viewProfileImg" src="/images/default.png" alt="프로필 이미지" class="profile-image">
+                <input type="file" id="editProfileImg" accept="image/*" style="display:none; margin-top:12px;">
+            </div>
+
+            <div class="profile-right-wrapper">
+                <div class="profile-right">
+                    <div class="profile-item">
+                        <div class="label">닉네임</div>
+                        <div class="value" id="viewNickname">-</div>
+                    </div>
+                    <div class="profile-item">
+                        <div class="label">전화번호</div>
+                        <div class="value" id="viewPhone">-</div>
+                    </div>
+                    <div class="profile-item">
+                        <div class="label">직급</div>
+                        <div class="value" id="viewPosition">-</div>
+                    </div>
+                    <div class="profile-item">
+                        <div class="label">이메일</div>
+                        <div class="value" id="viewEmail">-</div>
+                    </div>
+                    <div class="profile-item">
+                        <div class="label">부서</div>
+                        <div class="value" id="viewDept" data-dept-cd="DEPT001">오션</div>
+                    </div>
+                </div>
+
+                <div class="bottom-buttons" id="editButtons">
+                    <button id="toggleEditBtn" class="edit-btn">편집하기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

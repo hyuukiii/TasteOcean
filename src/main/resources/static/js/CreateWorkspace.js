@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
         },
     });
 
+    const workspaceForm = document.getElementById('workspaceForm');
+    const nameInput = document.getElementById('workspaceNm');
+
     // 다음 버튼 클릭 이벤트
     document.querySelector('.btn-next').addEventListener('click', function() {
         validateFirstSlide();
@@ -25,18 +28,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function validateFirstSlide() {
-        const nameInput = document.getElementById('workspaceNm');
-        if (!nameInput.value.trim()) {
-            alert('워크스페이스 이름을 입력해주세요!');
-            nameInput.focus();
-            return;
+            // reportValidity()는 유효하면 true를 반환하고, 유효하지 않으면 false를 반환하며 사용자에게 유효성 메시지를 표시합니다.
+            if (nameInput.reportValidity()) {
+                swiper.slideNext(); // 유효할 때만 다음 슬라이드로 이동합니다.
+            }
         }
-        swiper.slideNext();
-    }
 
     // 폼 제출 이벤트 처리
     document.getElementById('workspaceForm').addEventListener('submit', function(e) {
         e.preventDefault(); // 기본 폼 제출 방지
+
+
+        // 워크스페이스 이름이 유효한지 먼저 확인합니다.
+        if (!nameInput.checkValidity()) {
+            // 유효하지 않다면, 첫 번째 슬라이드로 이동합니다.
+            swiper.slideTo(0);
+            // 이름 입력창에 포커스를 주고, 브라우저의 기본 유효성 검사 메시지를 표시합니다.
+            nameInput.reportValidity();
+            return; // 생성 로직을 중단합니다.
+        }
+
+        // 모든 유효성 검사를 통과했을 때만 워크스페이스 생성 함수를 호출합니다.
         createWorkspace();
     });
 
@@ -157,5 +169,15 @@ function addDepartment() {
 }
 
 function removeDepartment(btn) {
+    // 현재 화면에 있는 부서 입력란의 개수를 확인.
+    const departmentCount = document.querySelectorAll('.department-input-group').length;
+
+    // 부서가 1개 이하이면 경고창을 띄우고 함수를 종료.
+    if (departmentCount <= 1) {
+        alert('워크스페이스에는 최소 1개 이상의 부서가 필요합니다.');
+        return;
+    }
+
+    // 부서가 2개 이상일 경우에만 삭제를 실행.
     btn.parentElement.remove();
 }

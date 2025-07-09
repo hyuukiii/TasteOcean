@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 
-@Repository
+
 public interface RecordingFileRepository extends JpaRepository<RecordingFile, String> {
 
     List<RecordingFile> findByWorkspaceCdOrderByCreatedDateDesc(String workspaceCd);

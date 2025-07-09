@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.ocean.repository.EventAttendencesRepository">
+
+    <insert id="insertEventAttendences" parameterType="map">
+        INSERT INTO `EVENT_ATTENDENCES`(
+            EVENT_CD, USER_ID
+        )VALUES(
+            #{eventCd}, #{userId}
+        )
+    </insert>
+
+    <!-- 참석자 userid 선택 -->
+    <select id="selectAttendence" parameterType="String" resultType="String">
+        SELECT  USER_ID AS userId
+        FROM   `EVENT_ATTENDENCES`
+        WHERE   EVENT_CD = #{eventCd}
+    </select>
+
+    <!-- 참석자 userid, nickname 선택 -->
+    <select id="selectAttendeesInfo" parameterType="String" resultType="com.example.ocean.dto.response.AttendeesInfo">
+        SELECT
+                ea.EVENT_CD      AS eventCd,
+                ea.USER_ID       AS userId,
+                wm.USER_NICKNAME AS userNickName
+        FROM   `EVENT_ATTENDENCES` ea
+        JOIN
+               `WORKSPACE_MEMBERS` wm
+                ON  ea.USER_ID = wm.USER_ID
+                AND wm.WORKSPACE_CD = (
+                    SELECT  WORKSPACE_CD
+                    FROM   `EVENTS`
+                    WHERE   EVENT_CD = #{eventCd}
+                )
+        WHERE   ea.EVENT_CD = #{eventCd}
+    </select>
+
+    <!-- 일정 삭제시 참석자 삭제 -->
+    <delete id="deleteAttendeesByEventCd" parameterType="String">
+        DELETE
+        FROM   `EVENT_ATTENDENCES`
+        WHERE   EVENT_CD = #{eventCd}
+    </delete>
+
+<!--
+    <delete id="deleteAttendeesByUserId" parameterType="String">
+        DELETE
+        FROM   `EVENT_ATTENDENCES`
+        WHERE   USER_ID = #{userId}
+    </delete>
+-->
+</mapper>

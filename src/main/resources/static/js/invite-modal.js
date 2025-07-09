@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // 모달 닫기 함수
+  // 모달 닫기
   const closeModal = () => {
     modal.style.display = 'none';
     overlay.style.display = 'none';
@@ -45,23 +45,48 @@ document.addEventListener('DOMContentLoaded', function () {
     sendBtn.addEventListener('click', () => {
       const email = emailInput.value.trim();
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const code = inviteCode.textContent;
 
       emailError.style.display = 'none';
       emailSuccess.style.display = 'none';
 
       if (email === "" || !emailRegex.test(email)) {
         emailError.style.display = 'block';
-      } else {
-        emailSuccess.style.display = 'block';
+        return;
       }
+
+      // 실제 이메일 전송 요청
+      fetch('/api/workspaces/invite-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: email, inviteCode: code })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("이메일 전송 실패");
+        return res.text();
+      })
+      .then(msg => {
+        emailSuccess.style.display = 'block';
+      })
+      .catch(err => {
+        emailError.textContent = "전송 실패: " + err.message;
+        emailError.style.display = 'block';
+      });
     });
   }
 
   // 초대 코드 복사 버튼
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(inviteCode.textContent);
-      copySuccess.style.display = 'block';
+      navigator.clipboard.writeText(inviteCode.textContent)
+        .then(() => {
+          copySuccess.style.display = 'block';
+        })
+        .catch(() => {
+          alert("복사 실패");
+        });
     });
   }
 });

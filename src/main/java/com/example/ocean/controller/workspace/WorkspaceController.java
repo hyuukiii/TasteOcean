@@ -1,8 +1,10 @@
 package com.example.ocean.controller.workspace;
 
+import com.example.ocean.domain.Notification;
 import com.example.ocean.domain.Workspace;
 import com.example.ocean.domain.WorkspaceDept;
 import com.example.ocean.domain.WorkspaceMember;
+import com.example.ocean.mapper.MemberTransactionMapper;
 import com.example.ocean.service.WorkspaceService;
 import com.example.ocean.security.oauth.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.WebDataBinder;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -85,9 +88,6 @@ public class WorkspaceController {
                     departments,      // 세 번째 파라미터
                     workspaceImg      // 네 번째 파라미터
             );
-
-            log.info("워크스페이스 생성 완료 - 워크스페이스 코드: {}", createdWorkspace.getWorkspaceCd());
-
             return ResponseEntity.ok(createdWorkspace);
 
         } catch (Exception e) {
@@ -189,7 +189,6 @@ public class WorkspaceController {
     @GetMapping("/{workspaceCd}/departments")
     public ResponseEntity<List<WorkspaceDept>> getDepartments(
             @PathVariable String workspaceCd) {
-
         List<WorkspaceDept> departments = workspaceService.getDepartments(workspaceCd);
         return ResponseEntity.ok(departments);
     }
@@ -212,7 +211,7 @@ public class WorkspaceController {
     }
 
     // 워크스페이스 입장 시간 업데이트
-    @PostMapping("/{workspaceCd}/enter")
+    @PatchMapping("/{workspaceCd}/enter")
     public ResponseEntity<Void> enterWorkspace(
             @PathVariable String workspaceCd,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -222,7 +221,7 @@ public class WorkspaceController {
     }
 
     // 워크스페이스 퇴장 시간 업데이트
-    @PostMapping("/{workspaceCd}/exit")
+    @PatchMapping("/{workspaceCd}/exit")
     public ResponseEntity<Void> exitWorkspace(
             @PathVariable String workspaceCd,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -244,6 +243,134 @@ public class WorkspaceController {
         return ResponseEntity.ok().build();
     }
 
-    // ⚠️ 불필요한 별도 이미지 업로드 엔드포인트 제거됨
-    // 이제 프로필 설정은 WorkspacePageController의 handleSetProfile 메서드에서 통합 처리
+    // 특정사용자 정보 상세조회
+    @GetMapping("/{workspaceCd}/member/{userId}")
+    public ResponseEntity<WorkspaceMember> getWorkspaceMemberDetail(
+            @PathVariable String workspaceCd,
+            @PathVariable String userId) {
+        WorkspaceMember member = workspaceService.getMemberDetail(workspaceCd, userId);
+        return ResponseEntity.ok(member);
+    }
+
+    // 로그인한 사용자 상태 가져오기
+    @GetMapping("/{workspaceCd}/member/{userId}/status")
+    public ResponseEntity<String> getUserStatus(@PathVariable String workspaceCd,
+                                                @PathVariable String userId) {
+        String status = workspaceService.getUserStatus(workspaceCd, userId);
+        return ResponseEntity.ok(status);
+    }
+
+    // 사용자 상태 변경 (온라인, 오프라인, 자리비움)
+    @PatchMapping("/{workspaceCd}/member/{userId}/status")
+    public ResponseEntity<String> updateUserStatus(
+            @PathVariable String workspaceCd,
+            @PathVariable String userId,
+            @RequestBody String userState) {
+
+        log.info("🔄 [PATCH] 사용자 상태 변경 요청 수신");
+        log.info("📌 workspaceCd: {}", workspaceCd);
+        log.info("👤 userId: {}", userId);
+        log.info("📝 변경할 상태값: {}", userState);
+
+        workspaceService.updateUserState(workspaceCd, userId, userState);
+
+        log.info("✅ 상태 업데이트 완료: {}", userState);
+        return ResponseEntity.ok("상태가 업데이트되었습니다: " + userState);
+    }
+
+    // 이메일 전송
+    @PostMapping("/invite-email")
+    @ResponseBody
+    public ResponseEntity<String> sendWorkspaceInvite(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String inviteCode = request.get("inviteCode");
+
+        try {
+            workspaceService.sendInviteEmail(email, inviteCode);
+            return ResponseEntity.ok("이메일 전송 완료");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("이메일 전송 실패: " + e.getMessage());
+        }
+    }
+
+    //워크스페이스 배너용 정보 가져오기 (이름, 초대코드, 마감일, D-Day, 진행률)
+    @GetMapping("/{workspaceCd}/info")
+    public ResponseEntity<?> getWorkspaceInfo(@PathVariable String workspaceCd) {
+        try {
+            Map<String, Object> info = workspaceService.getWorkspaceInfo(workspaceCd);
+            if (info == null || info.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("워크스페이스 정보를 찾을 수 없습니다.");
+            }
+            return ResponseEntity.ok(info);
+        } catch (Exception e) {
+            log.error("워크스페이스 배너 정보 조회 실패", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("워크스페이스 정보 조회 중 오류 발생: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{workspaceCd}/notifications")
+    @ResponseBody
+    public List<Map<String, String>> getRecentNotifications(@PathVariable String workspaceCd) {
+        List<Notification> notis = workspaceService.getRecentNotifications(workspaceCd);
+
+        log.info("📥 [Controller] 최근 알림 수: {}", notis.size());
+
+        List<Map<String, String>> responseList = new ArrayList<>();
+        SimpleDateFormat formatter = new SimpleDateFormat("MM월 dd일 HH:mm");
+
+        for (Notification n : notis) {
+            String formattedTime = formatter.format(n.getCreatedDate());
+            String message;
+
+            switch (n.getNotiState()) {
+                case "NEW_EVENT":
+                    message = "새로운 일정을 추가했습니다";
+                    break;
+                case "NEW_ATTENDENCE":
+                    message = "워크스페이스에 참가했습니다";
+                    break;
+                default:
+                    message = "활동을 했습니다";
+            }
+
+            Map<String, String> map = new HashMap<>();
+            map.put("senderName", n.getCreatedBy());
+            map.put("content", message + " [" + formattedTime + "]");
+
+            log.info("🧾 [알림] {}님이 {}", n.getCreatedBy(), message);
+            responseList.add(map);
+        }
+
+        return responseList;
+    }
+
+    // 📌 참가 요청 조회 (owner 전용)
+    @GetMapping("/{workspaceCd}/invitations/pending")
+    @ResponseBody
+    public List<Map<String, Object>> getPendingInvites(@PathVariable String workspaceCd) {
+        return workspaceService.getPendingInvitationsByWorkspace(workspaceCd);
+    }
+
+    // 📌 참가 요청 응답 (수락/거절)
+    @PostMapping("/{workspaceCd}/invitations/respond")
+    @ResponseBody
+    public String respondInvitation(@PathVariable String workspaceCd, @RequestBody Map<String, String> request) {
+        String invitedUserId = request.get("invitedUserId");
+        String status = request.get("status");
+
+        // 로그 추가
+        log.info("📥 참가 요청 응답 도착 - workspaceCd: {}, invitedUserId: {}, status: {}", workspaceCd, invitedUserId, status);
+
+        if ("ACCEPT".equalsIgnoreCase(status)) {
+            workspaceService.acceptInvitation(workspaceCd, invitedUserId);
+            return "수락 처리 완료";
+        } else if ("REJECT".equalsIgnoreCase(status)) {
+            workspaceService.rejectInvitation(workspaceCd, invitedUserId);
+            return "거절 처리 완료";
+        } else {
+            return "유효하지 않은 상태입니다";
+        }
+    }
+
 }

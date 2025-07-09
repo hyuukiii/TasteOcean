@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <title>팀 캘린더</title>
+    <link th:href="@{/css/lnb.css}" rel='stylesheet' />
+    <link th:href="@{/css/calendar.css}" rel='stylesheet' />
+    <link rel="stylesheet" href="/static/css/calendar.css">
+
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1a9ca55e1cb213f15176c2b99a62db20&libraries=services"></script>
+</head>
+
+<body>
+<div class="app-container">
+    <nav>
+        <div th:replace="~{fragments/lnb :: lnbFragment}"></div>
+    </nav>
+
+    <div class="main-content">
+        <div class="calendar-header">
+            <div class="nav-arrows">
+                <button id="prevMonthBtn" class="icon-arrow-left"></button>
+                <span id="currentMonthText" class="current-month">6 JUN 2025</span>
+                <button id="nextMonthBtn" class="icon-arrow-right"></button>
+            </div>
+        </div>
+        <div id='calendar'></div>
+    </div>
+
+    <div class="sidebar-right"></div>
+
+</div>
+
+<div id="createEventModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>팀 일정 추가</h3>
+            <button type="button" class="modal-close-button" onclick="closeCreateEventModal()">&times;</button>
+        </div>
+        <form id="eventForm" onsubmit="event.preventDefault(); saveEvent();">
+            <div class="form-group flex-container">
+                <input type="text" id="title" name="title" placeholder="제목을 입력하세요" required
+                       oninvalid="this.setCustomValidity('제목은 필수 입력 사항입니다.')"
+                       oninput="this.setCustomValidity('')">
+                <input type="color" id="color" name="color" value="#0066CC">
+            </div>
+
+            <div class="form-group">
+                <label class="icon-clock">일시</label>
+                <div class="datetime-group">
+                    <input type="datetime-local" id="startDatetime" name="startDatetime" required>
+                    <span>&mdash;</span>
+                    <input type="datetime-local" id="endDatetime" name="endDatetime" required>
+                </div>
+                <div class="checkbox-container">
+                    <label for="allDay">종일</label>
+                    <input type="checkbox" id="allDay" name="allDay">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="icon-user-detail">참가자 선택</label>
+                <div class="checkbox-container" id="workspaceMembers"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="description" class="icon-description">설명 추가</label>
+                <textarea id="description" name="description"  placeholder="자세한 설명을 입력하세요."></textarea>
+            </div>
+
+
+            <div class="form-group">
+                <div class="file-input-container">
+                    <span class="icon icon-attach"></span>
+                    <span>첨부파일 추가</span>
+                    <input type="file" id="fileUpload" name="files" multiple>
+                </div>
+                <ul id="insertedFiles" style="list-style: none; padding: 0; margin-top: 10px;"></ul>
+            </div>
+
+            <div class="form-group">
+                <label class="icon-bell">알림 시간</label>
+                <select id="notification" name="notification" required>
+                    <option value="0">알림 없음</option>
+                    <option value="1440">전날 오전 9시</option>
+                    <option value="540">당일 오전 9시</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="location" class="icon-location">위치 추가</label>
+                <div class="search-wrapper">
+                    <input type="text" id="location" name="location" placeholder="장소명으로 검색하세요">
+                    <button type="button" id="searchBtn">검색</button>
+                </div>
+                <div id="map" style="width:100%;height:200px;margin-top:10px;"></div>
+                <ul id="placesList"></ul>
+
+                <input type="hidden" id="placeName" name="placeName">
+                <input type="hidden" id="placeAddress" name="placeAddress">
+                <input type="hidden" id="placeId" name="placeId">
+                <input type="hidden" id="placeLat" name="placeLat">
+                <input type="hidden" id="placeLng" name="placeLng">
+            </div>
+
+
+            <div class="form-group">
+                <label for="priority" class="icon-priority">중요도</label>
+                <select id="priority" name="priority" required>
+                    <option value="LOW">낮음</option>
+                    <option value="NORMAL" selected>보통</option>
+                    <option value="HIGH">높음</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="isShared">공유 여부</label>
+                <select id="isShared" name="isShared">
+                    <option value="1" selected>공유</option>
+                    <option value="0">비공유</option>
+                </select>
+            </div>
+
+
+            <div class="submit-button-wrapper">
+                <button type="submit">등록하기</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="eventDetailModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="header-actions">
+            <button type="button" class="edit-button" title="수정" style="display:none;" onclick="openUpdateModal()">
+                <span class="icon icon-edit"></span>
+            </button>
+            <button type="button" class="delete-button" title="삭제" style="display:none;" onclick="deleteEvent()">
+                <span class="icon icon-delete"></span>
+            </button>
+            <button type="button" class="modal-close-button" onclick="closeDetailModal()">
+                <span class="icon icon-close"></span>
+            </button>
+        </div>
+
+        <div class="title-section">
+            <div class="color-dot" th:style="'background-color:' + ${event?.color}"></div>
+            <div class="text-content">
+                <div class="main-title" id="detailTitle" th:text="${event?.title}">제목 없음</div>
+                <div class="sub-text">
+                        <span
+                                th:if="${event?.startDatetime != null and event?.endDatetime != null and #temporals.format(event.startDatetime, 'yyyyMMdd') == #temporals.format(event.endDatetime, 'yyyyMMdd') and #temporals.format(event.startDatetime, 'HHmm') == '0000' and #temporals.format(event.endDatetime, 'HHmm') == '2359'}">
+                            <span th:text="${#temporals.format(event.startDatetime, 'M월 d일 (E)')} + ' 종일'"></span>
+                        </span>
+                    <span
+                            th:unless="${event?.startDatetime == null or event?.endDatetime == null or (#temporals.format(event.startDatetime, 'yyyyMMdd') == #temporals.format(event.endDatetime, 'yyyyMMdd') and #temporals.format(event.startDatetime, 'HHmm') == '0000' and #temporals.format(event.endDatetime, 'HHmm') == '2359')}">
+                            <span
+                                    th:text="${event?.startDatetime != null ? #temporals.format(event.startDatetime, 'M월 d일 (E) a h:mm') : '시작일 없음'}"></span>
+                            <span> - </span>
+                            <span
+                                    th:text="${event?.endDatetime != null ? #temporals.format(event.endDatetime, 'M월 d일 (E) a h:mm') : '종료일 없음'}"></span>
+                        </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-item">
+            <span class="icon icon-user-detail"></span>
+            <div class="value-wrapper"> <label>작성자</label>
+                <div class="value" id="detailAuthor"></div>
+            </div>
+        </div>
+
+        <div class="info-item">
+            <span class="icon icon-user-detail"></span>
+            <div class="value-wrapper"> <label>참가자</label>
+                <div class="value" id="detailWorkspaceMembers"></div>
+            </div>
+        </div>
+
+        <div class="info-item">
+            <span class="icon icon-location-detail"></span>
+            <div class="value-wrapper"> <label>위치</label>
+                <div class="value" id="detailLocation"></div>
+            </div>
+        </div>
+
+        <div id="detail-map" style="width:100%; height:200px; margin-top:10px; display:none;"></div>
+
+        <div class="info-item description">
+            <div class="value-wrapper">
+                <span class="icon icon-description-detail"><label>설명</label></span>
+                <div class="value" id="detailDescriptionDisplay"></div>
+            </div>
+        </div>
+
+        <div class="info-item">
+            <span class="icon icon-bell-detail"></span>
+            <div class="value-wrapper"> <label>알림</label>
+                <div class="value" id="detailNotification"></div>
+            </div>
+        </div>
+
+        <div class="info-item">
+            <div class="value-wrapper">
+                <span class="icon icon-attachment-detail"><label>첨부파일</label></span>
+                <ul id="detailFiles" class="attachments-list"></ul>
+            </div>
+        </div>
+
+        <div class="info-item">
+            <span class="icon icon-priority"></span>
+            <div class="value-wrapper"> <label>중요도</label>
+                <div class="value" id="detailPriority"></div>
+            </div>
+        </div>
+
+        <div class="info-item">
+            <span class="icon icon-user-detail"></span>
+            <div class="value-wrapper"> <label>공유 여부</label>
+                <div class="value" id="detailShared"></div>
+            </div>
+        </div>
+
+
+        <div class="modal-footer">
+            <button type="button" onclick="closeDetailModal()">닫기</button>
+        </div>
+    </div>
+</div>
+
+<div id="updateEventModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>일정 수정</h3>
+            <button type="button" class="modal-close-button" onclick="closeUpdateModal()">
+                <span class="icon icon-close"></span>
+            </button>
+        </div>
+        <form id="updateEventForm">
+            <input type="hidden" id="update-eventCd" name="eventCd" />
+
+            <div class="form-group">
+                <label for="update-title" class="icon-description">제목</label>
+                <div class="flex-container">
+                    <input type="text" id="update-title" name="title" placeholder="제목" required
+                           oninvalid="this.setCustomValidity('제목은 필수 입력 사항입니다.')"
+                           oninput="this.setCustomValidity('')">
+                    <input type="color" id="update-color" name="color" value="#0066CC">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="icon-clock">시작 일시</label>
+                <input type="datetime-local" id="update-startDatetime" name="startDatetime" required>
+            </div>
+
+            <div class="form-group">
+                <label class="icon-clock">종료 일시</label>
+                <input type="datetime-local" id="update-endDatetime" name="endDatetime" required>
+            </div>
+
+            <div class="form-group">
+                <label class="icon-user-detail">참가자 선택</label>
+                <div class="checkbox-container" id="update-workspaceMembers"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="update-description" class="icon-description">설명</label>
+                <textarea id="update-description" name="description" rows="4"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="icon-attach">기존 파일</label>
+                <ul id="updateFiles" class="current-files-list"></ul>
+                <label class="icon-attach file-attach-label">새 파일 첨부</label> <div id="update-new-files-container">
+            </div>
+            </div>
+
+            <div class="form-group">
+                <label for="update-notification" class="icon-bell">알림</label>
+                <select id="update-notification" name="notification">
+                    <option value="1440">전날 오전 9시</option>
+                    <option value="540">당일 오전 9시</option>
+                    <option value="0">알림 없음</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="update-location" class="icon-location">위치</label>
+                <div class="search-wrapper">
+                    <input type="text" id="update-location" name="location" placeholder="장소명으로 검색하세요">
+                    <button type="button" id="update-searchBtn">검색</button>
+                </div>
+                <div id="update-map" style="width:100%;height:200px;margin-top:10px;"></div>
+                <ul id="update-placesList"></ul>
+
+                <input type="hidden" id="update-placeName" name="placeName">
+                <input type="hidden" id="update-placeAddress" name="placeAddress">
+                <input type="hidden" id="update-placeId" name="placeId">
+                <input type="hidden" id="update-placeLat" name="placeLat">
+                <input type="hidden" id="update-placeLng" name="placeLng">
+            </div>
+
+            <div class="form-group">
+                <label for="update-priority" class="icon-priority">우선순위</label>
+                <select id="update-priority" name="priority">
+                    <option value="LOW">낮음</option>
+                    <option value="NORMAL">보통</option>
+                    <option value="HIGH">높음</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="update-progressStatus">진행 상태</label>
+                <select id="update-progressStatus" name="progressStatus">
+                    <option value="TODO">예정</option>
+                    <option value="IN_PROGRESS">진행중</option>
+                    <option value="DONE">완료</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="update-isShared">공유 여부</label>
+                <select id="update-isShared" name="isShared">
+                    <option value="1">공유</option>
+                    <option value="0">비공유</option>
+                </select>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" onclick="submitUpdateEvent()">수정하기</button>
+                <button type="button" class="cancel-button" onclick="closeUpdateModal()">취소</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const currentUser = /*[[${currentUser}]]*/ '';
+    const workspaceCd = /*[[${workspaceCd}]]*/ '';
+    let map;
+    let marker;
+    let detailMap;
+    let detailMarker;
+    let infowindow;
+    let ps;
+
+    console.log("currentUser: " + currentUser.userId);
+    console.log("workspaceCd: " + workspaceCd);
+
+    const currentUserId = currentUser.userId;
+    const currentUserName = currentUser.userName;
+    console.log("currentUserName: " + currentUserName);
+
+    // 파일명 최대 길이 정의
+    const MAX_FILENAME_LENGTH = 100;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const calendarEl = document.getElementById('calendar');
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'ko',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            height: 'auto',
+            initialDate: new Date(),
+            dateClick: async function (info) {
+                closeDetailModal();
+                closeUpdateModal();
+
+                document.getElementById('eventForm').reset();
+                document.getElementById('startDatetime').value = info.dateStr + 'T09:00';
+                document.getElementById('endDatetime').value = info.dateStr + 'T18:00';
+                selectedFiles = [];
+                document.getElementById('insertedFiles').innerHTML = '';
+                document.getElementById('workspaceMembers').innerHTML = '';
+
+                initMap(
+                    'map', 'location', 'searchBtn', 'placesList',
+                    { name: 'placeName', address: 'placeAddress', id: 'placeId', lat: 'placeLat', lng: 'placeLng' }
+                );
+
+                document.getElementById('createEventModal').style.display = 'flex';
+
+                setTimeout(function() {
+                    map.relayout();
+                }, 0);
+
+                fetch(`/api/getMembers?workspaceCd=${workspaceCd}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error("멤버정보 조회 실패");
+                        return res.json();
+                    })
+                    .then(data => {
+                        const membersData = data;
+                        const container = document.getElementById('workspaceMembers');
+
+                        for (let i = 0; i < membersData.length; i++) {
+                            const member = membersData[i];
+
+                            const checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.name = 'attendenceIds';
+                            const uniqueId = 'userId' + member.userId;
+                            checkbox.id = uniqueId;
+                            checkbox.value = member.userId;
+
+                            const label = document.createElement('label');
+                            label.htmlFor = uniqueId;
+                            label.textContent = member.userNickname;
+
+                            if (member.userId === currentUserId) {
+                                checkbox.checked = true;
+                                checkbox.style.display = 'none';
+                                label.style.display = 'none';
+                            }
+
+                            container.appendChild(checkbox);
+                            container.appendChild(label);
+                            container.appendChild(document.createElement('br'));
+                        }
+
+                    });
+            },
+            events: function (fetchInfo, successCallback, failureCallback) {
+                fetch(`/api/calendar/team?workspaceCd=${workspaceCd}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                console.error("서버 응답 오류 (events fetch):", text);
+                                throw new Error("일정 불러오기 실패: " + text);
+                            });
+                        }
+                        return response.text().then(text => {
+                            if (text.length === 0) {
+                                return [];
+                            }
+                            try {
+                                return JSON.parse(text);
+                            } catch (e) {
+                                console.error("JSON 파싱 오류:", e);
+                                console.error("수신된 텍스트:", text);
+                                throw new Error("일정 데이터 파싱 실패: 유효하지 않은 JSON");
+                            }
+                        });
+                    })
+                    .then(data => {
+                        const events = data.map(item => ({
+                            id: item.eventCd,
+                            title: item.title,
+                            start: item.startDatetime,
+                            end: item.endDatetime,
+                            color: item.color
+                        }));
+                        successCallback(events);
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("캘린더 일정 불러오기 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
+                        failureCallback(err);
+                    });
+            },
+            eventClick: function (info) {
+                closeCreateEventModal();
+                closeUpdateModal();
+
+                const eventCd = info.event.id;
+                fetch(`/api/calendar/team/events/${eventCd}`)
+                    .then(res => {
+                        console.log("응답 상태코드:", res.status);
+                        if (!res.ok) throw new Error("상세정보 조회 실패");
+                        return res.json();
+                    })
+                    .then(data => {
+
+                        const event = data.event;
+                        const place = data.place;
+
+                        console.log("event", event);
+                        console.log("currentUserId", currentUserId);
+
+                        document.getElementById('detailTitle').innerText = event.title || '제목 없음';
+                        document.getElementById('detailAuthor').innerText = event.userName || event.userId || '알 수 없음';
+                        document.getElementById('detailDescriptionDisplay').innerText = event.description || '설명 없음';
+                        document.getElementById('detailPriority').innerText = event.priority;
+                        document.getElementById('detailShared').innerText = event.isShared === '1' ? '예' : '아니오';
+
+                        const notifyTimeMinutes = event.notifyTime;
+                        let notificationText = '알림 없음';
+                        if (notifyTimeMinutes > 0) {
+                            if (notifyTimeMinutes === 1440) notificationText = '전날 9시';
+                            else if (notifyTimeMinutes === 540) notificationText = '당일 9시';
+                        }
+                        document.getElementById('detailNotification').innerText = notificationText;
+
+                        const membersContainer = document.getElementById('detailWorkspaceMembers');
+                        if (data.attendences && data.attendences.length > 0) {
+                            membersContainer.innerText = data.attendences.map(m => m.userNickName || m.userId).join(", ");
+                        } else {
+                            membersContainer.innerText = '참가자 없음';
+                        }
+
+                        const startDateTime = event.startDatetime ? new Date(event.startDatetime) : null;
+                        const endDateTime = event.endDatetime ? new Date(event.endDatetime) : null;
+                        let dateTimeDisplay = '';
+                        if (startDateTime && endDateTime) {
+                            const startDateFormatted = formatDate(startDateTime, 'M월 d일 (E)');
+                            if (startDateTime.getHours() === 0 && endDateTime.getHours() === 23) {
+                                dateTimeDisplay = `${startDateFormatted} 종일`;
+                            } else {
+                                dateTimeDisplay = `${formatDate(startDateTime, 'M월 d일 (E) a h:mm')} - ${formatDate(endDateTime, 'M월 d일 (E) a h:mm')}`;
+                            }
+                        }
+                        document.querySelector('#eventDetailModal .sub-text').innerText = dateTimeDisplay;
+                        document.querySelector('#eventDetailModal .color-dot').style.backgroundColor = event.color || '#007bff';
+
+                        const detailMapContainer = document.getElementById('detail-map');
+                        const detailLocationText = document.getElementById('detailLocation');
+
+                        if (place && place.lat && place.lng) {
+                            detailLocationText.innerText = place.address || '주소 정보 없음';
+                            detailMapContainer.style.display = 'block';
+
+                            const mapOption = {
+                                center: new kakao.maps.LatLng(place.lat, place.lng),
+                                level: 3
+                            };
+                            detailMap = new kakao.maps.Map(detailMapContainer, mapOption);
+                            detailMarker = new kakao.maps.Marker({
+                                position: mapOption.center
+                            });
+                            detailMarker.setMap(detailMap);
+                        } else {
+                            detailLocationText.innerText = '위치 정보 없음';
+                            detailMapContainer.style.display = 'none';
+                        }
+
+                        const detailFilesUl = document.getElementById('detailFiles');
+                        detailFilesUl.innerHTML = '';
+                        if (data.fileList && data.fileList.length > 0) {
+                            data.fileList.forEach(file => {
+                                const li = document.createElement('li');
+                                li.innerHTML = `<a href="/api/calendar/team/events/${event.eventCd}/files?fileId=${file.fileId}" target="_blank"><span class="file-name-display">${file.fileNm}</span></a>`;
+                                detailFilesUl.appendChild(li);
+                            });
+                        } else {
+                            detailFilesUl.innerHTML = '<li>첨부파일 없음</li>';
+                        }
+
+                        const detailButtonsContainer = document.querySelector('#eventDetailModal .header-actions');
+                        const editBtn = detailButtonsContainer.querySelector('.edit-button');
+                        const deleteBtn = detailButtonsContainer.querySelector('.delete-button');
+
+                        if (event.userId === currentUserId) {
+                            if(editBtn) editBtn.style.display = 'inline-block';
+                            if(deleteBtn) deleteBtn.style.display = 'inline-block';
+                        } else {
+                            if(editBtn) editBtn.style.display = 'none';
+                            if(deleteBtn) deleteBtn.style.display = 'none';
+                        }
+
+                        window.selectedEventData = data;
+                        document.getElementById('eventDetailModal').style.display = 'flex';
+
+                        if (detailMap) {
+                            setTimeout(() => detailMap.relayout(), 0);
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert("일정 정보를 조회하는데 실패했습니다.");
+                    });
+            }
+        });
+
+        calendar.render();
+
+        document.getElementById('prevMonthBtn').addEventListener('click', function () {
+            calendar.prev();
+            updateMonthText(calendar);
+        });
+        document.getElementById('nextMonthBtn').addEventListener('click', function () {
+            calendar.next();
+            updateMonthText(calendar);
+        });
+        updateMonthText(calendar);
+        function updateMonthText(cal) {
+            const currentDate = cal.getDate();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            document.getElementById('currentMonthText').innerText = `${year}년 ${month}월`;
+        }
+
+        calendar.setOption('headerToolbar', {
+            left: '',
+            center: '',
+            right: ''
+        });
+
+        function preventSubmitOnEnter(formId) {
+            const form = document.getElementById(formId);
+            if (form) {
+                form.querySelectorAll('input[type="text"], input[type="datetime-local"]').forEach(input => {
+                    input.addEventListener('keydown', function(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                        }
+                    });
+                });
+            }
+        }
+        preventSubmitOnEnter('eventForm');
+        preventSubmitOnEnter('updateEventForm');
+    });
+
+    function formatDate(date, format) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1);
+        const day = date.getDate();
+        const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+        let hours24 = date.getHours();
+        let hours12 = hours24 % 12;
+        hours12 = hours12 ? hours12 : 12;
+        const minutes = date.getMinutes();
+        const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+        const ampm = hours24 >= 12 ? '오후' : '오전';
+
+        return format
+            .replace('yyyy', year)
+            .replace('M', month)
+            .replace('d', day)
+            .replace('E', dayOfWeek)
+            .replace('HH', hours24 < 10 ? '0' + hours24 : hours24)
+            .replace('H', hours24)
+            .replace('hh', hours12 < 10 ? '0' + hours12 : hours12)
+            .replace('h', hours12)
+            .replace('m', formattedMinutes)
+            .replace('a', ampm);
+    }
+
+
+    // ====== 일정 추가 모달 함수 ======
+    function closeCreateEventModal() {
+        document.getElementById('createEventModal').style.display = 'none';
+    }
+
+    function saveEvent() {
+        const form = document.getElementById("eventForm");
+
+        for (const file of selectedFiles) {
+            if (file.name.length > MAX_FILENAME_LENGTH) {
+                alert(`첨부하신 파일 '${file.name}'의 이름이 너무 길어 업로드가 불가능합니다.`);
+                return;
+            }
+        }
+
+        const formData = new FormData();
+        const requestBody = {
+            userId: currentUserId,
+            workspaceCd: workspaceCd,
+            title: form.title.value,
+            description: form.description.value,
+            startDatetime: form.startDatetime.value,
+            endDatetime: form.endDatetime.value,
+            color: form.color.value,
+            isShared: form.isShared ? form.isShared.value : '1',
+            progressStatus: "TODO",
+            priority: form.priority.value,
+            notifyTime: parseInt(form.notification.value),
+            placeName: document.getElementById('placeName').value,
+            address: document.getElementById('placeAddress').value,
+            placeId: document.getElementById('placeId').value,
+            lat: parseFloat(document.getElementById('placeLat').value),
+            lng: parseFloat(document.getElementById('placeLng').value)
+        };
+
+        formData.append("request", new Blob([JSON.stringify(requestBody)], { type: "application/json" }));
+
+        const checkedCheckboxes = document.querySelectorAll('#workspaceMembers input[name="attendenceIds"]:checked');
+        const attendenceIds = Array.from(checkedCheckboxes).map(cb => cb.value);
+        if (attendenceIds.length > 0) {
+            formData.append("attendenceIds", new Blob([JSON.stringify(attendenceIds)], { type: "application/json" }));
+        }
+
+        selectedFiles.forEach(file => {
+            formData.append("files", file);
+        });
+
+        fetch('/api/calendar/team', {
+            method: 'POST',
+            body: formData
+        })
+            .then(res => {
+                if (!res.ok) throw new Error('등록 실패');
+                return res.text();
+            })
+            .then(data => {
+                alert("일정 등록 성공!");
+                location.reload();
+            })
+            .catch(err => {
+                console.error(err);
+                alert("서버 오류 발생");
+            });
+
+        closeCreateEventModal();
+    }
+
+    /* "종일" 체크박스 로직 (createEventModal 내) */
+    const createAllDayCheckbox = document.getElementById('allDay');
+    const createStartDatetimeInput = document.getElementById('startDatetime');
+    const createEndDatetimeInput = document.getElementById('endDatetime');
+
+    createAllDayCheckbox.addEventListener('change', function () {
+        if (this.checked) {
+            const startDate = new Date(createStartDatetimeInput.value);
+            startDate.setHours(0, 0, 0, 0);
+
+            const endDate = new Date(startDate);
+            endDate.setHours(23, 59, 59, 999);
+
+            createStartDatetimeInput.value = formatDateToLocalISO(startDate);
+            createEndDatetimeInput.value = formatDateToLocalISO(endDate);
+        }
+    });
+
+    function formatDateToLocalISO(date) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+
+    let selectedFiles = []; // 새 일정 추가 모달용 파일 배열
+
+    document.getElementById('fileUpload').addEventListener('change', function() {
+        const insertedFilesUl = document.getElementById('insertedFiles');
+
+        for (let i = 0; i < this.files.length; i++) {
+            if (this.files[i].name.length > MAX_FILENAME_LENGTH) {
+                alert(`첨부하신 파일 '${this.files[i].name}'의 이름이 너무 길어 업로드가 불가능합니다.`);
+                this.value = '';
+                return;
+            }
+            selectedFiles.push(this.files[i]);
+        }
+        updateFileListUI(insertedFilesUl, selectedFiles);
+        this.value = '';
+    });
+
+    function updateFileListUI(targetUlElement, fileArray) {
+        targetUlElement.innerHTML = '';
+
+        if (fileArray.length === 0) {
+            const li = document.createElement('li');
+            li.textContent = '첨부파일 없음';
+            targetUlElement.appendChild(li);
+            return;
+        }
+
+        fileArray.forEach((file, index) => {
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.alignItems = 'center';
+
+            const span = document.createElement('span');
+            span.className = 'file-name-display';
+            span.textContent = file.name;
+
+            const removeButton = document.createElement('button');
+            removeButton.textContent = '❌';
+            removeButton.type = 'button';
+            removeButton.className = 'file-delete-button';
+            removeButton.style.background = 'transparent';
+            removeButton.style.border = 'none';
+            removeButton.style.color = '#ff6b6b';
+            removeButton.style.cursor = 'pointer';
+
+            removeButton.addEventListener('click', () => {
+                fileArray.splice(index, 1);
+                updateFileListUI(targetUlElement, fileArray);
+            });
+
+            li.appendChild(span);
+            li.appendChild(removeButton);
+            targetUlElement.appendChild(li);
+        });
+    }
+
+
+    // ====== 일정 상세 모달 함수 ======
+    function closeDetailModal() {
+        document.getElementById('eventDetailModal').style.display = 'none';
+    }
+
+    // ====== 파일 다운로드 함수 ======
+    function downloadFromS3(fileUrl, fileName) {
+        fetch(fileUrl)
+            .then(response => {
+                if (!response.ok) throw new Error("다운로드 실패");
+                return response.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(err => {
+                console.error(err);
+                alert("파일 다운로드 중 오류가 발생했습니다.");
+            });
+    }
+
+    // ====== 일정 수정 모달 함수 ======
+    let deletedFileIds = [];
+    let newUpdateFiles = []; // 이 배열이 문제의 원인일 수 있음
+
+    function openUpdateModal() {
+        closeCreateEventModal();
+        closeDetailModal();
+
+        const data = window.selectedEventData;
+        if (!data) {
+            alert("수정할 이벤트 데이터가 없습니다.");
+            return;
+        }
+
+        const eventData = data.event;
+        const placeData = data.place;
+
+        document.getElementById('update-eventCd').value = eventData.eventCd;
+        document.getElementById('update-title').value = eventData.title || '';
+        document.getElementById('update-description').value = eventData.description || '';
+        document.getElementById('update-startDatetime').value = eventData.startDatetime ? formatDateToLocalISO(new Date(eventData.startDatetime)) : '';
+        document.getElementById('update-endDatetime').value = eventData.endDatetime ? formatDateToLocalISO(new Date(eventData.endDatetime)) : '';
+        document.getElementById('update-color').value = eventData.color || '#0066CC';
+        document.getElementById('update-priority').value = eventData.priority || 'NORMAL';
+        document.getElementById('update-progressStatus').value = eventData.progressStatus || 'TODO';
+        document.getElementById('update-isShared').value = eventData.isShared === "1" ? '1' : '0';
+
+        initMap(
+            'update-map', 'update-location', 'update-searchBtn', 'update-placesList',
+            { name: 'update-placeName', address: 'update-placeAddress', id: 'update-placeId', lat: 'update-placeLat', lng: 'update-placeLng' }
+        );
+
+        if (placeData && placeData.lat && placeData.lng) {
+            document.getElementById('update-location').value = placeData.placeName || '';
+            document.getElementById('update-placeName').value = placeData.placeName || '';
+            document.getElementById('update-placeAddress').value = placeData.address || '';
+            document.getElementById('update-placeId').value = placeData.placeId || '';
+            document.getElementById('update-placeLat').value = placeData.lat;
+            document.getElementById('update-placeLng').value = placeData.lng;
+
+            const existingPosition = new kakao.maps.LatLng(placeData.lat, placeData.lng);
+            map.setCenter(existingPosition);
+            marker.setPosition(existingPosition);
+        } else {
+            document.getElementById('update-location').value = '';
+            document.getElementById('update-placeName').value = '';
+            document.getElementById('update-placeAddress').value = '';
+            document.getElementById('update-placeId').value = '';
+            document.getElementById('update-placeLat').value = '';
+            document.getElementById('update-placeLng').value = '';
+        }
+
+        let notificationSelect = document.getElementById('update-notification');
+        if (eventData.notifyTime !== undefined && eventData.notifyTime !== null) {
+            notificationSelect.value = eventData.notifyTime;
+        } else {
+            notificationSelect.value = '0';
+        }
+
+        const membersContainer = document.getElementById('update-workspaceMembers');
+        membersContainer.innerHTML = '';
+
+        fetch(`/api/getMembers?workspaceCd=${workspaceCd}`)
+            .then(res => {
+                if (!res.ok) throw new Error("멤버정보 조회 실패");
+                return res.json();
+            })
+            .then(membersData => {
+                const attendenceIds = (data.attendences || []).map(m => m.userId);
+
+                membersData.forEach(member => {
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.name = 'attendenceIds';
+                    checkbox.value = member.userId;
+                    checkbox.id = 'update-' + member.userId;
+
+                    if (attendenceIds.includes(member.userId)) {
+                        checkbox.checked = true;
+                    }
+
+                    if (member.userId === currentUserId) {
+                        checkbox.checked = true;
+                        checkbox.style.display = 'none';
+                    }
+
+                    const label = document.createElement('label');
+                    label.htmlFor = checkbox.id;
+                    label.textContent = member.userNickname;
+
+                    if (member.userId === currentUserId) {
+                        label.style.display = 'none';
+                    }
+
+                    membersContainer.appendChild(checkbox);
+                    membersContainer.appendChild(label);
+                    membersContainer.appendChild(document.createElement('br'));
+                });
+            });
+
+        deletedFileIds = [];
+        newUpdateFiles = []; // ⭐ 여기에서 배열을 초기화하지만, 파일 추가 로직에서 문제가 있을 수 있음
+
+        const newFilesContainer = document.getElementById('update-new-files-container');
+        newFilesContainer.innerHTML = '';
+        addUpdateFileInput();
+
+        displayUpdateFilesList(data.fileList);
+
+        document.getElementById('updateEventModal').style.display = 'flex';
+
+        setTimeout(function() {
+            map.relayout();
+        }, 0);
+    }
+
+    function formatFileName(fileName) {
+        const lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex === -1) {
+            return fileName.length > 15 ? fileName.substring(0, 15) + '...' : fileName;
+        }
+
+        const name = fileName.substring(0, lastDotIndex);
+        const extension = fileName.substring(lastDotIndex);
+
+        if (name.length > 10) {
+            return name.substring(0, 10) + '...' + extension;
+        }
+        return fileName;
+    }
+
+    function addUpdateFileInput() {
+        const container = document.getElementById('update-new-files-container');
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'file-input-container';
+        // wrapper.dataset.fileIndex = newUpdateFiles.length; // ⭐ 이 인덱스 관리가 문제의 소지
+
+        wrapper.innerHTML = `
+            <span class="icon icon-attach"></span>
+            <span class="file-select-text">파일 선택</span>
+            <input type="file" name="newFiles" onchange="handleUpdateFileChange(event)">
+            <span class="file-name-display" style="display: none;"></span>
+            <button type="button" class="new-file-delete-button" style="display: none;" onclick="removeUpdateFile(this)">❌</button>
+        `;
+        container.appendChild(wrapper);
+
+        const fileInput = wrapper.querySelector('input[type="file"]');
+        const selectTextSpan = wrapper.querySelector('.file-select-text');
+
+        selectTextSpan.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // fileInput.style.pointerEvents = 'auto'; // ⭐ 이것도 불필요
+        // fileInput.style.opacity = '0'; // ⭐ 이것도 불필요
+    }
+
+    // ⭐ handleUpdateFileChange 함수를 수정하여 newUpdateFiles 배열 관리 방식 개선
+    function handleUpdateFileChange(event) {
+        const input = event.target;
+        const file = input.files[0];
+
+        if (!file) return;
+
+        // 파일명 길이 검증
+        if (file.name.length > MAX_FILENAME_LENGTH) {
+            alert(`첨부하신 파일 '${file.name}'의 이름이 너무 길어 업로드가 불가능합니다.`);
+            input.value = ''; // 선택된 파일 초기화
+            return;
+        }
+
+        // 새 파일을 newUpdateFiles 배열에 추가 (Blob 객체가 아닌 실제 File 객체)
+        newUpdateFiles.push(file); // ⭐ push로 변경
+
+        const wrapper = input.closest('.file-input-container');
+        wrapper.querySelector('.file-select-text').style.display = 'none';
+
+        const fileNameDisplay = wrapper.querySelector('.file-name-display');
+        fileNameDisplay.textContent = formatFileName(file.name);
+        fileNameDisplay.style.display = 'block';
+
+        const deleteButton = wrapper.querySelector('.new-file-delete-button');
+        deleteButton.style.display = 'block';
+        wrapper.classList.add('has-file');
+
+        input.style.pointerEvents = 'none'; // 파일 입력 필드 비활성화
+
+        // 새로운 빈 파일 입력 필드 추가
+        addUpdateFileInput(); // 항상 새로운 입력 필드를 추가
+    }
+
+
+    // ⭐ removeUpdateFile 함수를 수정하여 newUpdateFiles 배열 관리 방식 개선
+    function removeUpdateFile(button) {
+        const wrapper = button.closest('.file-input-container');
+        const fileInput = wrapper.querySelector('input[type="file"]');
+        const fileName = wrapper.querySelector('.file-name-display').textContent;
+
+        // newUpdateFiles 배열에서 해당 파일 제거
+        newUpdateFiles = newUpdateFiles.filter(file => file && formatFileName(file.name) !== fileName); // ⭐ 파일명으로 필터링
+
+        wrapper.remove(); // HTML 요소 제거
+
+        // 만약 모든 파일 입력 필드가 제거되었다면, 최소한 하나는 남겨두도록 다시 추가
+        const container = document.getElementById('update-new-files-container');
+        if (container.children.length === 0) {
+            addUpdateFileInput();
+        }
+    }
+
+
+    function displayUpdateFilesList(existingFiles) {
+        const updateFilesUl = document.getElementById('updateFiles');
+        updateFilesUl.innerHTML = '';
+
+        if (existingFiles && existingFiles.length > 0) {
+            existingFiles.forEach(file => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="file-name-display">${file.fileNm}</span>
+                    <button type="button" class="file-delete-button" data-file-id="${file.fileId}" onclick="markFileForDeletion('${file.fileId}', this)">파일 삭제</button>
+                `;
+                updateFilesUl.appendChild(li);
+            });
+        } else {
+            updateFilesUl.innerHTML = '<li>기존 첨부파일 없음</li>';
+        }
+    }
+
+
+    function markFileForDeletion(fileId, buttonElement) {
+        if (!deletedFileIds.includes(fileId)) {
+            deletedFileIds.push(fileId);
+        }
+        buttonElement.closest('li').style.textDecoration = 'line-through';
+        buttonElement.disabled = true;
+        buttonElement.innerText = '삭제 예정';
+    }
+
+    function closeUpdateModal() {
+        document.getElementById('updateEventModal').style.display = 'none';
+        deletedFileIds = [];
+        newUpdateFiles = []; // ⭐ 모달 닫을 때 항상 초기화
+
+        const newFilesContainer = document.getElementById('update-new-files-container');
+        newFilesContainer.innerHTML = ''; // 새로 추가된 파일 입력 필드 전부 제거
+        addUpdateFileInput(); // 빈 입력 필드 하나 다시 추가
+
+        document.getElementById('updateEventForm').reset();
+        document.getElementById('updateFiles').innerHTML = ''; // 기존 파일 목록 초기화
+    }
+
+    function submitUpdateEvent() {
+        const form = document.getElementById('updateEventForm');
+        const formData = new FormData();
+        const eventCd = document.getElementById('update-eventCd').value;
+
+        for (const file of newUpdateFiles) { // ⭐ newUpdateFiles 배열을 직접 반복
+            if (file && file.name.length > MAX_FILENAME_LENGTH) { // null 값 체크 추가
+                alert(`첨부하신 파일 '${file.name}'의 이름이 너무 길어 업로드가 불가능합니다.`);
+                return;
+            }
+        }
+
+        const requestBody = {
+            eventCd: eventCd,
+            title: form.title.value,
+            description: form.description.value,
+            startDatetime: form.startDatetime.value,
+            endDatetime: form.endDatetime.value,
+            color: form.color.value,
+            priority: form.priority.value,
+            progressStatus: document.getElementById('update-progressStatus').value,
+            isShared: form.isShared ? form.isShared.value : '1',
+            userId: currentUserId,
+            workspaceCd: workspaceCd,
+            notifyTime: parseInt(form.notification.value),
+            placeName: document.getElementById('update-placeName').value,
+            address: document.getElementById('update-placeAddress').value,
+            placeId: document.getElementById('update-placeId').value,
+            lat: parseFloat(document.getElementById('update-placeLat').value),
+            lng: parseFloat(document.getElementById('update-placeLng').value)
+        };
+
+        formData.append("request", new Blob([JSON.stringify(requestBody)], { type: "application/json" }));
+
+        const checkedCheckboxes = document.querySelectorAll('#update-workspaceMembers input[name="attendenceIds"]:checked');
+        const attendenceIds = Array.from(checkedCheckboxes).map(cb => cb.value);
+        if (attendenceIds.length > 0) {
+            formData.append("attendenceIds", new Blob([JSON.stringify(attendenceIds)], { type: "application/json" }));
+        }
+
+        // 새 파일 추가 로직 (newUpdateFiles 배열에 있는 실제 File 객체만 추가)
+        newUpdateFiles.forEach(file => { // ⭐ 필터링 없이 직접 순회 (null 값은 이미 제거됨)
+            if (file) { // 혹시 모를 null 방지
+                formData.append("files", file);
+            }
+        });
+        // ⭐ 파일이 없을 경우 files 파트를 아예 추가하지 않음 (서버에서 MultipartFile[]이 null로 처리됨)
+        // if (newUpdateFiles.length === 0) {
+        //     formData.append("files", new Blob([], { type: "application/octet-stream" })); // 이 줄 제거
+        // }
+
+
+        formData.append("deletedFileIds", new Blob([JSON.stringify(deletedFileIds)], { type: "application/json" }));
+
+
+        fetch(`/api/calendar/team/events/${eventCd}`, {
+            method: 'PUT',
+            body: formData
+        })
+            .then(res => {
+                return res.text().then(text => {
+                    if (!res.ok) {
+                        console.error("서버 응답 오류 (텍스트):", text);
+                        throw new Error("수정 실패: " + text);
+                    }
+                    return text;
+                });
+            })
+            .then(data => {
+                alert("일정이 수정되었습니다!");
+                closeUpdateModal();
+                location.reload();
+            })
+            .catch(err => {
+                console.error(err);
+                alert("수정에 실패했습니다. 콘솔을 확인해주세요.");
+            });
+    }
+
+    function deleteEvent() {
+        const confirmDelete = confirm("정말로 이 일정을 삭제하시겠습니까?");
+        if (confirmDelete) {
+            const eventCd = window.selectedEventData?.event?.eventCd;
+            const userId = currentUser.userId;
+
+            if (!eventCd) {
+                alert("삭제할 이벤트 코드가 없습니다.");
+                return;
+            }
+
+            fetch(`/api/calendar/team/events/${eventCd}?userId=${userId}`, {
+                method: 'DELETE'
+            })
+                .then(res => {
+                    return res.text().then(text => {
+                        if (!res.ok) {
+                            console.error("서버 응답 오류 (텍스트):", text);
+                            throw new Error("삭제 실패: " + text);
+                        }
+                        return text;
+                    });
+                })
+                .then(data => {
+                    alert("일정이 삭제되었습니다!");
+                    closeDetailModal();
+                    location.reload();
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("삭제 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
+                });
+        } else {
+            console.log("삭제 취소됨");
+        }
+    }
+
+    function initMap(mapContainerId, searchInputId, searchBtnId, listId, hiddenFields) {
+        const mapContainer = document.getElementById(mapContainerId);
+        const mapOption = {
+            center: new kakao.maps.LatLng(37.566826, 126.9786567),
+            level: 3
+        };
+
+        map = new kakao.maps.Map(mapContainer, mapOption);
+        marker = new kakao.maps.Marker({ position: map.getCenter() });
+        marker.setMap(map);
+        ps = new kakao.maps.services.Places();
+
+        const geocoder = new kakao.maps.services.Geocoder();
+
+        kakao.maps.event.addListener(map, 'click', function(mouseEvent) {
+            marker.setPosition(mouseEvent.latLng);
+
+            geocoder.coord2Address(mouseEvent.latLng.getLng(), mouseEvent.latLng.getLat(), function(result, status) {
+                if (status === kakao.maps.services.Status.OK) {
+                    const address = result[0]?.road_address?.address_name || result[0]?.address?.address_name;
+                    document.getElementById(searchInputId).value = address;
+                    document.getElementById(hiddenFields.name).value = address;
+                    document.getElementById(hiddenFields.address).value = address;
+                    document.getElementById(hiddenFields.lat).value = mouseEvent.latLng.getLat();
+                    document.getElementById(hiddenFields.lng).value = mouseEvent.latLng.getLng();
+                    document.getElementById(hiddenFields.id).value = '';
+                }
+            });
+        });
+
+        document.getElementById(searchBtnId).addEventListener('click', function () {
+            const keyword = document.getElementById(searchInputId).value;
+            if (!keyword.replace(/^\s+|\s+$/g, '')) {
+                alert('키워드를 입력해주세요!');
+                return false;
+            }
+            ps.keywordSearch(keyword, (data, status, pagination) => {
+                placesSearchCB(data, status, pagination, listId, hiddenFields);
+            });
+        });
+    }
+
+    function placesSearchCB(data, status, pagination, listId, hiddenFields) {
+        if (status === kakao.maps.services.Status.OK) {
+            displayPlaces(data, listId, hiddenFields);
+        } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+            alert('검색 결과가 존재하지 않습니다.');
+            return;
+        } else if (status === kakao.maps.services.Status.ERROR) {
+            alert('검색 결과 중 오류가 발생했습니다.');
+            return;
+        }
+    }
+
+    function displayPlaces(places, listId, hiddenFields) {
+        const listEl = document.getElementById(listId);
+        removeAllChildNods(listEl);
+
+        for (let i = 0; i < places.length; i++) {
+            const itemEl = getListItem(i, places[i], hiddenFields);
+            listEl.appendChild(itemEl);
+        }
+    }
+
+    function getListItem(index, place, hiddenFields) {
+        const el = document.createElement('li');
+        el.className = 'item';
+
+        let itemStr = `<h5>${place.place_name}</h5>` +
+            `<div class="info"><span>${place.road_address_name}</span>` +
+            `<span class="jibun">지번: ${place.address_name}</span></div>`;
+
+        el.innerHTML = itemStr;
+
+        el.onclick = function() {
+            const placePosition = new kakao.maps.LatLng(place.y, place.x);
+            map.setCenter(placePosition);
+            marker.setPosition(placePosition);
+
+            document.getElementById(hiddenFields.name).value = place.place_name;
+            document.getElementById(hiddenFields.address).value = place.road_address_name || place.address_name;
+            document.getElementById(hiddenFields.id).value = place.id;
+            document.getElementById(hiddenFields.lat).value = place.y;
+            document.getElementById(hiddenFields.lng).value = place.x;
+
+            const searchInputId = listId.replace('placesList', 'location');
+            document.getElementById(searchInputId).value = place.place_name;
+
+            removeAllChildNods(document.getElementById(listId));
+        };
+        return el;
+    }
+
+    function removeAllChildNods(el) {
+        while (el.hasChildNodes()) {
+            el.removeChild(el.lastChild);
+        }
+    }
+    /*]]>*/
+</script>
+</body>
+
+</html>

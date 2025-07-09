@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.ocean.repository.TeamEventRepository">
+
+    <resultMap id="teamEventWithDetailsResultMap" type="com.example.ocean.domain.Event">
+        <id property="eventCd" column="event_cd"/>
+        <result property="userId" column="user_id"/>
+        <result property="workspaceCd" column="workspace_cd"/>
+        <result property="title" column="title"/>
+        <result property="userName" column="user_nickname"/>
+        <result property="description" column="description"/>
+        <result property="startDatetime" column="start_datetime"/>
+        <result property="endDatetime" column="end_datetime"/>
+        <result property="color" column="color"/>
+        <result property="isShared" column="is_shared"/>
+        <result property="progressStatus" column="progress_status"/>
+        <result property="priority" column="priority"/>
+        <result property="createdDate" column="created_date"/>
+        <result property="notifyTime" column="notify_time"/>
+
+        <association property="place" javaType="com.example.ocean.domain.Place">
+            <id property="place_cd" column="p_place_cd"/>
+            <result property="event_cd" column="p_event_cd"/>
+            <result property="place_nm" column="p_place_nm"/>
+            <result property="place_id" column="p_place_id"/>
+            <result property="address" column="p_address"/>
+            <result property="lat" column="p_lat"/>
+            <result property="lng" column="p_lng"/>
+        </association>
+    </resultMap>
+
+    <select id="selectTeamEvents" parameterType="String" resultType="com.example.ocean.dto.response.CalendarResponse">
+        SELECT
+            EVENT_CD AS eventCd, TITLE, START_DATETIME AS startDatetime,
+            END_DATETIME AS endDatetime, COLOR
+        FROM `EVENTS`
+        WHERE WORKSPACE_CD = #{workspaceCd}
+          AND   IS_SHARED = '1'
+    </select>
+
+    <select id="selectTeamEventDetail" parameterType="String" resultMap="teamEventWithDetailsResultMap">
+        SELECT
+            e.EVENT_CD          AS event_cd,
+            e.USER_ID           AS user_id,
+            e.WORKSPACE_CD      AS workspace_cd,
+            e.TITLE             AS title,
+            e.DESCRIPTION       AS description,
+            e.START_DATETIME    AS start_datetime,
+            e.END_DATETIME      AS end_datetime,
+            e.COLOR             AS color,
+            e.IS_SHARED         AS is_shared,
+            e.PROGRESS_STATUS   AS progress_status,
+            e.PRIORITY          AS priority,
+            e.NOTIFY_TIME       AS notify_time,
+            e.CREATED_DATE      AS created_date,
+
+            p.PLACE_CD          AS p_place_cd,
+            p.EVENT_CD          AS p_event_cd,
+            p.PLACE_NM          AS p_place_nm,
+            p.ADDRESS           AS p_address,
+            p.PLACE_ID          AS p_place_id,
+            p.LAT               AS p_lat,
+            p.LNG               AS p_lng,
+
+            wm.USER_NICKNAME    AS user_nickname
+
+        FROM
+            `EVENTS` e
+                LEFT JOIN
+            `PLACE` p ON e.EVENT_CD = p.EVENT_CD
+                LEFT JOIN
+            `WORKSPACE_MEMBERS` wm ON e.USER_ID = wm.USER_ID AND e.WORKSPACE_CD = wm.WORKSPACE_CD
+        WHERE
+            e.EVENT_CD = #{eventCd}
+    </select>
+
+    <insert id="insertTeamEvent" parameterType="com.example.ocean.domain.Event">
+        INSERT INTO `EVENTS` (
+            EVENT_CD, USER_ID, WORKSPACE_CD, TITLE, DESCRIPTION,
+            START_DATETIME, END_DATETIME, COLOR, IS_SHARED,
+            PROGRESS_STATUS, PRIORITY, CREATED_DATE, NOTIFY_TIME
+        ) VALUES (
+                     #{eventCd}, #{userId}, #{workspaceCd}, #{title}, #{description},
+                     #{startDatetime}, #{endDatetime}, #{color}, #{isShared},
+                     #{progressStatus}, #{priority}, #{createdDate}, #{notifyTime}
+                 )
+    </insert>
+
+    <update id="updateTeamEvent" parameterType="com.example.ocean.dto.request.EventUpdateRequest">
+        UPDATE `EVENTS`
+        <set>
+            <if test="title != null"> TITLE = #{title}, </if>
+            <if test="description != null"> DESCRIPTION = #{description}, </if>
+            <if test="startDatetime != null"> START_DATETIME = #{startDatetime}, </if>
+            <if test="endDatetime != null"> END_DATETIME = #{endDatetime}, </if>
+            <if test="color != null"> COLOR = #{color}, </if>
+            <if test="progressStatus != null"> PROGRESS_STATUS = #{progressStatus}, </if>
+            <if test="priority != null"> PRIORITY = #{priority}, </if>
+            <if test="notifyTime != null"> NOTIFY_TIME = #{notifyTime}, </if>
+        </set>
+        WHERE   EVENT_CD = #{eventCd}
+        AND     USER_ID  = #{userId}
+    </update>
+
+    <delete id="deleteTeamEvent" parameterType="map">
+        DELETE
+        FROM   `EVENTS`
+        WHERE   EVENT_CD = #{eventCd}
+          AND     USER_ID  = #{userId}
+    </delete>
+
+</mapper>

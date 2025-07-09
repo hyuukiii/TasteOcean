@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.ocean.mapper.EventMapper">
+
+    <select id="selectTodayEvents" resultType="com.example.ocean.domain.Event">
+        SELECT
+        EVENT_CD AS eventCd,
+        WORKSPACE_CD AS workspaceCd,
+        USER_ID AS userId,
+        TITLE AS title,
+        DESCRIPTION AS description,
+        START_DATETIME AS startDatetime,
+        END_DATETIME AS endDatetime,
+        COLOR AS color,
+        IS_SHARED AS isShared,
+        PROGRESS_STATUS AS progressStatus,
+        PRIORITY AS priority,
+        CREATED_DATE AS createdDate,
+        NOTIFY_TIME AS notifyTime
+        FROM EVENTS
+        WHERE USER_ID = #{userId}
+        AND WORKSPACE_CD = #{workspaceCd}
+        AND CURDATE() BETWEEN DATE(START_DATETIME) AND DATE(END_DATETIME)
+        ORDER BY END_DATETIME ASC
+        LIMIT 5
+    </select>
+
+    <select id="countCompletedEventsThisWeekByWorkspace" resultType="int">
+        SELECT COUNT(*) AS count
+        FROM EVENTS
+        WHERE WORKSPACE_CD = #{workspaceCd}
+        AND PROGRESS_STATUS = 'Done'
+        AND DATE(END_DATETIME) BETWEEN
+        DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+        AND DATE_ADD(CURDATE(), INTERVAL (6 - WEEKDAY(CURDATE())) DAY)
+    </select>
+
+    <select id="countUpcomingEventsThisWeekByWorkspace" resultType="int">
+        SELECT COUNT(*) AS count
+        FROM EVENTS
+        WHERE WORKSPACE_CD = #{workspaceCd}
+        AND PROGRESS_STATUS != 'Done'
+        AND DATE(START_DATETIME) BETWEEN CURDATE()
+        AND DATE_ADD(CURDATE(), INTERVAL (6 - WEEKDAY(CURDATE())) DAY)
+    </select>
+
+    <select id="countCreatedEventsThisWeekByWorkspace" resultType="int">
+        SELECT COUNT(*) AS count
+        FROM EVENTS
+        WHERE WORKSPACE_CD = #{workspaceCd}
+        AND DATE(CREATED_DATE) BETWEEN
+        DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+        AND DATE_ADD(CURDATE(), INTERVAL (6 - WEEKDAY(CURDATE())) DAY)
+    </select>
+
+
+</mapper>

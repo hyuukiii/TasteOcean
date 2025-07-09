@@ -1,0 +1,37 @@
+<!-- invite-modal.html -->
+<div id="inviteOverlay" class="modal-overlay"></div>
+
+<div id="inviteModal" class="invite-modal">
+  <div class="invite-header">
+    <span id="workspaceNameHeader">워크스페이스명으로 초대하기</span>
+    <button class="close-btn" id="closeInviteBtn">✕</button>
+  </div>
+
+  <div class="invite-body">
+    <label for="inviteEmail">초대받을 사람:</label>
+    <div class="input-wrapper">
+      <input type="email" id="inviteEmail" class="invite-input" placeholder="ocean@naver.com">
+    </div>
+    <div class="invite-message-wrapper">
+      <div class="error-message" id="emailError">유효한 이메일 주소를 입력해주세요.</div>
+      <div class="success-message" id="emailSuccess">메일 전송 성공!</div>
+    </div>
+
+    <div class="send-container">
+      <button class="send-btn">
+        <img src="/images/send.png" alt="보내기">
+        보내기
+      </button>
+    </div>
+
+    <div class="invite-code-center">
+      <div class="invite-code-label">초대 코드</div>
+      <div id="inviteCode">초대코드로 대체 예정</div>
+      <button class="copy-btn">
+        <img src="/images/copy.png" alt="복사">
+        복사하기
+      </button>
+      <div id="copySuccess">초대 코드가 복사되었습니다!</div>
+    </div>
+  </div>
+</div>

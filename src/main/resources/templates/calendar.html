@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>캘린더</title>
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css' rel='stylesheet'/>
+    <link rel="stylesheet" th:href="@{/css/add-event.css}">
+    <link rel="stylesheet" th:href="@{/css/event-detail.css}">
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+    <style>
+        *{
+            padding:0;
+            margin:0;
+            box-sizing: border-box;
+        }
+    </style>
+    <!-- 사용자 일정목록 불러오기 -->
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+          const calendarEl = document.getElementById('calendar');
+
+          const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'ko',
+            //날짜 클릭시 : 일정 추가하는 함수
+            dateClick: async function(info) {
+              const workspaceCd = '61e37b28-b4d9-4939-951d-52716ca9b89b';
+
+
+              closeDetailModal();
+              closeUpdateModal();
+              document.getElementById('eventForm').reset();
+              document.getElementById('start').value = info.dateStr + 'T09:00';
+              document.getElementById('end').value = info.dateStr + 'T18:00';
+              document.getElementById('createEventModal').style.display = 'block';
+            },
+            // 개인일정 리스트 풀캘린더에 뿌?려주는?
+            events: function(fetchInfo, successCallback, failureCallback) {
+              const currentUserId = '102049037194510417221';
+              const workspaceCd = '61e37b28-b4d9-4939-951d-52716ca9b89b';
+              fetch(`/api/calendar/team?workspaceCd=${workspaceCd}`)
+                .then(response => {
+                  if (!response.ok) throw new Error("불러오기 실패!");
+                  return response.json();
+                })
+                .then(data => {
+                  const events = data.map(item => ({
+                    id: item.eventCd,
+                    title: item.title,
+                    start: item.startDatetime,
+                    end: item.endDatetime,
+                    color: item.color
+                  }));
+                  successCallback(events);
+                })
+                .catch(err => {
+                  console.error(err);
+                  failureCallback(err);
+                });
+            },
+
+            // 일정 클릭 이벤트 : 일정 상세 모달창
+            eventClick: function(info) {
+              closeCreateEventModal();
+
+              closeUpdateModal();
+              const eventCd = info.event.id;
+
+              fetch(`/api/calendar/team/events/${eventCd}`)
+                .then(res => {
+                  if (!res.ok) throw new Error("상세정보 조회 실패");
+                  return res.json();
+                })
+                .then(data => {
+                  const event = data.event;
+                  document.getElementById('detailTitle').innerText = event.title || '';
+                  document.getElementById('detailDescription').innerText = event.description || '';
+                  document.getElementById('detailStart').innerText = event.startDatetime || '';
+                  document.getElementById('detailEnd').innerText = event.endDatetime || '';
+                  document.getElementById('detailPriority').innerText = event.priority || '';
+                  document.getElementById('detailStatus').innerText = event.progressStatus || '';
+                  document.getElementById('detailShared').innerText = event.isShared === '1' ? '예' : '아니오';
+
+//                 attendences
+//                 const attendencesList = data.participantIds-->
+//                 const str = attendencesList.map(attendence => `<li>${attendence.userNickname}</li>`).join("");-->
+//                 document.getElementById('detailAttendences').innerHTML =str;-->
+
+
+
+                  if (data.fileList && data.fileList.length > 0) {
+                      const fileItems = data.fileList.map(file => `
+                        <li>
+                          ${file.fileNm}
+                          <button onclick="downloadFromS3('/api/calendar/team/events/${eventCd}/files?fileId=${file.fileId}', '${file.fileNm}')">다운로드</button>
+                        </li>
+                      `).join('');
+                      document.getElementById('detailFiles').innerHTML = fileItems;
+                  } else {
+                      document.getElementById('detailFiles').innerText = '없음';
+                  }
+
+                  // 작성자 본인인 경우에만 수정/삭제 버튼 보이기
+                  const currentUserId = '102049037194510417221';
+
+                  if (event.userId === currentUserId) {
+                    document.getElementById('detailButtons').style.display = 'block';
+                    // 수정 모달 띄울 때 이 정보 활용할 수 있게 전역 변수 저장
+                    window.selectedEventData = data;
+                  } else {
+                    document.getElementById('detailButtons').style.display = 'none';
+                  }
+
+                  document.getElementById('eventDetailModal').style.display = 'block';
+                })
+                .catch(err => {
+                  console.error(err);
+                  alert("일정 정보를 조회하는데 실패했습니다.");
+                });
+            }
+
+          });
+
+          calendar.render();
+        });
+
+        //일정 상세 모달창 닫는 함수
+        function closeDetailModal() {
+          document.getElementById('eventDetailModal').style.display = 'none';
+        }
+    </script>
+    <!-- 일정 추가 -->
+    <script>
+        //일정 추가 모달창 닫는 함수
+        function closeCreateEventModal() {
+          document.getElementById('createEventModal').style.display = 'none';
+        }
+
+        //일정 정보 넘겨주는 함수
+        function saveEvent() {
+          const form = document.getElementById("eventForm");
+          const formData = new FormData();
+          //userId랑 workspaceCd는 임시로 지정해놨어요
+          const requestBody = {
+            userId: "102049037194510417221",
+            workspaceCd: "61e37b28-b4d9-4939-951d-52716ca9b89b",
+            title: form.title.value,
+            description: form.description.value,
+            startDatetime: form.start.value,
+            endDatetime: form.end.value,
+            color: form.color.value,
+            isShared: form.isShared.checked ? '1' : '0',
+            progressStatus: form.progressStatus.value,
+            priority: form.priority.value,
+            notification: form.notification.value
+          };
+
+          formData.append("request", new Blob([JSON.stringify(requestBody)], { type: "application/json" }));
+
+          const files = form.fileUpload.files;
+          for (let i = 0; i < files.length; i++) {
+            formData.append("files", files[i]);
+          }
+
+          fetch('/api/calendar/team', {
+            method: 'POST',
+            body: formData
+          })
+          .then(res => {
+            if (!res.ok) throw new Error('등록 실패');
+            return res.text();
+          })
+          .then(data => {
+            alert("일정 등록 성공!");
+            location.reload();
+          })
+          .catch(err => {
+            console.error(err);
+            alert("서버 오류 발생");
+          });
+
+          closeCreateEventModal();
+        }
+    </script>
+    <!--파일다운로드 -->
+    <script>
+        // 다운로드 매핑 주소 (fileUrl)                                              // 파일이름 (fileName)
+        //'/api/calendar/team/events/${eventCd}/download?fileId=${file.fileId}', '${file.fileNm}
+
+        function downloadFromS3(fileUrl, fileName) {
+          fetch(fileUrl)
+            .then(response => {
+              if (!response.ok) throw new Error("다운로드 실패");
+              return response.blob();
+            })
+            .then(blob => {
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = fileName;
+              a.click();
+              window.URL.revokeObjectURL(url);
+            })
+            .catch(err => {
+              console.error(err);
+              alert("파일 다운로드 중 오류가 발생했습니다.");
+            });
+        }
+    </script>
+    <!-- 일정 수정 모달 -->
+    <script>
+        // 일정 수정 모달창 열기
+        function openUpdateModal() {
+          closeCreateEventModal();
+          closeDetailModal();
+
+          const data = window.selectedEventData;
+          if (!data) {
+            alert("수정할 이벤트 데이터가 없습니다.");
+            return;
+          }
+          const eventData = data.event;
+
+          // 기존 값 불러오기
+          document.getElementById('update-eventCd').value = eventData.eventCd;
+          document.getElementById('update-title').value = eventData.title;
+          document.getElementById('update-description').value = eventData.description;
+          document.getElementById('update-startDatetime').value = eventData.startDatetime;
+          document.getElementById('update-endDatetime').value = eventData.endDatetime;
+          document.getElementById('update-color').value = eventData.color;
+          document.getElementById('update-priority').value = eventData.priority;
+          document.getElementById('update-progressStatus').value = eventData.progressStatus;
+          document.getElementById('update-isShared').value = eventData.isShared;
+
+          // 여기는 파일을 보여주는 구간~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          if (data.fileList && data.fileList.length > 0) {
+            const fileItems = data.fileList.map(file => `
+                <li>
+                    ${file.fileNm}
+                    <button type="button" onclick="markFileForDeletion('${file.fileId}', this)">파일삭제</button>
+                </li>
+            `).join('');
+            document.getElementById('updateFiles').innerHTML = fileItems;
+          } else {
+            document.getElementById('updateFiles').innerText = '없음';
+          }
+
+          document.getElementById('updateEventModal').style.display = 'block';
+
+        }
+
+        //파일 삭제 버튼 눌렀을때 삭제할 파일 아이디 임시로 저장
+        const deletedFileIds = [];
+
+        // 파일 목록에서 시각적으로만 지움
+        // 실제로 지워지는건 수정사항 저장시 지워짐
+        function markFileForDeletion(fileId, buttonElement) {
+            deletedFileIds.push(fileId);
+            buttonElement.closest('li').style.display = 'none';
+        }
+
+        // 일정 수정 모달창 닫음
+        function closeUpdateModal() {
+          document.getElementById('updateEventModal').style.display = 'none';
+        }
+
+        // 수정사항 저장용
+        function submitUpdateEvent() {
+          const form = document.getElementById('updateEventForm');
+          const formData = new FormData();
+          const eventCd = document.getElementById('update-eventCd').value;
+
+          const requestBody = {
+            eventCd: document.getElementById('update-eventCd').value,
+            title: document.getElementById('update-title').value,
+            description: document.getElementById('update-description').value,
+            startDatetime: document.getElementById('update-startDatetime').value,
+            endDatetime: document.getElementById('update-endDatetime').value,
+            color: document.getElementById('update-color').value,
+            priority: document.getElementById('update-priority').value,
+            progressStatus: document.getElementById('update-progressStatus').value,
+            isShared: document.getElementById('update-isShared').value,
+            userId: "102049037194510417221",
+            workspaceCd: "61e37b28-b4d9-4939-951d-52716ca9b89b"
+          };
+
+
+          formData.append("request", new Blob([JSON.stringify(requestBody)], { type: "application/json" }));
+          formData.append("deletedFileIds", new Blob([JSON.stringify(deletedFileIds)], { type: "application/json" }));
+
+          // 추가된 파일이 있을 경우
+          const fileInput = form.querySelector('input[name="files"]');
+          if (fileInput && fileInput.files.length > 0) {
+            for (const file of fileInput.files) {
+              formData.append("files", file);
+            }
+          }
+
+          fetch(`/api/calendar/team/events/${eventCd}`, {
+            method: 'PUT',
+            body: formData
+          })
+          .then(res => {
+            if (!res.ok) throw new Error("수정 실패");
+            return res.text();
+          })
+          .then(data => {
+            alert("일정이 수정되었습니다!");
+            closeUpdateModal();
+            location.reload(); // 또는 FullCalendar 이벤트 갱신
+          })
+          .catch(err => {
+            console.error(err);
+            alert("수정에 실패했습니다.");
+          });
+        }
+
+    </script>
+
+    <!-- 일정 삭제 -->
+    <script>
+
+        function deleteEvent() {
+          const confirmDelete = confirm("정말로 이 일정을 삭제하시겠습니까?");
+
+          if (confirmDelete) {
+            // 예
+            const eventCd = window.selectedEventData.event.eventCd;
+            if (!eventCd) {
+              alert("삭제할 이벤트 코드가 없습니다.");
+              return;
+            }
+            const userId = window.selectedEventData.event.userId;
+            fetch(`/api/calendar/team/events/${eventCd}?userId=${userId}`, {
+              method: 'DELETE'
+            })
+            .then(res => {
+              if (!res.ok) throw new Error("삭제 실패");
+              return res.text();
+            })
+            .then(data => {
+              alert("일정이 삭제되었습니다!");
+              closeDetailModal();
+              location.reload(); // 캘린더 새로고침
+            })
+            .catch(err => {
+              console.error(err);
+              alert("삭제 중 오류가 발생했습니다.");
+            });
+
+          } else {
+            // 아니오
+            console.log("삭제 취소됨");
+          }
+        }
+
+    </script>
+</head>
+<body>
+<h2>캘린더페이지입니다^^</h2>
+<div id='calendar'></div>
+
+<!-- 일정 추가 모달 -->
+<div id="createEventModal">
+    <h3>새 일정 추가</h3>
+    <form id="eventForm" onsubmit="event.preventDefault(); saveEvent();">
+        <label for="title">제목*</label><br/>
+        <input type="text" id="title" name="title" required><br/><br/>
+
+        <label for="color">색상</label><br/>
+        <select id="color" name="color">
+            <option value="RED">빨강</option>
+            <option value="ORANGE">주황</option>
+            <option value="YELLOW">노랑</option>
+            <option value="GREEN">초록</option>
+            <option value="BLUE" selected>파랑</option>
+            <option value="GRAY">회색</option>
+        </select><br/><br/>
+
+        <label for="start">시작 일시*</label><br/>
+        <input type="datetime-local" id="start" name="start" required><br/><br/>
+
+        <label for="end">종료 일시*</label><br/>
+        <input type="datetime-local" id="end" name="end" required><br/><br/>
+
+        <label for="description">설명</label><br/>
+        <textarea id="description" name="description" rows="3" cols="30"></textarea><br/><br/>
+
+        <label>파일 첨부:</label>
+        <input type="file" id="fileUpload" name="files" multiple><br/>
+        <ul id="insertedFiles"></ul>
+        <br/><br/>
+
+        <!--div id = "workspaceMemberList"></div-->
+
+        <label for="priority">중요도</label><br/>
+        <select id="priority" name="priority">
+            <option value="LOW">낮음</option>
+            <option value="NORMAL" selected>보통</option>
+            <option value="HIGH">높음</option>
+        </select><br/><br/>
+
+        <label for="notification">알림</label><br/>
+        <select id="notification" name="notification">
+            <option value="BEFORE_DAY_9AM">전날 오전 9시</option>
+            <option value="DAY_9AM">당일 오전 9시</option>
+            <option value="BEFORE_1HOUR">1시간 전</option>
+        </select><br/>
+
+        <label for="progressStatus">진행 상태</label><br/>
+        <select id="progressStatus" name="progressStatus">
+            <option value="BEFORE" selected>시작 전</option>
+            <option value="ING">진행 중</option>
+            <option value="DONE">완료</option>
+        </select><br/><br/>
+
+        <label>
+            <input type="checkbox" id="isShared" name="isShared">
+            다른 사람과 공유
+        </label><br/><br/>
+
+        <button type="submit">저장</button>
+        <button type="button" onclick="closeCreateEventModal()">취소</button>
+    </form>
+
+</div>
+
+<!-- 일정 상세 모달 -->
+<div id="eventDetailModal" >
+    <h3>일정 상세</h3>
+    <div id="detailButtons" style="margin-top: 10px; display: none;">
+        <button onclick="openUpdateModal()">수정</button>
+        <button onclick="deleteEvent()">삭제</button>
+    </div>
+    <p><strong>제목:</strong> <span id="detailTitle"></span></p>
+    <p><strong>설명:</strong> <span id="detailDescription"></span></p>
+    <p><strong>시작:</strong> <span id="detailStart"></span></p>
+    <p><strong>종료:</strong> <span id="detailEnd"></span></p>
+    <p><strong>중요도:</strong> <span id="detailPriority"></span></p>
+    <p><strong>진행 상태:</strong> <span id="detailStatus"></span></p>
+    <p><strong>공유 여부:</strong> <span id="detailShared"></span></p>
+    <!--p><strong>참석자:</strong></p> <ul id="detailAttendences"></ul-->
+    <p><strong>파일:</strong></p>
+    <ul id="detailFiles"></ul>
+    <button onclick="closeDetailModal()">닫기</button>
+</div>
+
+<!-- 일정 수정 모달-->
+<div id="updateEventModal" style="display: none;">
+    <h2>일정 수정</h2>
+    <form id="updateEventForm">
+        <input type="hidden" id="update-eventCd" name="eventCd"/>
+
+        <label>제목</label>
+        <input type="text" id="update-title" name="title"/>
+
+        <label>내용</label>
+        <textarea id="update-description" name="description"></textarea>
+
+        <label>시작일</label>
+        <input type="datetime-local" id="update-startDatetime" name="startDatetime"/>
+
+        <label>종료일</label>
+        <input type="datetime-local" id="update-endDatetime" name="endDatetime"/>
+
+        <label>색상</label>
+        <select id="update-color" name="color">
+            <option value="RED">빨강</option>
+            <option value="ORANGE">주황</option>
+            <option value="YELLOW">노랑</option>
+            <option value="GREEN">초록</option>
+            <option value="BLUE" selected>파랑</option>
+            <option value="GRAY">회색</option>
+        </select><br/><br/>
+
+        <label>우선순위</label>
+        <select id="update-priority" name="priority">
+            <option value="LOW">낮음</option>
+            <option value="NORMAL">보통</option>
+            <option value="HIGH">높음</option>
+        </select>
+
+        <label>진행상태</label>
+        <select id="update-progressStatus" name="progressStatus">
+            <option value="BEFORE">예정</option>
+            <option value="ING">진행중</option>
+            <option value="DONE">완료</option>
+        </select>
+
+        <label>공유 여부</label>
+        <select id="update-isShared" name="isShared">
+            <option value="0">비공유</option>
+            <option value="1">공유</option>
+        </select>
+
+        <label>참석자</label>
+
+
+        <label>파일 첨부:</label>
+        <input type="file" id="update-fileUpload" name="files" multiple>
+
+        <ul id="updateFiles"></ul>
+
+        <div>
+            <button type="button" onclick="submitUpdateEvent()">수정하기</button>
+            <button type="button" onclick="closeUpdateModal()">취소</button>
+        </div>
+    </form>
+</div>
+</body>
+</html>

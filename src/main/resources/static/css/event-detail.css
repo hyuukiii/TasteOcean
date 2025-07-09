@@ -1,0 +1,196 @@
+    /* 기본 스타일 초기화 */
+    body, h1, p, label, div, span, button, ul, li {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #E0E0E0; /* 밝은 회색 텍스트 */
+    }
+
+    body {
+        background-color: #1A1A1A; /* 어두운 배경 */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .container {
+        background-color: #2D2D2D; /* 컨테이너 배경 */
+        border-radius: 16px; /* 더 둥근 모서리 */
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); /* 더 깊은 그림자 */
+        padding: 30px;
+        width: 100%;
+        max-width: 500px;
+        position: relative;
+    }
+
+    .header-actions {
+        display: flex;
+        justify-content: flex-end; /* 오른쪽 정렬 */
+        gap: 15px; /* 버튼들 사이 간격 */
+        margin-bottom: 25px; /* 본문과의 간격 */
+    }
+
+    .header-actions button {
+        background: none;
+        border: none;
+        font-size: 24px; /* 아이콘 크기 키우기 */
+        color: #B0B0B0; /* 아이콘 색상 */
+        cursor: pointer;
+        padding: 5px;
+        line-height: 1;
+        transition: color 0.2s, transform 0.2s;
+    }
+    .header-actions button:hover {
+        color: #FFF;
+        transform: scale(1.1);
+    }
+
+    /* 메인 콘텐츠 스타일 */
+    .content-section {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .content-section .icon {
+        font-size: 24px; /* 아이콘 크기 */
+        margin-right: 15px;
+        color: #B0B0B0;
+        flex-shrink: 0;
+        padding-top: 2px; /* 텍스트와 세로 정렬 맞추기 */
+    }
+
+    .content-section .text-content {
+        flex-grow: 1;
+    }
+
+    .content-section .main-title {
+        font-size: 22px;
+        font-weight: 600;
+        color: #E0E0E0;
+        margin-bottom: 5px;
+    }
+
+    .content-section .sub-text {
+        font-size: 15px;
+        color: #B0B0B0;
+        margin-bottom: 10px;
+    }
+
+    .content-section.description .text-content {
+        background-color: #3C3C3C; /* 설명 배경 */
+        border-radius: 10px;
+        padding: 15px;
+        min-height: 120px;
+        font-size: 16px;
+        line-height: 1.6;
+        color: #E0E0E0;
+        white-space: pre-wrap; /* 줄바꿈 유지 */
+        word-break: break-word; /* 긴 단어 줄바꿈 */
+    }
+
+    .content-section.location .text-content {
+        width: 100%; /* 위치 텍스트가 컨테이너 너비를 채우도록 */
+    }
+
+    .map-placeholder {
+        border: 1px dashed #555;
+        height: 180px; /* 지도 높이 조정 */
+        background-color: #3C3C3C;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #999;
+        margin-top: 10px;
+        border-radius: 10px;
+        font-size: 14px;
+    }
+
+    .attachments-list {
+        list-style: none;
+        padding: 0;
+        margin-top: 10px;
+    }
+    .attachments-list li {
+        background-color: #3C3C3C;
+        border-radius: 10px;
+        padding: 12px 18px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 15px;
+    }
+    .attachments-list li a {
+        color: #007bff; /* 링크 색상 */
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        flex-grow: 1; /* 링크가 가능한 공간을 채우도록 */
+    }
+    .attachments-list li a:hover {
+        text-decoration: underline;
+    }
+    .attachments-list li .file-icon {
+        margin-right: 10px;
+        color: #B0B0B0;
+        font-size: 18px;
+    }
+    .attachments-list li .download-icon {
+        color: #B0B0B0;
+        font-size: 20px;
+        margin-left: 10px;
+        cursor: pointer;
+        transition: color 0.2s, transform 0.2s;
+    }
+    .attachments-list li .download-icon:hover {
+        color: #FFF;
+        transform: scale(1.1);
+    }
+
+    /* 이미지에 있는 파란색 동그라미 (이벤트 색상 표시) */
+    .color-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 12px;
+        flex-shrink: 0;
+        background-color: #007bff; /* 기본 색상, 실제 색상은 th:style로 오버라이드 */
+    }
+
+    /* 아이콘 (예시, 실제로는 폰트어썸 등 사용 권장) */
+    .icon-edit::before { content: '✏️'; }
+    .icon-delete::before { content: '🗑️'; }
+    .icon-close::before { content: '✕'; } /* X 모양 아이콘 */
+    .icon-calendar::before { content: '🗓️'; }
+    .icon-user::before { content: '🧑‍🤝‍🧑'; }
+    .icon-location-pin::before { content: '📍'; }
+    .icon-description-text::before { content: '💬'; } /* 설명 아이콘 */
+    .icon-bell-notification::before { content: '🔔'; }
+    .icon-attachment::before { content: '📎'; }
+    .icon-file-doc::before { content: '📄'; } /* 문서 파일 아이콘 */
+
+    #eventDetailModal {
+      display: none; /* 평소에는 숨김 처리 */
+      position: fixed; /* 화면에 고정된 위치 */
+      z-index: 10000; /* 다른 요소들보다 위에 표시 */
+      left: 50%; /* 가로축 중앙 */
+      top: 50%; /* 세로축 중앙 */
+      transform: translate(-50%, -50%); /* 정확한 중앙 정렬 */
+
+      /* 기존 .container 디자인을 가져와 적용 */
+      background-color: #2D2D2D;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      padding: 30px;
+      width: 90%; /* 모바일 화면을 위해 너비 90% */
+      max-width: 500px; /* PC 화면에서 최대 너비 */
+
+      /* [핵심] 스크롤 및 화면 잘림 방지 */
+      max-height: 90vh; /* 팝업의 최대 높이를 화면 높이의 90%로 제한 */
+      overflow-y: auto; /* 내용이 이 높이를 초과하면 자동으로 세로 스크롤바 표시 */
+      box-sizing: border-box; /* 패딩과 테두리가 너비/높이에 포함되도록 함 */
+    }

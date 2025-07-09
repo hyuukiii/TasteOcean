@@ -1,31 +1,48 @@
 package com.example.ocean.service;
 
+import com.example.ocean.domain.Notification;
 import com.example.ocean.domain.Workspace;
 import com.example.ocean.domain.WorkspaceDept;
 import com.example.ocean.domain.WorkspaceMember;
+import com.example.ocean.mapper.MemberTransactionMapper;
 import com.example.ocean.mapper.WorkspaceMapper;
 import com.example.ocean.security.oauth.UserPrincipal;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import java.util.UUID;
 
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 @Slf4j
 @Service
 public class WorkspaceService {
 
+    @Autowired
+    private JavaMailSender mailSender;
+
     private final WorkspaceMapper workspaceMapper;
 
-    public WorkspaceService(WorkspaceMapper workspaceMapper) {
+    private final MemberTransactionMapper transactionMapper;
+
+    public WorkspaceService(WorkspaceMapper workspaceMapper,
+                            MemberTransactionMapper transactionMapper) {
         this.workspaceMapper = workspaceMapper;
+        this.transactionMapper = transactionMapper;
     }
 
     public List<Workspace> getWorkspacesByUserId(String userId) {
@@ -68,12 +85,22 @@ public class WorkspaceService {
     }
     */
 
-    public void approveInvitation(String workspaceCd, String invitedUserId) {
+    public void approveInvitation(String workspaceCd, String invitedUserId, String requesterId) {
+        WorkspaceMember requester = workspaceMapper.findMemberByWorkspaceAndUser(workspaceCd, requesterId);
+        if (requester == null || !"OWNER".equalsIgnoreCase(requester.getUserRole())) {
+            throw new RuntimeException("승인 권한이 없습니다.");
+        }
+
         workspaceMapper.updateInvitationStatus(workspaceCd, invitedUserId, "ACCEPT");
         workspaceMapper.insertWorkspaceMember(workspaceCd, invitedUserId);
     }
 
-    public void rejectInvitation(String workspaceCd, String invitedUserId) {
+    public void rejectInvitation(String workspaceCd, String invitedUserId, String requesterId) {
+        WorkspaceMember requester = workspaceMapper.findMemberByWorkspaceAndUser(workspaceCd, requesterId);
+        if (requester == null || !"OWNER".equalsIgnoreCase(requester.getUserRole())) {
+            throw new RuntimeException("거절 권한이 없습니다.");
+        }
+
         workspaceMapper.rejectInvitation(workspaceCd, invitedUserId);
     }
 
@@ -187,8 +214,28 @@ public class WorkspaceService {
     }
 
     public void updateQuitTime(String workspaceCd, String userId) {
-        workspaceMapper.updateQuitTime(workspaceCd, userId, Timestamp.valueOf(LocalDateTime.now()));
+        Timestamp quitTime = Timestamp.valueOf(LocalDateTime.now());
+
+        // 1. 퇴장 시간 업데이트
+        workspaceMapper.updateQuitTime(workspaceCd, userId, quitTime);
+
+        // 2. 입장 시간 조회
+        Timestamp entranceTime = transactionMapper.getEntranceTime(workspaceCd, userId);
+        if (entranceTime != null) {
+            long durationInSeconds = (quitTime.getTime() - entranceTime.getTime()) / 1000;
+
+            // 3. MEMBERS_TRANSACTION에 누적
+            Long currentTime = transactionMapper.getAccumulatedTime(workspaceCd, userId);
+            if (currentTime == null) {
+                // 최초 insert
+                transactionMapper.insertAccumulatedTime(workspaceCd, userId, durationInSeconds);
+            } else {
+                // 누적 update
+                transactionMapper.updateAccumulatedTime(workspaceCd, userId, durationInSeconds);
+            }
+        }
     }
+
 
     public List<WorkspaceMember> getWorkspaceMembers(String workspaceCd) {
         return workspaceMapper.findMembersByWorkspaceCd(workspaceCd);
@@ -307,6 +354,12 @@ public class WorkspaceService {
         workspaceMapper.updateDeptAndPosition(workspaceCd, userId, deptCd, position);
     }
 
+    public void updateDeptAndPosition2(String workspaceCd, String userId,
+                                        String position) {
+        workspaceMapper.updateDeptAndPosition2(workspaceCd, userId,   position);
+    }
+
+
     public WorkspaceMember findMemberByWorkspaceAndUser(String workspaceCd, String userId) {
         return workspaceMapper.findMemberByWorkspaceAndUser(workspaceCd, userId);
     }
@@ -324,56 +377,135 @@ public class WorkspaceService {
         workspaceMapper.updateUserState(param);
     }
 
+    public Map<String, Object> getEventSummary(String workspaceCd) {
+        Map<String, Object> summary = workspaceMapper.getEventSummaryByWorkspace(workspaceCd);
+        if (summary == null) summary = new HashMap<>();
 
-    /**
-     * 워크스페이스 접근 권한 확인
-     */
-    public boolean hasAccess(String workspaceCd, String userId) {
-        try {
-            List<WorkspaceMember> members = getWorkspaceMembers(workspaceCd);
+        int done = summary.get("doneCount") != null ? ((Number) summary.get("doneCount")).intValue() : 0;
+        int total = summary.get("totalCount") != null ? ((Number) summary.get("totalCount")).intValue() : 0;
+        int todo = summary.get("todoCount") != null ? ((Number) summary.get("todoCount")).intValue() : 0;
+        int ing = summary.get("ingCount") != null ? ((Number) summary.get("ingCount")).intValue() : 0;
 
-            // 단순히 해당 워크스페이스의 멤버인지만 확인
-            return members.stream()
-                    .anyMatch(member -> member.getUserId().equals(userId));
+        double progressRate = total > 0 ? (done * 100.0 / total) : 0.0;
 
-        } catch (Exception e) {
-            log.error("워크스페이스 접근 권한 확인 실패: workspaceCd={}, userId={}",
-                    workspaceCd, userId, e);
-            return false;
-        }
+        summary.put("doneCount", done);
+        summary.put("todoCount", todo);
+        summary.put("ingCount", ing);
+        summary.put("totalCount", total);
+        summary.put("progressRate", String.format("%.1f", progressRate));
+
+        return summary;
     }
 
-    /**
-     * 워크스페이스 이름 조회
-     */
-    public String getWorkspaceName(String workspaceCd) {
-        try {
-            Workspace workspace = workspaceMapper.findWorkspaceByCd(workspaceCd);
-            return workspace != null ? workspace.getWorkspaceNm() : null;
+    public void sendInviteEmail(String email, String inviteCode) {
+        String subject = "워크스페이스 초대코드 안내";
+        String content = String.format(
+                "아래 초대코드를 사용해 워크스페이스에 참여하세요!\n\n초대코드: %s\n참여 링크: localhost:8080\n",
+                inviteCode
+        );
 
-        } catch (Exception e) {
-            log.error("워크스페이스 이름 조회 실패: workspaceCd={}", workspaceCd, e);
-            return null;
-        }
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(email);
+        message.setSubject(subject);
+        message.setText(content);
+
+        mailSender.send(message);
     }
 
-    /**
-     * 워크스페이스의 활성 멤버 조회
-     */
-    public List<WorkspaceMember> getActiveMembers(String workspaceCd) {
-        try {
-            // 이미 getWorkspaceMembers 메서드가 있으므로 활용
-            List<WorkspaceMember> allMembers = getWorkspaceMembers(workspaceCd);
-
-            // 활성 상태(userState가 null이 아닌) 멤버만 필터링 getUserState() != null
-            return allMembers.stream()
-                    .filter(member ->"Y". equals(member.getActiveState()))
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.error("활성 멤버 조회 실패: workspaceCd={}", workspaceCd, e);
-            return new ArrayList<>();
-        }
+    public Long getAccumulatedTime(String workspaceCd, String userId) {
+        Long time = transactionMapper.getAccumulatedTime(workspaceCd, userId);
+        return time != null ? time : 0L;
     }
+
+    public WorkspaceMember getMemberDetail(String workspaceCd, String userId) {
+        return workspaceMapper.findMemberByWorkspaceAndUser(workspaceCd, userId);
+    }
+
+    public String getUserStatus(String workspaceCd, String userId) {
+        return workspaceMapper.getUserStatus(workspaceCd, userId);
+    }
+
+    public void insertNewMemberNotification(String workspaceCd, String userNickname) {
+        workspaceMapper.insertNewMemberNotification(workspaceCd, userNickname);
+    }
+
+    public List<Notification> getRecentNotifications(String workspaceCd) {
+        return workspaceMapper.selectRecentNotifications(workspaceCd);
+    }
+
+    public List<Map<String, Object>> getPendingInvitationsByWorkspace(String workspaceCd) {
+        return workspaceMapper.getPendingInvitationsByWorkspace(workspaceCd);
+    }
+
+    public void acceptInvitation(String workspaceCd, String invitedUserId) {
+        workspaceMapper.updateInvitationStatus(workspaceCd, invitedUserId, "ACCEPT");
+        workspaceMapper.insertWorkspaceMember(workspaceCd, invitedUserId);
+
+        // 워크스페이스 닉네임 대신 소셜 이름 조회
+        String userName = workspaceMapper.findUserNameByUserId(invitedUserId);
+
+        String notiId = UUID.randomUUID().toString();
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("notiId", notiId);
+        map.put("workspaceCd", workspaceCd);
+        map.put("createdBy", userName != null ? userName : invitedUserId); // fallback
+
+        workspaceMapper.insertNewMemberNotification(map);
+    }
+
+    public void rejectInvitation(String workspaceCd, String invitedUserId) {
+        workspaceMapper.updateInvitationStatus(workspaceCd, invitedUserId, "REJECT");
+    }
+
+    public Workspace getWorkspaceByCd(String workspaceCd) {
+        return workspaceMapper.findWorkspaceByCd(workspaceCd);
+    }
+
+    public Map<String, Object> getWorkspaceInfo(String workspaceCd) {
+        Workspace workspace = workspaceMapper.findWorkspaceByCd(workspaceCd);
+        if (workspace == null) return null;
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("workspaceName", workspace.getWorkspaceNm());
+        response.put("inviteCode", workspace.getInviteCd());
+
+        LocalDate today = LocalDate.now();
+
+        // ✅ D-day 및 날짜 정보
+        if (workspace.getEndDate() != null) {
+            LocalDate endDate = workspace.getEndDate().toLocalDateTime().toLocalDate();
+            long dday = ChronoUnit.DAYS.between(today, endDate);
+            response.put("dday", dday);
+
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M월 d일 E요일", Locale.KOREA);
+            String dueDateFormatted = endDate.format(formatter);
+            response.put("dueDateFormatted", dueDateFormatted);
+
+            // ✅ 진행률 계산: (오늘 - 시작일) / (마감일 - 시작일)
+            if (workspace.getCreatedDate() != null) {
+                LocalDate startDate = workspace.getCreatedDate().toLocalDateTime().toLocalDate();
+                long totalDays = ChronoUnit.DAYS.between(startDate, endDate);
+                long passedDays = ChronoUnit.DAYS.between(startDate, today);
+
+                int progressPercent = (totalDays <= 0) ? 100
+                        : (int) ((Math.min(passedDays, totalDays) * 100.0) / totalDays);
+
+                response.put("progressPercent", progressPercent);
+            } else {
+                response.put("progressPercent", 0);
+            }
+        } else {
+            response.put("dday", null);
+            response.put("dueDateFormatted", "");
+            response.put("progressPercent", 0);
+        }
+
+        return response;
+    }
+
+
+
+
 
 }

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.ocean.mapper.MemberTransactionMapper">
+
+    <!-- 입장 시간 조회 -->
+    <select id="getEntranceTime" resultType="java.sql.Timestamp">
+        SELECT ENTRANCE_DATE
+        FROM WORKSPACE_MEMBERS
+        WHERE WORKSPACE_CD = #{workspaceCd} AND USER_ID = #{userId}
+    </select>
+
+    <!-- 누적시간 조회 -->
+    <select id="getAccumulatedTime" resultType="long">
+        SELECT ACCUMULATE_TM
+        FROM MEMBERS_TRANSACTION
+        WHERE WORKSPACE_CD = #{workspaceCd} AND USER_ID = #{userId}
+    </select>
+
+    <!-- 누적시간 INSERT -->
+    <insert id="insertAccumulatedTime">
+        INSERT INTO MEMBERS_TRANSACTION (WORKSPACE_CD, USER_ID, ACCUMULATE_TM)
+        VALUES (#{workspaceCd}, #{userId}, #{duration})
+    </insert>
+
+    <!-- 누적시간 UPDATE -->
+    <update id="updateAccumulatedTime">
+        UPDATE MEMBERS_TRANSACTION
+        SET ACCUMULATE_TM = ACCUMULATE_TM + #{duration}
+        WHERE WORKSPACE_CD = #{workspaceCd} AND USER_ID = #{userId}
+    </update>
+
+    <update id="truncateTransactionTable">
+        TRUNCATE TABLE MEMBERS_TRANSACTION
+    </update>
+
+</mapper>

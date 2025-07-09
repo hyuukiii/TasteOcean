@@ -2,243 +2,399 @@ const Recorder = require('./recorder');
 
 class Room {
   constructor(roomId, workspaceId, router) {
-    this.roomId = roomId;
+    this.id = roomId;
     this.workspaceId = workspaceId;
     this.router = router;
-    this.peers = new Map();
-    this.hostId = null; // 호스트 ID 추가
-    this.status = 'WAITING'; // 회의 상태 추가
-    this.startTime = null;
-    this.endTime = null;
-    this.recordingStatus = false;
+    this.peers = new Map(); // Peer 인스턴스를 직접 저장
+    this.createdAt = new Date();
     this.recorder = null;
-    this.sharedFiles = [];
+    this.recordingStatus = false;
   }
-
-  // 호스트 설정
-  setHost(userId) {
-    this.hostId = userId;
-    this.status = 'IN_PROGRESS';
-    this.startTime = new Date();
-    console.log(`Room ${this.roomId}: 호스트 설정 - ${userId}`);
-  }
-
-  // 호스트 확인
-  isHost(userId) {
-    return this.hostId === userId;
-  }
-
-  // 호스트 권한 이전
-  transferHost(newHostId) {
-    const newHost = this.getPeerByUserId(newHostId);
-    if (!newHost) {
-        throw new Error('새 호스트를 찾을 수 없습니다');
-    }
-
-    const oldHostId = this.hostId;
-    this.hostId = newHostId;
-
-    // 역할 업데이트
-    this.peers.forEach(peer => {
-       if (peer.userId === oldHostId) {
-            peer.role = 'PARTICIPANT';
-       } else if (peer.userId === newHostId) {
-           peer.role = 'HOST';
-       }
-    });
-
-    console.log(`Room ${this.roomId}: 호스트 권한 이전 ${oldHostId} -> ${newHostId}`);
-        return { oldHostId, newHostId };
-  }
-
-  // userId로 Peer 찾기
-  getPeerByUserId(userId) {
-    for (const [peerId, peer] of this.peers) {
-       if (peer.userId === userId) {
-          return peer;
-       }
-    }
-      return null;
-  }
-
-  // 회의 종료
-  endMeeting() {
-    this.status = 'ENDED';
-    this.endTime = new Date();
-
-    // 녹화 중이면 중지
-    if (this.recordingStatus && this.recorder) {
-        this.recorder.stop();
-    }
-
-      console.log(`Room ${this.roomId}: 회의 종료됨`);
-  }
-
-  // 활성 참가자 수 확인
-  getActiveParticipants() {
-    let count = 0;
-    this.peers.forEach(peer => {
-      if (peer.isActive !== false) {
-          count++;
-      }
-    });
-      return count;
-    }
 
   // 녹화 시작 - 완전 수정 버전
-  async startRecording(recorderId, recordingPath) {
-      if (this.recordingStatus) {
-          throw new Error('이미 녹화 중입니다');
-      }
+  async startRecording(recorderId) {
+    if (this.recordingStatus) {
+        throw new Error('이미 녹화 중입니다');
+    }
 
-      try {
-          // Producer 찾기
-          const videoProducer = this.getVideoProducer();
-          const audioProducer = this.getAudioProducer();
+    try {
+        // Producer 찾기
+        const videoProducer = this.getVideoProducer();
+        const audioProducer = this.getAudioProducer();
 
-          console.log('비디오 Producer:', videoProducer ? '있음' : '없음');
-          console.log('오디오 Producer:', audioProducer ? '있음' : '없음');
+        console.log('비디오 Producer:', videoProducer ? '있음' : '없음');
+        console.log('오디오 Producer:', audioProducer ? '있음' : '없음');
 
-          if (!videoProducer && !audioProducer) {
-              throw new Error('녹화할 미디어 스트림이 없습니다');
-          }
+        if (!videoProducer && !audioProducer) {
+            throw new Error('녹화할 미디어 스트림이 없습니다');
+        }
 
-          // Transport 옵션
-          const transportOptions = {
-              listenIp: {
-                  ip: '127.0.0.1',
-                  announcedIp: null
-              },
-              rtcpMux: false,
-              comedia: false,
-              enableSctp: false,
-              enableSrtp: false
-          };
+        // ⭐ Producer 상태 확인
+        if (videoProducer) {
+            console.log('비디오 Producer 상태:', {
+                id: videoProducer.id,
+                paused: videoProducer.paused,
+                closed: videoProducer.closed,
+                kind: videoProducer.kind
+            });
 
-          // Transport 생성
-          const videoTransport = await this.router.createPlainTransport(transportOptions);
-          const audioTransport = await this.router.createPlainTransport(transportOptions);
+            const stats = await videoProducer.getStats();
+            console.log('비디오 Producer 실시간 통계:', stats);
+        }
 
-          console.log('비디오 Transport 정보:', {
-              id: videoTransport.id,
-              port: videoTransport.tuple.localPort,
-              rtcpPort: videoTransport.rtcpTuple ? videoTransport.rtcpTuple.localPort : 'N/A'
-          });
+        if (audioProducer) {
+            console.log('오디오 Producer 상태:', {
+                id: audioProducer.id,
+                paused: audioProducer.paused,
+                closed: audioProducer.closed,
+                kind: audioProducer.kind
+            });
 
-          console.log('오디오 Transport 정보:', {
-              id: audioTransport.id,
-              port: audioTransport.tuple.localPort,
-              rtcpPort: audioTransport.rtcpTuple ? audioTransport.rtcpTuple.localPort : 'N/A'
-          });
+            const stats = await audioProducer.getStats();
+            console.log('오디오 Producer 실시간 통계:', stats);
+        }
 
-          // FFmpeg가 리스닝할 포트
-          const ffmpegVideoPort = 5004;
-          const ffmpegAudioPort = 5006;
+        // Transport 옵션
+        const transportOptions = {
+            listenIp: {
+                ip: '127.0.0.1',
+                announcedIp: null
+            },
+            rtcpMux: false,
+            comedia: false,  // 수동으로 connect 호출할 것임
+            enableSctp: false,
+            enableSrtp: false
+        };
 
-          // ⭐ 중요: Recorder 인스턴스 생성
-          this.recorder = new Recorder(
-              this.roomId,  // ⭐ this.id → this.roomId로 변경
-              this.workspaceId,
-              recorderId,
-              process.env.SPRING_BOOT_URL || 'http://localhost:8080',
-              recordingPath  // ⭐ 사용자 지정 경로 전달
-          );
+        // Transport 생성
+        const videoTransport = await this.router.createPlainTransport(transportOptions);
+        const audioTransport = await this.router.createPlainTransport(transportOptions);
 
-          // Consumer 생성 (⭐ paused: false로 변경)
-          const videoConsumer = videoProducer ? await videoTransport.consume({
-              producerId: videoProducer.id,
-              rtpCapabilities: this.router.rtpCapabilities,
-              paused: false  // ⭐ paused: true → false로 변경
-          }) : null;
+        console.log('비디오 Transport 정보:', {
+            id: videoTransport.id,
+            port: videoTransport.tuple.localPort,
+            rtcpPort: videoTransport.rtcpTuple ? videoTransport.rtcpTuple.localPort : 'N/A'
+        });
 
-          const audioConsumer = audioProducer ? await audioTransport.consume({
-              producerId: audioProducer.id,
-              rtpCapabilities: this.router.rtpCapabilities,
-              paused: false  // ⭐ paused: true → false로 변경
-          }) : null;
+        console.log('오디오 Transport 정보:', {
+            id: audioTransport.id,
+            port: audioTransport.tuple.localPort,
+            rtcpPort: audioTransport.rtcpTuple ? audioTransport.rtcpTuple.localPort : 'N/A'
+        });
 
-          // RTP Parameters 준비
-          const videoRtpParams = videoConsumer ? videoConsumer.rtpParameters : null;
-          const audioRtpParams = audioConsumer ? audioConsumer.rtpParameters : null;
+        // FFmpeg가 리스닝할 포트
+        const ffmpegVideoPort = 5004;
+        const ffmpegAudioPort = 5006;
 
-          // ⭐ 녹화 시작
-          console.log('Recorder.startRecording 호출 중...');
-          const result = await this.recorder.startRecording(
-              ffmpegVideoPort,
-              ffmpegAudioPort,
-              videoRtpParams,
-              audioRtpParams
-          );
-          console.log('Recorder 시작 결과:', result);
+        // ⭐ 중요: Recorder 인스턴스를 먼저 생성하고 FFmpeg 시작
+        this.recorder = new Recorder(
+            this.id,
+            this.workspaceId,
+            recorderId,
+            process.env.SPRING_BOOT_URL || 'http://localhost:8080'
+        );
 
-          // Transport 연결
-          await new Promise(resolve => setTimeout(resolve, 3000)); // FFmpeg 준비 대기
+        // ⭐ Consumer를 위한 임시 RTP Parameters 준비 - Producer의 실제 RTP Parameters 기반
+        let tempVideoRtpParams = null;
+        let tempAudioRtpParams = null;
 
-          if (videoTransport) {
-              await videoTransport.connect({
-                  ip: '127.0.0.1',
-                  port: ffmpegVideoPort,
-                  rtcpPort: ffmpegVideoPort + 1
-              });
-              console.log('✅ 비디오 Transport 연결 성공');
-          }
+        if (videoProducer) {
+            // Producer의 실제 RTP Parameters 가져오기
+            const producerRtpParams = videoProducer.rtpParameters;
+            console.log('비디오 Producer RTP Parameters:', JSON.stringify(producerRtpParams, null, 2));
+            
+            tempVideoRtpParams = {
+                codecs: producerRtpParams.codecs.map(codec => ({
+                    mimeType: codec.mimeType,
+                    payloadType: codec.payloadType,
+                    clockRate: codec.clockRate,
+                    parameters: codec.parameters || {}
+                })),
+                encodings: [{ ssrc: Math.floor(Math.random() * 1000000000) }]
+            };
+        }
 
-          if (audioTransport) {
-              await audioTransport.connect({
-                  ip: '127.0.0.1',
-                  port: ffmpegAudioPort,
-                  rtcpPort: ffmpegAudioPort + 1
-              });
-              console.log('✅ 오디오 Transport 연결 성공');
-          }
+        if (audioProducer) {
+            // Producer의 실제 RTP Parameters 가져오기
+            const producerRtpParams = audioProducer.rtpParameters;
+            console.log('오디오 Producer RTP Parameters:', JSON.stringify(producerRtpParams, null, 2));
+            
+            tempAudioRtpParams = {
+                codecs: producerRtpParams.codecs.map(codec => ({
+                    mimeType: codec.mimeType,
+                    payloadType: codec.payloadType,
+                    clockRate: codec.clockRate,
+                    channels: codec.channels || 2,
+                    parameters: codec.parameters || {}
+                })),
+                encodings: [{ ssrc: Math.floor(Math.random() * 1000000000) }]
+            };
+        }
 
-          // Consumer resume
-          if (videoConsumer) {
-              await videoConsumer.resume();
-              console.log('✅ 비디오 Consumer resumed');
-          }
+        // ⭐ Consumer를 먼저 생성 (Transport 연결 전에)
+        let videoConsumer = null;
+        let audioConsumer = null;
 
-          if (audioConsumer) {
-              await audioConsumer.resume();
-              console.log('✅ 오디오 Consumer resumed');
-          }
+        if (videoProducer) {
+            // Producer 타입 확인 (simulcast인 경우 처리)
+            const isSimulcast = videoProducer.type === 'simulcast';
+            console.log(`비디오 Producer 타입: ${videoProducer.type}`);
+            
+            const consumerParams = {
+                producerId: videoProducer.id,
+                rtpCapabilities: this.router.rtpCapabilities,
+                paused: true  // 일단 paused로 생성
+            };
+            
+            // Simulcast인 경우 preferredLayers 설정
+            if (isSimulcast) {
+                consumerParams.preferredLayers = {
+                    spatialLayer: 2,  // 최고 품질 레이어 사용
+                    temporalLayer: 2
+                };
+            }
+            
+            videoConsumer = await videoTransport.consume(consumerParams);
 
-          // 상태 저장
-          this.recordingStatus = true;
-          this.recordingTransports = {
-              videoTransport,
-              audioTransport,
-              videoConsumer,
-              audioConsumer
-          };
+            console.log('비디오 Consumer 생성:', {
+                id: videoConsumer.id,
+                kind: videoConsumer.kind,
+                type: videoConsumer.type,
+                paused: videoConsumer.paused,
+                producerPaused: videoConsumer.producerPaused,
+                priority: videoConsumer.priority,
+                preferredLayers: videoConsumer.preferredLayers,
+                currentLayers: videoConsumer.currentLayers,
+                rtpParameters: videoConsumer.rtpParameters
+            });
 
-          // ⭐⭐⭐ 여기에 성공 반환을 추가! (try 블록의 마지막)
-          return {
-              success: true,
-              recordingId: result.recordingId,
-              filePath: result.filePath
-          };
+            // Consumer 이벤트 리스너 추가
+            videoConsumer.on('score', (score) => {
+                console.log('비디오 Consumer score:', score);
+            });
 
-      } catch (error) {
-          // ⭐ 여기는 에러 처리 부분 (catch 블록)
-          console.error('녹화 시작 실패:', error);
+            videoConsumer.on('layerschange', (layers) => {
+                console.log('비디오 Consumer layers changed:', layers);
+            });
+            
+            videoConsumer.on('producerpause', () => {
+                console.log('비디오 Producer가 일시정지됨');
+            });
+            
+            videoConsumer.on('producerresume', () => {
+                console.log('비디오 Producer가 재개됨');
+            });
+        }
 
-          // 정리
-          if (this.recordingTransports) {
-              if (this.recordingTransports.videoTransport) {
-                  this.recordingTransports.videoTransport.close();
-              }
-              if (this.recordingTransports.audioTransport) {
-                  this.recordingTransports.audioTransport.close();
-              }
-          }
+        if (audioProducer) {
+            audioConsumer = await audioTransport.consume({
+                producerId: audioProducer.id,
+                rtpCapabilities: this.router.rtpCapabilities,
+                paused: true  // 일단 paused로 생성
+            });
 
-          this.recordingTransports = null;
-          this.recordingStatus = false;
-          this.recorder = null;
+            console.log('오디오 Consumer 생성:', {
+                id: audioConsumer.id,
+                kind: audioConsumer.kind,
+                paused: audioConsumer.paused,
+                rtpParameters: audioConsumer.rtpParameters
+            });
+        }
 
-          throw error;  // 에러를 다시 throw
-      }
+        // ⭐ 실제 RTP Parameters 가져오기 (Consumer에서)
+        const actualVideoRtpParams = videoConsumer ? videoConsumer.rtpParameters : tempVideoRtpParams;
+        const actualAudioRtpParams = audioConsumer ? audioConsumer.rtpParameters : tempAudioRtpParams;
+
+        // ⭐ FFmpeg을 먼저 시작 (실제 RTP Parameters 사용)
+        console.log('FFmpeg 시작 중...');
+        const recorderStartPromise = this.recorder.startRecording(
+            ffmpegVideoPort,
+            ffmpegAudioPort,
+            actualVideoRtpParams,
+            actualAudioRtpParams
+        );
+
+        // ⭐ FFmpeg이 준비될 때까지 대기
+        console.log('FFmpeg이 포트를 리스닝할 때까지 대기...');
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // ⭐ 이제 Transport 연결 (FFmpeg이 리스닝 중일 때)
+        console.log('Transport 연결 시작...');
+
+        try {
+            await videoTransport.connect({
+                ip: '127.0.0.1',
+                port: ffmpegVideoPort,
+                rtcpPort: ffmpegVideoPort + 1
+            });
+            console.log('✅ 비디오 Transport 연결 성공');
+        } catch (err) {
+            console.error('❌ 비디오 Transport 연결 실패:', err);
+        }
+
+        try {
+            await audioTransport.connect({
+                ip: '127.0.0.1',
+                port: ffmpegAudioPort,
+                rtcpPort: ffmpegAudioPort + 1
+            });
+            console.log('✅ 오디오 Transport 연결 성공');
+        } catch (err) {
+            console.error('❌ 오디오 Transport 연결 실패:', err);
+        }
+
+        // ⭐ Consumer resume (Transport 연결 후)
+        if (videoConsumer) {
+            await videoConsumer.resume();
+            console.log('✅ 비디오 Consumer resumed');
+            
+            // Producer도 resume 확인
+            if (videoProducer.paused) {
+                await videoProducer.resume();
+                console.log('✅ 비디오 Producer도 resumed');
+            }
+            
+            // Simulcast인 경우 최고 품질 레이어 요청
+            if (videoConsumer.type === 'simulcast') {
+                await videoConsumer.setPreferredLayers({ 
+                    spatialLayer: 2, 
+                    temporalLayer: 2 
+                });
+                console.log('✅ 비디오 Consumer 최고 품질 레이어 설정');
+            }
+            
+            // Consumer 상태 재확인
+            const consumerStats = await videoConsumer.getStats();
+            console.log('비디오 Consumer resume 후 상태:', consumerStats);
+        }
+
+        if (audioConsumer) {
+            await audioConsumer.resume();
+            console.log('✅ 오디오 Consumer resumed');
+            
+            // Producer도 resume 확인
+            if (audioProducer.paused) {
+                await audioProducer.resume();
+                console.log('✅ 오디오 Producer도 resumed');
+            }
+            
+            // Consumer 상태 재확인
+            const consumerStats = await audioConsumer.getStats();
+            console.log('오디오 Consumer resume 후 상태:', consumerStats);
+        }
+
+        console.log(`MediaSoup가 비디오를 전송할 포트: ${ffmpegVideoPort}`);
+        console.log(`MediaSoup가 오디오를 전송할 포트: ${ffmpegAudioPort}`);
+
+        // ⭐ 연결 후 Transport 상태 확인
+        console.log('Transport 연결 후 상태:', {
+            video: videoTransport.tuple,
+            audio: audioTransport.tuple
+        });
+
+        // ⭐ FFmpeg 시작 결과 대기
+        const result = await recorderStartPromise;
+        console.log('녹화 시작 완료');
+
+        // ⭐ PLI (Picture Loss Indication) 요청을 보내서 키프레임 요청
+        if (videoConsumer) {
+            console.log('비디오 Consumer에 PLI 요청 전송...');
+            await videoConsumer.requestKeyFrame();
+        }
+
+        // ⭐ 녹화 시작 후 즉시 상태 확인
+        setTimeout(async () => {
+            console.log('\n=== 녹화 시작 후 즉시 상태 확인 (1초 후) ===');
+
+            if (videoTransport && !videoTransport.closed) {
+                const stats = await videoTransport.getStats();
+                console.log('비디오 Transport 통계:', JSON.stringify(stats, null, 2));
+            }
+
+            if (videoConsumer && !videoConsumer.closed) {
+                const stats = await videoConsumer.getStats();
+                console.log('비디오 Consumer 통계:', JSON.stringify(stats, null, 2));
+                console.log('비디오 Consumer 현재 레이어:', videoConsumer.currentLayers);
+            }
+
+            if (videoProducer && !videoProducer.closed) {
+                const stats = await videoProducer.getStats();
+                console.log('비디오 Producer 통계:', JSON.stringify(stats, null, 2));
+                
+                // Producer에서 실제로 데이터가 생성되고 있는지 확인
+                if (stats && stats.length > 0) {
+                    const stat = stats[0];
+                    if (stat.byteCount > 0) {
+                        console.log('✅ Producer가 데이터를 생성 중입니다');
+                    } else {
+                        console.log('❌ Producer가 데이터를 생성하지 않습니다');
+                    }
+                }
+            }
+            
+            // 추가 디버깅: Transport tuple 확인
+            console.log('비디오 Transport tuple:', videoTransport.tuple);
+            console.log('오디오 Transport tuple:', audioTransport.tuple);
+            
+            // PlainTransport에서 Consumer가 활성화되었는지 확인
+            console.log('비디오 Transport의 Consumer 목록:', Array.from(videoTransport.consumers.keys()));
+            console.log('오디오 Transport의 Consumer 목록:', Array.from(audioTransport.consumers.keys()));
+        }, 1000);
+
+        // 기존 5초 후 확인도 유지
+        setTimeout(async () => {
+            console.log('\n=== 녹화 상태 확인 (5초 후) ===');
+
+            if (videoTransport && !videoTransport.closed) {
+                const stats = await videoTransport.getStats();
+                console.log('비디오 Transport 통계:', JSON.stringify(stats, null, 2));
+            }
+
+            if (audioTransport && !audioTransport.closed) {
+                const stats = await audioTransport.getStats();
+                console.log('오디오 Transport 통계:', JSON.stringify(stats, null, 2));
+            }
+
+            if (videoConsumer && !videoConsumer.closed) {
+                const stats = await videoConsumer.getStats();
+                console.log('비디오 Consumer 통계:', JSON.stringify(stats, null, 2));
+            }
+
+            if (audioConsumer && !audioConsumer.closed) {
+                const stats = await audioConsumer.getStats();
+                console.log('오디오 Consumer 통계:', JSON.stringify(stats, null, 2));
+            }
+        }, 5000);
+
+        this.recordingStatus = true;
+        this.recordingTransports = {
+            videoTransport,
+            audioTransport,
+            videoConsumer,
+            audioConsumer
+        };
+
+        return result;
+
+    } catch (error) {
+        console.error('녹화 시작 실패:', error);
+
+        // 정리
+        if (this.recordingTransports) {
+            if (this.recordingTransports.videoTransport) {
+                this.recordingTransports.videoTransport.close();
+            }
+            if (this.recordingTransports.audioTransport) {
+                this.recordingTransports.audioTransport.close();
+            }
+        }
+
+        this.recordingTransports = null;
+        this.recordingStatus = false;
+        this.recorder = null;
+
+        throw error;
+    }
   }
 
   // 녹화 종료
@@ -525,37 +681,23 @@ class Room {
     return this.peers.size === 0;
   }
 
-  // 참가자 정보 JSON 변환
   toJson() {
-    const participants = [];
-    this.peers.forEach(peer => {
-      participants.push({
-      peerId: peer.id,
-      userId: peer.userId,
-      displayName: peer.displayName,
-      role: peer.role || 'PARTICIPANT',
-      isActive: peer.isActive !== false,
-      joinedAt: peer.joinedAt || new Date()
-      });
-    });
-
     return {
-       roomId: this.roomId,
-       workspaceId: this.workspaceId,
-       hostId: this.hostId,
-       status: this.status,
-       startTime: this.startTime,
-       endTime: this.endTime,
-       participants: participants,
-       participantCount: this.getActiveParticipants(),
-       recordingStatus: this.recordingStatus,
-       sharedFiles: this.sharedFiles.length
+      id: this.id,
+      workspaceId: this.workspaceId,
+      peers: this.getAllPeers().map(peer => {
+        // Peer 인스턴스의 toJson 메서드 호출
+        if (peer.toJson && typeof peer.toJson === 'function') {
+          return peer.toJson();
+        }
+        // 폴백: 기본 정보만 반환
+        return {
+          id: peer.id || 'unknown',
+          displayName: peer.displayName || 'Unknown User'
+        };
+      }),
+      createdAt: this.createdAt
     };
-  }
-
-  // 빈 방 확인 (활성 참가자가 없는 경우)
-  isEmpty() {
-    return this.getActiveParticipants() === 0;
   }
 }
 

@@ -1,5 +1,6 @@
 package com.example.ocean.mapper;
 
+import com.example.ocean.domain.Notification;
 import com.example.ocean.domain.Workspace;
 import com.example.ocean.domain.WorkspaceDept;
 import com.example.ocean.domain.WorkspaceMember;
@@ -55,12 +56,18 @@ public interface WorkspaceMapper {
                                @Param("deptCd") String deptCd,
                                @Param("position") String position);
 
+    void updateDeptAndPosition2(@Param("workspaceCd") String workspaceCd,
+                               @Param("userId") String userId,
+                               @Param("position") String position);
+
     // ⭐ 특정 워크스페이스와 사용자에 대한 멤버 상세 정보 조회
     WorkspaceMember findMemberByWorkspaceAndUser(@Param("workspaceCd") String workspaceCd,
                                                  @Param("userId") String userId);
 
     // 사용자 상태 업데이트
     void updateUserState(Map<String, Object> param);
+
+    String findWorkspaceNameByWorkspaceCd(@Param("workspaceCd") String workspaceCd);
 
     // 워크스페이스 생성
     void insertWorkspace(Workspace workspace);
@@ -126,6 +133,25 @@ public interface WorkspaceMapper {
     // ⭐ 워크스페이스 멤버 조회
     List<WorkspaceMember> findMembersByWorkspaceCd(@Param("workspaceCd") String workspaceCd);
 
-    Integer countActiveMembers(Map<String, Object> params);
+    // 진행 상태에 따른 일정 출력
+    Map<String, Object> getEventSummaryByWorkspace(String workspaceCd);
+
+    String getUserStatus(@Param("workspaceCd") String workspaceCd,
+                         @Param("userId") String userId);
+
+    // main_notification 테이블에 사용자 추가
+    void insertNewMemberNotification(@Param("workspaceCd") String workspaceCd,
+                                     @Param("userNickname") String userNickname);
+
+    List<Notification> selectRecentNotifications(@Param("workspaceCd") String workspaceCd);
+
+    List<Map<String, Object>> getPendingInvitationsByWorkspace(String workspaceCd);
+
+    void insertNewMemberNotification(Map<String, Object> map);
+
+    String findUserNameByUserId(@Param("userId") String userId);
+
+    String findNicknameByWorkspaceAndUser(@Param("workspaceCd") String workspaceCd,
+                                          @Param("userId") String userId);
 
 }

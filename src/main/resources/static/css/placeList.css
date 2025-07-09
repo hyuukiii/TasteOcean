@@ -1,0 +1,637 @@
+/* --- 1. 기본 및 레이아웃 스타일 --- */
+:root {
+    --bg-main: #1F1F1F;
+    --bg-content: #2D2D2D;
+    --bg-list-header: #3C3C3C;
+    --border-color: #4A4A4A;
+    --text-primary: #FFFFFF;
+    --text-secondary: #A0A0A0;
+    --accent-color: #4A90E2;
+    --font-family: 'Noto Sans KR', sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family);
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+}
+
+.app-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* --- 3. 중앙 컨텐츠 (장소 목록) 스타일 --- */
+.main-content {
+    width:45%;
+    min-width: 500px;
+    padding: 20px;
+    background-color: var(--bg-content);
+    display: flex;
+    flex-direction: column;
+}
+
+.place-list {
+    padding-top: 10px;
+    text-align: center;
+    background-color: var(--bg-content);
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.place-list-container {
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+.place-list-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 2fr 2fr;
+    padding: 15px 20px;
+    text-align: center;
+    background-color: var(--bg-list-header);
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.place-item {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.5fr 2.5fr 1fr;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.place-item:hover {
+    background-color: #383838;
+}
+.place-item.selected {
+    background-color: var(--accent-color);
+    color: var(--text-primary);
+}
+.place-item div {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+}
+.add-schedule-btn {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #3a3a3a;
+    border: none;
+    color: var(--text-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+.add-schedule-btn:hover {
+    background-color: #4a4a4a;
+}
+
+/* --- 4. 우측 상세 정보 패널 스타일 --- */
+.detail-panel {
+    width: 40%;
+    background-color: var(--bg-content);
+    padding: 20px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border-color);
+    overflow-y: auto
+}
+.detail-view, .empty-view, .add-schedule-view {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.empty-view {
+    justify-content: center;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 20px;
+}
+.empty-view .material-symbols-outlined {
+    font-size: 50px;
+    margin-bottom: 20px;
+}
+
+.place-item .author-img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 8px;
+}
+
+.detail-view {
+    display: none;
+}
+.place-list-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.5fr 2.5fr 1fr;
+    padding: 15px 20px;
+    background-color: var(--bg-list-header);
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.detail-header textarea{
+    width : 70%;
+    resize: none;
+    border:none;
+    border-radius: 8px;
+    background-color: #383838;
+    margin: 0;
+    padding-left: 15px;
+    align-content: center;
+    font-family: var(--font-family);
+    font-size: 22px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.detail-header h2 {
+    flex-grow: 1;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.detail-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.action-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-family: var(--font-family);
+    font-size: 0.8em;
+    transition: color 0.2s, background-color 0.2s;
+}
+
+.action-button:hover {
+    color: var(--text-primary);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+.action-button .material-symbols-outlined {
+    font-size: 28px;
+    margin-bottom: 4px;
+    color: inherit;
+}
+
+.action-button .button-text {
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+#cancelAddBtn:hover .material-symbols-outlined,
+#cancelAddBtn:hover .button-text {
+    color: #E94560;
+}
+
+#saveScheduleBtn:hover .material-symbols-outlined,
+#saveScheduleBtn:hover .button-text {
+    color: var(--accent-color);
+}
+
+.detail-meta {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.detail-meta .user-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--accent-color);
+    margin-right: 15px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+}
+.detail-meta .user-info {
+    display: flex;
+    flex-direction: column;
+}
+.detail-meta .user-info .user-name {
+    font-weight: bold;
+}
+.detail-meta .user-info .meta-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+#map {
+    width: 100%;
+    height: 300px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+.detail-content {
+    padding: 15px;
+    background-color: #383838;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    flex-grow: 1;
+}
+
+
+/* --- 5. 일정 추가(Add Schedule) 뷰 스타일 --- */
+.add-schedule-view {
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+}
+
+.add-schedule-view .detail-header h2 {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* 제목 기입란 텍스트 색상 하얀색으로 [추가] */
+.add-schedule-view #addTitle, .update-schedule-view #updateTitle {
+    color: var(--text-primary);
+}
+
+.add-schedule-view #addTitle:focus, .update-schedule-view #updateTitle:focus {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+    outline: none;
+}
+
+.add-form-container {
+    background-color: #383838;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.add-form-container .form-item {
+    margin-bottom: 15px;
+}
+.add-form-container label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.add-form-container .search-box {
+    display: flex;
+}
+.add-form-container .search-box input,.update-schedule-view .search-box input {
+    flex-grow: 1;
+    padding: 10px;
+    background-color: #2D2D2D;
+    border: 1px solid var(--border-color);
+    border-radius: 4px 0 0 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+.add-form-container .search-box button, .update-schedule-view .search-box button {
+    padding: 10px 15px;
+    border: none;
+    background-color: var(--accent-color);
+    color: white;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+#add_map {
+    width: 100%;
+    height: 200px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+#add_placesList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+#add_placesList li {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#add_placesList li:last-child {
+    border-bottom: none;
+}
+#add_placesList li:hover {
+    background-color: #4a4a4a;
+}
+#add_placesList li span {
+    font-weight: 500;
+    font-size: 14px;
+}
+#add_placesList li p {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.add-content-area {
+    flex-grow: 1;
+    display: flex;
+    margin-bottom: 15px;
+}
+.add-content-area textarea {
+    width: 100%;
+    height: 80%;
+    flex-grow: 1;
+    background-color: #383838;
+    border: none;
+    border-radius: 8px;
+    padding: 15px;
+    color: var(--text-primary);
+    resize: none;
+    font-family: var(--font-family);
+    font-size: 14px;
+}
+
+.add-bottom-bar {
+    padding-bottom: 30px;
+    display: flex;
+}
+.add-bottom-bar input {
+    flex-grow: 1;
+    padding: 10px;
+    background-color: #2D2D2D;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-right: 10px;
+}
+.add-bottom-bar button {
+    padding: 10px 15px;
+    border: 1px solid #E94560;
+    background-color: transparent;
+    color: #E94560;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.add-bottom-bar button:hover {
+    background-color: rgba(233, 69, 96, 0.2);
+}
+
+/* --- 6. 상세 보기(Detail View) 추가 스타일 --- */
+#detail_map {
+    width: 100%;
+    height: 300px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.detail-view .detail-meta .user-info, .update-schedule-view {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.detail-view .meta-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.detail-view .meta-grid span:nth-child(odd) {
+    font-weight: 500;
+    color: #aeb8c2;
+}
+
+.detail-view .detail-content {
+    color: var(--text-primary);
+}
+
+/* --- 7. Pagination Styles --- */
+#add_pagination {
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+#add_pagination a {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border-radius: 50%;
+    background-color: #383838;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s, color 0.2s;
+    cursor: pointer;
+}
+
+#add_pagination a:hover {
+    background-color: #4a4a4a;
+    color: var(--text-primary);
+}
+
+#add_pagination a.on {
+    background-color: var(--accent-color);
+    color: var(--text-primary);
+    font-weight: bold;
+    cursor: default;
+}
+
+#add_pagination a.disabled {
+    background-color: #2D2D2D;
+    color: #555;
+    cursor: not-allowed;
+}
+
+/* 추가된 색상/진행상태/우선순위 입력 필드 스타일 */
+.add-schedule-view .form-item.flex-container, .update-schedule-view .form-item.flex-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.add-schedule-view .form-item.flex-container label, .update-schedule-view .form-item.flex-container label {
+    flex-shrink: 0;
+    width: 90px;
+    text-align: right;
+    margin-bottom: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.add-schedule-view .form-item input[type="color"], .update-schedule-view .form-item input[type="color"] {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    cursor: pointer;
+    border-radius: 50%;
+    overflow: hidden;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.add-schedule-view .form-item input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+.add-schedule-view .form-item input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+
+.add-schedule-view .form-item select {
+    flex-grow: 1;
+    padding: 10px;
+    background-color: #2D2D2D;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg fill="%23E0E0E0" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 20px;
+    padding-right: 40px;
+}
+
+/* 시작일시/종료일시 레이아웃 수정 [추가] */
+.date-time-inputs {
+    display: flex;
+    flex-direction: column; /* 세로 정렬 */
+    gap: 10px; /* 각 줄 사이 간격 */
+    margin-bottom: 15px;
+    padding-top: 20px;
+}
+
+.date-time-inputs .date-time-row { /* 각 라벨-입력필드 쌍을 위한 새로운 래퍼 */
+    display: flex;
+    align-items: center; /* 세로 중앙 정렬 */
+    gap: 10px; /* 라벨과 입력 필드 사이 간격 */
+}
+
+.date-time-inputs label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    width: 90px; /* 라벨 너비 고정 */
+    text-align: right;
+    margin-bottom: 0; /* 기존 마진 제거 */
+}
+
+.date-time-inputs input[type="datetime-local"] {
+    flex-grow: 1; /* 입력 필드가 남은 공간을 채우도록 */
+    min-width: 150px;
+    padding: 10px;
+    background-color: #2D2D2D;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+/* 기존 input[type="text"], textarea 등 스타일과 일관성 유지 */
+.add-schedule-view .form-item input[type="text"],
+.add-schedule-view .add-content-area textarea,
+.add-schedule-view .add-bottom-bar input,
+.update-schedule-view .form-item input[type="text"], /* [추가] */
+.update-schedule-view .add-content-area textarea,   /* [추가] */
+.update-schedule-view .add-bottom-bar input  {
+    width: auto;
+    flex-grow: 1;
+}
+
+.add-schedule-view .form-item input[type="text"]:focus,
+.add-schedule-view .add-content-area textarea:focus,
+.add-schedule-view .add-bottom-bar input:focus,
+.update-schedule-view .form-item input[type="text"]:focus, /* [추가] */
+.update-schedule-view .add-content-area textarea:focus,   /* [추가] */
+.update-schedule-view .add-bottom-bar input:focus  {
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+    outline: none;
+}
+
+.add-schedule-view, .update-schedule-view { /* [수정] update-schedule-view 추가 */
+    width: 100%;
+    height: 100%;
+    display: none;
+    flex-direction: column;
+}
+
+.detail-panel {
+    width: 40%;
+    background-color: var(--bg-content);
+    padding: 20px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border-color);
+}
+.detail-view, .empty-view, .add-schedule-view, .update-schedule-view { /* [수정] .update-schedule-view 추가 */
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+

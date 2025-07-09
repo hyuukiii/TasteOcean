@@ -1,0 +1,24 @@
+/* 일정 작성 "참가자 선택" 숨기기 */
+.form-group:has(label.icon-user-detail) {
+    display: none;
+}
+
+/* 일정 작성 "공유 여부"  숨기기 */
+.form-group:has(label[for="isShared"]) {
+    display: none;
+}
+
+/* 상세보기 "참가자" 숨기기 */
+.info-item:has(#detailWorkspaceMembers) {
+    display: none;
+}
+
+/* 상세보기 "공유 여부" 숨기기*/
+.info-item:has(#detailShared) {
+    display: none;
+}
+
+/* 수정 "공유 여부" 숨기기 */
+.form-group:has(label[for="update-isShared"]) {
+    display: none;
+}

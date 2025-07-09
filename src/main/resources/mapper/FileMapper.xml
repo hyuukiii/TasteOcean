@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.ocean.repository.FileRepository">
+
+
+    <insert id="insertFile" parameterType="com.example.ocean.domain.File">
+        INSERT INTO `FILE` (
+            FILE_ID, EVENT_CD, FILE_NM, FILE_TYPE, FILE_PATH,
+            FILE_SIZE, UPLOADED_BY, UPLOADED_DATE, ACTIVE_STATE
+        ) VALUES (
+            #{fileId}, #{eventCd}, #{fileNm}, #{fileType}, #{filePath},
+            #{fileSize}, #{uploadedBy}, NOW(), '1'
+        )
+    </insert>
+
+    <select id="selectFileByEventCd" parameterType="String" resultType="com.example.ocean.domain.File">
+        SELECT
+                FILE_ID AS fileId, EVENT_CD AS eventCd, FILE_NM AS fileNm,
+                FILE_TYPE AS fileType, FILE_PATH AS filePath, FILE_SIZE AS fileSize,
+                UPLOADED_BY AS uploadedBy, UPLOADED_DATE AS uploadedDate, ACTIVE_STATE AS activeState
+
+        FROM   `FILE`
+        WHERE   event_cd = #{eventCd}
+        AND     ACTIVE_STATE = '1'
+    </select>
+
+
+    <select id="selectFileByFileId" parameterType="String" resultType="com.example.ocean.domain.File">
+        SELECT
+                FILE_ID AS fileId, EVENT_CD AS eventCd, FILE_NM AS fileNm,
+                FILE_TYPE AS fileType, FILE_PATH AS filePath, FILE_SIZE AS fileSize,
+                UPLOADED_BY AS uploadedBy, UPLOADED_DATE AS uploadedDate, ACTIVE_STATE AS activeState
+        FROM   `FILE`
+        WHERE   FILE_ID = #{fileId}
+        AND     ACTIVE_STATE = '1'
+    </select>
+
+    <update id="updateByEventCdAndFileId" parameterType="String">
+        UPDATE `FILE`
+        SET     ACTIVE_STATE = '0'
+        WHERE   EVENT_CD = #{eventCd}
+        AND     FILE_ID = #{fileId}
+    </update>
+
+    <update id="updateFileActiveByEventCdAndFileId">
+        UPDATE `FILE`
+        SET    ACTIVE_STATE = '0'
+        WHERE  EVENT_CD = #{eventCd}
+          AND  FILE_ID = #{fileId}
+    </update>
+
+    <delete id="deleteFileByEventCd" parameterType="String">
+        DELETE
+        FROM `FILE`
+
+        WHERE EVENT_CD = #{eventCd}
+
+    </delete>
+
+</mapper>

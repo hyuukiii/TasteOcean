@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>이벤트 등록 (코드 리뷰)</title>
+  <link rel="stylesheet" th:href="@{/css/add-event.css}">
+  <link rel="stylesheet" href="/static/css/add-event.css">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>이벤트 등록</h1>
+    <div class="flex-container">
+      <button type="button" class="close-button">&times;</button>
+    </div>
+  </div>
+
+  <form th:action="@{/events/save}" th:object="${event}" method="post" enctype="multipart/form-data">
+
+    <div class="form-group flex-container">
+      <input type="text" id="title" th:field="*{title}" placeholder="제목 입력칸" required>
+      <input type="color" id="color" th:field="*{color}" value="#0066CC">
+    </div>
+
+    <div class="form-group">
+      <label class="icon-clock">일시</label>
+      <div class="datetime-group">
+        <input type="datetime-local" id="startDatetime" th:field="*{startDatetime}" required>
+        <span>~</span>
+        <input type="datetime-local" id="endDatetime" th:field="*{endDatetime}" required>
+      </div>
+      <div class="checkbox-container">
+        <input type="checkbox" id="allDay" name="allDay">
+        <label for="allDay">종일</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="description" class="icon-description">설명 추가</label>
+      <textarea id="description" th:field="*{description}" rows="4" placeholder="자세한 설명을 입력하세요."></textarea>
+    </div>
+
+    <div class="form-group">
+      <div class="file-input-container">
+        <span class="icon icon-attach"></span>
+        <span>첨부파일 추가</span>
+        <input type="file" id="file" name="files" multiple>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="notifyTime" class="icon-bell">알림 시간</label>
+      <select id="notifyTime" th:field="*{notifyTime}" required>
+        <option value="0">알림 없음</option>
+        <option value="5">5분 전</option>
+        <option value="10">10분 전</option>
+        <option value="15">15분 전</option>
+        <option value="30">30분 전</option>
+        <option value="60">1시간 전</option>
+        <option value="1440">1일 전</option> </select>
+    </div>
+
+    <div class="form-group">
+      <label for="location" class="icon-location">위치 추가</label>
+      <input type="text" id="location" placeholder="위치를 입력하거나 지도에서 선택하세요.">
+      <div class="map-placeholder">
+        <p>지도 API가 표시될 공간</p>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="priority" class="icon-priority">중요도</label>
+      <select id="priority" th:field="*{priority}" required>
+        <option value="LOW">낮음</option>
+        <option value="NORMAL" selected>보통</option>
+        <option value="HIGH">높음</option>
+      </select>
+    </div>
+
+    <div class="submit-button-wrapper">
+      <button type="submit">등록하기</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  /* "종일" 체크박스 로직 */
+  const allDayCheckbox = document.getElementById('allDay');
+  const startDatetimeInput = document.getElementById('startDatetime');
+  const endDatetimeInput = document.getElementById('endDatetime');
+
+  // 페이지 로드 시 현재 날짜/시간으로 초기값 설정
+  document.addEventListener('DOMContentLoaded', () => {
+      const now = new Date();
+      startDatetimeInput.value = formatDateToLocalISO(now);
+      // 종료 시간은 시작 시간보다 1시간 뒤로 설정 (예시)
+      now.setHours(now.getHours() + 1);
+      endDatetimeInput.value = formatDateToLocalISO(now);
+  });
+
+
+  allDayCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+          // 종일 선택 시, 시작 날짜와 종료 날짜를 같게 하고 시간을 자정으로 설정
+          const startDate = new Date(startDatetimeInput.value);
+          startDate.setHours(0, 0, 0, 0); // 자정으로 설정
+
+          const endDate = new Date(startDate);
+          endDate.setHours(23, 59, 0, 0); // 하루의 끝으로 설정 (초와 밀리초는 0으로)
+
+          startDatetimeInput.value = formatDateToLocalISO(startDate);
+          endDatetimeInput.value = formatDateToLocalISO(endDate);
+
+          // 종일 선택 시 시간 입력을 비활성화하거나 스타일을 변경할 수 있습니다.
+          // startDatetimeInput.setAttribute('disabled', 'true');
+          // endDatetimeInput.setAttribute('disabled', 'true');
+
+      } else {
+          // 종일 해제 시, datetime-local로 다시 변경하고 필요하다면 현재 시간으로 초기화
+          // startDatetimeInput.removeAttribute('disabled');
+          // endDatetimeInput.removeAttribute('disabled');
+
+          // 초기화하지 않고 기존 값 유지 (사용자 경험상 더 좋을 수 있음)
+          // 만약 초기화가 필요하다면 아래 주석 해제:
+          // const now = new Date();
+          // startDatetimeInput.value = formatDateToLocalISO(now);
+          // now.setHours(now.getHours() + 1);
+          // endDatetimeInput.value = formatDateToLocalISO(now);
+      }
+  });
+
+  // Date 객체를 input[type="datetime-local"] 형식으로 변환하는 헬퍼 함수
+  function formatDateToLocalISO(date) {
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const day = date.getDate().toString().padStart(2, '0');
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  // 닫기 버튼 (X) 클릭 시 동작
+  document.querySelector('.close-button').addEventListener('click', function() {
+      // 실제 애플리케이션에서는 모달 닫기, 페이지 이동 등의 동작을 구현합니다.
+      alert('폼이 닫힙니다. (실제 기능은 백엔드 구현 후 연동)');
+      // 예시: location.href = '/some/other/page';
+  });
+
+  // 첨부파일 추가 버튼 클릭 시 input type="file" 클릭
+  document.querySelector('.file-input-container').addEventListener('click', function(e) {
+      // 실제 파일 입력 필드를 직접 클릭하지 않은 경우에만 동작
+      if (e.target !== document.getElementById('file')) {
+          document.getElementById('file').click();
+      }
+  });
+
+  // 첨부파일 선택 시 파일명 표시 (선택 사항)
+  document.getElementById('file').addEventListener('change', function() {
+      const fileNameSpan = document.querySelector('.file-input-container span:last-child');
+      if (this.files.length > 0) {
+          if (this.files.length === 1) {
+              fileNameSpan.textContent = this.files[0].name;
+          } else {
+              fileNameSpan.textContent = `${this.files.length}개의 파일 선택됨`;
+          }
+      } else {
+          fileNameSpan.textContent = '첨부파일 추가';
+      }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title th:text="${event.title} + ' 상세 정보'"></title>
+  <link rel="stylesheet" th:href="@{/css/event-detail.css}">
+</head>
+<body>
+<div class="container">
+  <div class="header-actions">
+    <button type="button" class="edit-button" title="수정" th:if="${event.userId == currentUserId}">
+      <span class="icon icon-edit"></span>
+    </button>
+    <button type="button" class="delete-button" title="삭제" th:if="${event.userId == currentUserId}">
+      <span class="icon icon-delete"></span>
+    </button>
+    <button type="button" class="close-button" title="닫기">
+      <span class="icon icon-close"></span>
+    </button>
+  </div>
+
+  <div class="content-section">
+    <div class="color-dot" th:style="'background-color:' + ${event.color}"></div>
+    <div class="text-content">
+      <div class="main-title" th:text="${event.title}">코드 리뷰</div>
+      <div class="sub-text">
+                    <span th:if="${#temporals.format(event.startDatetime, 'yyyyMMdd') == #temporals.format(event.endDatetime, 'yyyyMMdd') and #temporals.format(event.startDatetime, 'HHmm') == '0000' and #temporals.format(event.endDatetime, 'HHmm') == '2359'}">
+                        <span th:text="${#temporals.format(event.startDatetime, 'M월 d일 (E)')} + ' 종일'">6월 10일 (화) 종일</span>
+                    </span>
+        <span th:unless="${#temporals.format(event.startDatetime, 'yyyyMMdd') == #temporals.format(event.endDatetime, 'yyyyMMdd') and #temporals.format(event.startDatetime, 'HHmm') == '0000' and #temporals.format(event.endDatetime, 'HHmm') == '2359'}">
+                        <span th:text="${#temporals.format(event.startDatetime, 'M월 d일 (E) 오전 H:mm')}">6월 10일 (화) 오전 10:00</span>
+                        <span> - </span>
+                        <span th:text="${#temporals.format(event.endDatetime, '오전 H:mm')}">오전 11:00</span>
+                    </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-section">
+    <span class="icon icon-user"></span>
+    <div class="text-content">
+      <div class="main-title" th:text="${event.userName ?: event.userId}">이수민</div>
+    </div>
+  </div>
+
+  <div class="content-section location">
+    <span class="icon icon-location-pin"></span>
+    <div class="text-content">
+      <div class="main-title" th:text="${event.location}">서울 마포구 서교동 354-8</div>
+      <div class="map-placeholder">
+        <p>여기에 지도 API가 표시될 공간</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-section description">
+    <span class="icon icon-description-text"></span>
+    <div class="text-content" th:text="${event.description}">
+      텍스트 출력<br>텍스트 출력 공간
+    </div>
+  </div>
+
+  <div class="content-section">
+    <span class="icon icon-bell-notification"></span>
+    <div class="text-content">
+      <div class="main-title" th:text="${event.notifyTime == 0 ? '알림 없음' : #strings.concat(event.notifyTime / 60 >= 1 ? (event.notifyTime / 60) + '시간 ' : '', event.notifyTime % 60 != 0 ? (event.notifyTime % 60) + '분 전' : '전')}">
+        1시간 전
+      </div>
+    </div>
+  </div>
+
+  <div class="content-section">
+    <span class="icon icon-attachment"></span>
+    <div class="text-content">
+      <ul class="attachments-list" th:if="${not #lists.isEmpty(event.files)}">
+        <li th:each="file : ${event.files}">
+          <a th:href="@{/files/download/{fileId}(fileId=${file.fileId})}" target="_blank">
+            <span class="file-icon icon-file-doc"></span>
+            <span th:text="${file.fileNm}">첨부파일_이름.pdf</span>
+          </a>
+          <a th:href="@{/files/download/{fileId}(fileId=${file.fileId})}" title="다운로드">
+            <span class="download-icon">⬇️</span>
+          </a>
+        </li>
+      </ul>
+      <div class="main-title" th:unless="${not #lists.isEmpty(event.files)}">첨부파일 없음</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 닫기 버튼 (X) 클릭 시 동작
+  document.querySelector('.close-button').addEventListener('click', function() {
+      alert('상세 페이지를 닫습니다. (실제 기능은 백엔드 구현 후 연동)');
+      // 예시: window.history.back(); // 이전 페이지로 돌아가기
+      // 예시: location.href = '/events/list'; // 목록 페이지로 이동
+  });
+
+  // 수정 버튼 클릭 시 동작 (작성자에게만 보임)
+  const editButton = document.querySelector('.edit-button');
+  if (editButton) { // 버튼이 존재하는 경우에만 이벤트 리스너 추가
+      editButton.addEventListener('click', function() {
+          const eventCd = /*[[${event.eventCd}]]*/ 'temp_event_cd'; // Thymeleaf 변수 사용
+          alert('수정 페이지로 이동합니다. (이벤트 코드: ' + eventCd + ')');
+          window.location.href = '/events/edit/' + eventCd; // 예시 URL
+      });
+  }
+
+  // 삭제 버튼 클릭 시 동작 (작성자에게만 보임)
+  const deleteButton = document.querySelector('.delete-button');
+  if (deleteButton) { // 버튼이 존재하는 경우에만 이벤트 리스너 추가
+      deleteButton.addEventListener('click', function() {
+          if (confirm('정말로 이 이벤트를 삭제하시겠습니까?')) {
+              const eventCd = /*[[${event.eventCd}]]*/ 'temp_event_cd'; // Thymeleaf 변수 사용
+              alert('삭제 요청을 보냅니다. (이벤트 코드: ' + eventCd + ') 백엔드 구현 후 연동 예정.');
+              // 예시: fetch('/events/delete/' + eventCd, { method: 'POST' })
+              //           .then(response => { /* 삭제 성공/실패 처리 */ });
+          }
+      });
+  }
+</script>
+</body>
+</html>
