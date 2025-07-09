@@ -766,26 +766,11 @@ document.querySelectorAll('input[name="pathType"]').forEach(radio => {
  * MeetingSetup 클래스의 constructor에서 호출할 수 있습니다
  */
 function initRecordingPathHandlers() {
-    // 자동 녹화 체크박스
-    const autoRecordCheckbox = document.getElementById('autoRecord');
-    const recordingPathSection = document.getElementById('recordingPathSection');
-
     // 경로 옵션 요소들
     const pathOptions = document.querySelectorAll('.path-option');
     const customPathInput = document.getElementById('customPathInput');
     const recordingPathField = document.getElementById('recordingPath');
     const pathValidation = document.getElementById('pathValidation');
-
-    // 자동 녹화 체크박스 이벤트
-    if (autoRecordCheckbox) {
-        autoRecordCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                recordingPathSection.classList.add('active');
-            } else {
-                recordingPathSection.classList.remove('active');
-            }
-        });
-    }
 
     // 경로 옵션 클릭 이벤트
     pathOptions.forEach(option => {

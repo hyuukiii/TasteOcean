@@ -31,62 +31,88 @@ public class PathValidationController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // 1. 보안 검증 - 위험한 경로 차단
+            // 1. 기본 검증
+            if (path == null || path.trim().isEmpty()) {
+                response.put("valid", false);
+                response.put("reason", "경로가 비어있습니다");
+                return ResponseEntity.ok(response);
+            }
+
+            path = path.trim();
+
+            // 2. 보안 검증 - 위험한 경로 차단 (Desktop은 제외)
             if (isDangerousPath(path)) {
                 response.put("valid", false);
                 response.put("reason", "시스템 경로는 사용할 수 없습니다");
                 return ResponseEntity.ok(response);
             }
 
-            // 2. 경로 존재 여부 확인
-            Path dirPath = Paths.get(path);
+            // 3. 경로 존재 여부 확인
+            Path dirPath = Paths.get(path).normalize();
             File directory = dirPath.toFile();
 
             if (!directory.exists()) {
                 // 디렉토리가 없으면 생성 시도
-                boolean created = directory.mkdirs();
-                if (!created) {
+                try {
+                    boolean created = directory.mkdirs();
+                    if (created) {
+                        response.put("valid", true);
+                        response.put("reason", "새 디렉토리가 생성되었습니다");
+                    } else {
+                        response.put("valid", false);
+                        response.put("reason", "디렉토리를 생성할 수 없습니다. 경로를 확인해주세요");
+                    }
+                } catch (SecurityException e) {
                     response.put("valid", false);
-                    response.put("reason", "디렉토리를 생성할 수 없습니다");
-                    return ResponseEntity.ok(response);
+                    response.put("reason", "디렉토리 생성 권한이 없습니다");
                 }
-            }
-
-            // 3. 쓰기 권한 확인
-            if (!directory.canWrite()) {
+            } else if (!directory.isDirectory()) {
                 response.put("valid", false);
-                response.put("reason", "쓰기 권한이 없습니다");
-                return ResponseEntity.ok(response);
+                response.put("reason", "파일이 아닌 디렉토리 경로를 입력해주세요");
+            } else if (!directory.canWrite()) {
+                response.put("valid", false);
+                response.put("reason", "해당 디렉토리에 쓰기 권한이 없습니다");
+            } else {
+                response.put("valid", true);
+                response.put("reason", "사용 가능한 경로입니다");
             }
 
             // 4. 사용자별 경로 저장 (선택사항)
-            saveUserRecordingPath(user.getId(), path);
+            if (response.get("valid").equals(true)) {
+                saveUserRecordingPath(user.getId(), path);
+            }
 
-            response.put("valid", true);
             response.put("path", path);
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             response.put("valid", false);
-            response.put("reason", "경로 검증 중 오류 발생");
+            response.put("reason", "경로 검증 중 오류가 발생했습니다: " + e.getMessage());
             return ResponseEntity.ok(response);
         }
     }
 
     private boolean isDangerousPath(String path) {
-        // 시스템 경로 차단
+        // 시스템 경로 차단 (Desktop은 허용)
         List<String> dangerousPaths = Arrays.asList(
                 "/System", "/Windows", "/etc", "/bin", "/usr/bin",
-                "/Program Files", "/Applications", "/Library"
+                "/sbin", "/usr/sbin", "/boot", "/dev", "/proc",
+                "C:\\Windows", "C:\\Program Files", "/Applications/",
+                "/Library/System", "/private/etc", "/private/var"
         );
 
         String normalizedPath = path.toLowerCase();
+
+        // 정확한 경로 매칭 (Desktop은 허용)
         return dangerousPaths.stream()
-                .anyMatch(dangerous -> normalizedPath.startsWith(dangerous.toLowerCase()));
+                .anyMatch(dangerous -> normalizedPath.equals(dangerous.toLowerCase()) ||
+                        normalizedPath.startsWith(dangerous.toLowerCase() + "/") ||
+                        normalizedPath.startsWith(dangerous.toLowerCase() + "\\"));
     }
 
     private void saveUserRecordingPath(String userId, String path) {
-        // DB에 사용자별 기본 녹화 경로 저장
+        // TODO: DB에 사용자별 기본 녹화 경로 저장
         // user_preferences 테이블에 recording_path 필드 추가 필요
+        System.out.println("사용자 " + userId + "의 녹화 경로 저장: " + path);
     }
 }

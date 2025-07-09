@@ -255,13 +255,10 @@
     background: transparent;
     border-radius: 0;
     border: none;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .recording-path-section.active {
-    max-height: 300px;
     margin-top: 16px;
 }
 
@@ -449,7 +446,6 @@
 }
 
 /* 사용자 지정 경로 입력 */
-/* 사용자 지정 경로 입력 */
 .custom-path-input {
     margin-top: 12px;
     margin-left: 32px;
@@ -511,6 +507,7 @@
 .path-validation-message {
     margin-top: 12px;
     margin-left: 32px;
+    margin-right: 12px;
     padding: 10px 16px;
     border-radius: 8px;
     font-size: 13px;
@@ -518,6 +515,9 @@
     align-items: center;
     gap: 8px;
     animation: slideIn 0.3s ease;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-height: 36px;
 }
 
 @keyframes slideIn {
