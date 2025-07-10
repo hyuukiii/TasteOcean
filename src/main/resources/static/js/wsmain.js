@@ -7,7 +7,7 @@ function formatSecondsToHHMMSS(seconds) {
 
 document.addEventListener("DOMContentLoaded", function () {
     const userId = localStorage.getItem("userId");
-    const workspaceCd = localStorage.getItem("workspaceCd");
+    const workspaceCd = new URLSearchParams(window.location.search).get("workspaceCd"); // ✅ 쿼리스트링에서 추출
 
     console.log("📦 로딩 시작 - userId:", userId, ", workspaceCd:", workspaceCd);
 
@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.warn("⚠️ userId 또는 workspaceCd가 localStorage에 없습니다.");
         return;
     }
+
 
     document.querySelectorAll(".close-button").forEach(btn => {
         btn.addEventListener("click", function () {
@@ -24,22 +25,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // ✅ 상단 배너 정보 세팅
     fetch(`/api/workspaces/${workspaceCd}/info`)
-        .then(res => {
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
             console.log("✅ 워크스페이스 정보:", data);
 
             // 워크스페이스 이름
-            const titleElement = document.querySelector('.workspace-title');
-            if (titleElement) {
-                titleElement.textContent = data.workspaceName || '워크스페이스 이름';
-            } else {
-                console.error("❌ workspace-title 엘리먼트를 찾을 수 없습니다");
-            }
+            document.querySelector('.workspace-title').textContent = data.workspaceName || '워크스페이스 이름';
 
             // 마감 날짜
             document.getElementById("project_endDate").textContent = data.dueDateFormatted;
@@ -406,3 +397,8 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     });
 });
+
+function getWorkspaceCdFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("workspaceCd");
+}

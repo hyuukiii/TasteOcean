@@ -353,6 +353,7 @@ public class MeetingService {
             Query nativeQuery = entityManager.createNativeQuery(query);
             nativeQuery.setParameter("userId", userId);
 
+            @SuppressWarnings("unchecked")
             List<Object[]> results = nativeQuery.getResultList();
 
             if (!results.isEmpty()) {
@@ -485,7 +486,10 @@ public class MeetingService {
             Query nativeQuery = entityManager.createNativeQuery(query);
             nativeQuery.setParameter("workspaceId", workspaceId);
 
+
+            @SuppressWarnings("unchecked") // JPA의 getResultList()는 raw type을 반환
             List<Object[]> results = nativeQuery.getResultList();
+
             List<ActiveMeetingDto> meetings = new ArrayList<>();
 
             log.info("진행 중인 회의 수: {}", results.size());
@@ -546,6 +550,7 @@ public class MeetingService {
             Query nativeQuery = entityManager.createNativeQuery(query);
             nativeQuery.setParameter("hostId", hostId);
 
+            @SuppressWarnings("unchecked")  // JPA의 getResultList()는 raw type을 반환
             List<String> results = nativeQuery.getResultList();
             if (!results.isEmpty()) {
                 return results.get(0);
@@ -582,7 +587,9 @@ public class MeetingService {
             Query nativeQuery = entityManager.createNativeQuery(query);
             nativeQuery.setParameter("roomId", roomId);
 
+            @SuppressWarnings("unchecked")
             List<Object[]> results = nativeQuery.getResultList();
+
             List<ActiveMeetingDto.ParticipantDto> participants = new ArrayList<>();
 
             for (Object[] row : results) {

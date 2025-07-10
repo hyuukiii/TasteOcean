@@ -21,6 +21,8 @@ public class ActiveMeetingDto {
     private String hostName;
     private LocalDateTime startTime;
     private Integer participantCount;
+
+    @Builder.Default
     private List<ParticipantDto> participants = new ArrayList<>();
 
     /**

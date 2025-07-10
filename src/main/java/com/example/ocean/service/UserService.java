@@ -1,5 +1,8 @@
 package com.example.ocean.service;
 
+import com.example.ocean.domain.WorkspaceMember;
+import com.example.ocean.dto.request.UserOnboardingRequest;
+import com.example.ocean.dto.request.UserProfileUpdateRequest;
 import com.example.ocean.dto.response.UserProfileResponse;
 import com.example.ocean.entity.User;
 import com.example.ocean.exception.ResourceNotFoundException;
@@ -9,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service

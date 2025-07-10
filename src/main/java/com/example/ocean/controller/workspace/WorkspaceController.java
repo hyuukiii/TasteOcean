@@ -4,20 +4,28 @@ import com.example.ocean.domain.Notification;
 import com.example.ocean.domain.Workspace;
 import com.example.ocean.domain.WorkspaceDept;
 import com.example.ocean.domain.WorkspaceMember;
+import com.example.ocean.mapper.MemberTransactionMapper;
+import com.example.ocean.mapper.WorkspaceMapper;
 import com.example.ocean.service.WorkspaceService;
 import com.example.ocean.security.oauth.UserPrincipal;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.propertyeditors.CustomDateEditor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.WebDataBinder;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.*;
 
 // REST API 전용 컨트롤러 (JSON 응답)
@@ -28,6 +36,7 @@ import java.util.*;
 public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
+    private final WorkspaceMapper workspaceMapper;
 
     // 워크스페이스 목록 조회
     @GetMapping
@@ -289,7 +298,6 @@ public class WorkspaceController {
 
     //워크스페이스 배너용 정보 가져오기 (이름, 초대코드, 마감일, D-Day, 진행률)
     @GetMapping("/{workspaceCd}/info")
-    @ResponseBody
     public ResponseEntity<?> getWorkspaceInfo(@PathVariable String workspaceCd) {
         try {
             Map<String, Object> info = workspaceService.getWorkspaceInfo(workspaceCd);
@@ -302,18 +310,6 @@ public class WorkspaceController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("워크스페이스 정보 조회 중 오류 발생: " + e.getMessage());
         }
-    }
-
-    // 읽지 않은 알림 개수 조회
-    @GetMapping("/{workspaceCd}/notifications/unread-count")
-    @ResponseBody
-    public Map<String, Integer> getUnreadNotificationCount(
-            @PathVariable String workspaceCd,
-            @RequestParam String userId) {
-        // TODO: 실제 읽지 않은 알림 개수 조회 로직 구현
-        Map<String, Integer> result = new HashMap<>();
-        result.put("count", 0); // 임시로 0 반환
-        return result;
     }
 
     @GetMapping("/{workspaceCd}/notifications")
@@ -355,7 +351,19 @@ public class WorkspaceController {
     // 📌 참가 요청 조회 (owner 전용)
     @GetMapping("/{workspaceCd}/invitations/pending")
     @ResponseBody
-    public List<Map<String, Object>> getPendingInvites(@PathVariable String workspaceCd) {
+    public List<Map<String, Object>> getPendingInvites(@PathVariable String workspaceCd,
+                                                       @RequestParam String userId) {
+        if (userId == null || userId.isBlank()) {
+            log.warn("❌ userId 누락");
+            return List.of();
+        }
+
+        WorkspaceMember member = workspaceMapper.findMemberByWorkspaceAndUser(workspaceCd, userId);
+        if (!"OWNER".equals(member.getUserRole())) {
+            log.warn("❌ 권한 없음 - userId: {}", userId);
+            return List.of();
+        }
+
         return workspaceService.getPendingInvitationsByWorkspace(workspaceCd);
     }
 
@@ -378,6 +386,12 @@ public class WorkspaceController {
         } else {
             return "유효하지 않은 상태입니다";
         }
+    }
+
+    @GetMapping("/{workspaceCd}/progress")
+    @ResponseBody
+    public Map<String, Object> getWorkspaceProgress(@PathVariable String workspaceCd) {
+        return workspaceService.getEventSummary(workspaceCd);
     }
 
 }

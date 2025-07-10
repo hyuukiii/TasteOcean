@@ -1,32 +1,15 @@
 <!-- static/html/rnb.html -->
 <div class="rnb">
-    <!-- 알림 버튼 추가 -->
-    <div class="notification-container">
-        <button class="notification-btn" id="notificationBtn">
-            <img src="/images/bell.png" alt="알림" class="notification-icon">
-            <span class="notification-count" id="notificationCount" style="display: none;">0</span>
-        </button>
-    </div>
-
-    <!-- 알림 모달 -->
-    <div class="notification-modal" id="notificationModal" style="display: none;">
-        <div class="notification-header">
-            <h3>알림</h3>
-            <button class="mark-all-read" id="markAllReadBtn">모두 읽음</button>
-        </div>
-        <div class="notification-list" id="notificationList">
-            <!-- 알림 아이템들이 동적으로 추가됨 -->
-            <div class="notification-empty">
-                <p>새로운 알림이 없습니다</p>
-            </div>
-        </div>
-    </div>
-
         <div class="user-box">
                 <img id="myProfileImg" class="user-img" src="/images/default.png" alt="프로필 이미지">
             <div class="user-info">
                 <div id="myProfileName" class="name">사용자명</div>
-                <div id="myProfileRole" class="role">직급  </div><span class="user-status-display" style="color:white">aa</span>
+                <div id="myProfileRole" class="role">직급  </div>
+                <span class="user-status-display">
+                    <img id="statusDisplayIcon" src="/images/green_circle.png"
+                        style="width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle;" />
+                    <span id="statusDisplayText">온라인</span>
+                </span>
             </div>
 
             <div class="mini-profile">
@@ -71,14 +54,13 @@
             </div>
         </div>
 
-
-
     <div class="progress-box">
         <label>전체 진도율</label>
         <div class="bar">
             <span id="myProgressBar" style="width: 0%"></span>
         </div>
         <div id="myProgressPercent" class="percent">0%</div>
+        <div id="myProgressText" class="progress-text">0 / 0 완료</div>
     </div>
 
     <div class="member-list-box">
@@ -91,9 +73,12 @@
             </button>
         </div>
 
+        <div id="invitationAlerts" class="invitation-alerts"></div>
+
     </div>
 
     <button class="rnb-toggle-btn">
         <img id="toggleArrow" src="/images/arrow-right.png" alt="토글">
     </button>
 </div>
+

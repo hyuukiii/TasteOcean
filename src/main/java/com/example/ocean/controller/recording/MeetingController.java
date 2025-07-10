@@ -2,6 +2,7 @@ package com.example.ocean.controller.recording;
 
 import com.example.ocean.domain.WorkspaceMember;
 import com.example.ocean.dto.ActiveMeetingDto;
+import com.example.ocean.mapper.WorkspaceMapper;
 import com.example.ocean.service.MeetingService;
 import com.example.ocean.security.oauth.UserPrincipal;
 import com.example.ocean.service.WorkspaceService;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController

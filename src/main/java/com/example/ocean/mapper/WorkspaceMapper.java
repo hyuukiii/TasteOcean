@@ -153,5 +153,5 @@ public interface WorkspaceMapper {
 
     String findNicknameByWorkspaceAndUser(@Param("workspaceCd") String workspaceCd,
                                           @Param("userId") String userId);
-    // Integer countActiveMembers(Map<String, Object> params);
+
 }

@@ -1,9 +1,9 @@
 package com.example.ocean.controller.meeting;
 
-import com.example.ocean.domain.WorkspaceMember;
 import com.example.ocean.dto.ActiveMeetingDto;
 import com.example.ocean.dto.request.MeetingCreateRequest;
 import com.example.ocean.dto.response.MeetingCreateResponse;
+import com.example.ocean.domain.WorkspaceMember;
 import com.example.ocean.security.oauth.UserPrincipal;
 import com.example.ocean.service.MeetingService;
 import com.example.ocean.service.WorkspaceService;
@@ -142,7 +142,7 @@ public class MeetingSetupController {
             // 참가 URL 생성 (프로필 이미지 포함)
             String joinUrl = buildJoinUrl(roomId, title, request.getWorkspaceCd(), user, member);
 
-            /*
+            /* 초대된 멤버들에게 이메일 발송
             if (request.getInvitedMembers() != null && !request.getInvitedMembers().isEmpty()) {
                 emailService.sendMeetingInvitations(
                         request.getInvitedMembers(),

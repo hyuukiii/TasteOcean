@@ -10,7 +10,6 @@ import com.example.ocean.mapper.WorkspaceMapper; // 사용되지 않는 import �
 import com.example.ocean.repository.*;
 import com.example.ocean.util.S3Uploader;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +24,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TeamCalendarService {
@@ -188,19 +186,8 @@ public class TeamCalendarService {
     }
 
     public ResponseEntity<byte[]> downloadFile(String fileId) throws IOException {
-        log.info("파일 다운로드 요청 - fileId: {}", fileId);
-        
         File file = fileRepository.selectFileByFileId(fileId);
-        if (file == null) {
-            log.error("파일을 찾을 수 없습니다. fileId: {}", fileId);
-            return ResponseEntity.notFound().build();
-        }
-        
-        log.info("파일 정보 - filePath: {}, fileName: {}", file.getFilePath(), file.getFileNm());
-        
         String key = extractKeyFromUrl(file.getFilePath());
-        log.info("추출된 key: {}", key);
-        
         byte[] bytes = s3Uploader.download(key);
 
         return ResponseEntity.ok()
@@ -211,11 +198,6 @@ public class TeamCalendarService {
     }
 
     private String extractKeyFromUrl(String url) {
-        // 로컬 파일 경로인 경우 그대로 반환
-        if (url.startsWith("/") || url.contains("\\") || !url.startsWith("http")) {
-            return url;
-        }
-        // S3 URL인 경우 키 추출
         URI uri = URI.create(url);
         return uri.getPath().substring(1); // 앞에 '/' 제거
     }

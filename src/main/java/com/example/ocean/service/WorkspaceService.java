@@ -10,6 +10,7 @@ import com.example.ocean.security.oauth.UserPrincipal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -77,12 +79,6 @@ public class WorkspaceService {
     public void requestInvitation(String workspaceCd, String invitedUserId, String inviteCd) {
         workspaceMapper.insertInvitation(workspaceCd, invitedUserId, inviteCd);
     }
-
-    /*
-    public List<Map<String, Object>> getPendingInvitations(String workspaceCd) {
-        return workspaceMapper.selectPendingInvitations(workspaceCd);
-    }
-    */
 
     public void approveInvitation(String workspaceCd, String invitedUserId, String requesterId) {
         WorkspaceMember requester = workspaceMapper.findMemberByWorkspaceAndUser(workspaceCd, requesterId);
@@ -462,17 +458,12 @@ public class WorkspaceService {
     }
 
     public Map<String, Object> getWorkspaceInfo(String workspaceCd) {
-        log.info("워크스페이스 정보 조회 시작: {}", workspaceCd);
         Workspace workspace = workspaceMapper.findWorkspaceByCd(workspaceCd);
-        if (workspace == null) {
-            log.warn("워크스페이스를 찾을 수 없음: {}", workspaceCd);
-            return null;
-        }
+        if (workspace == null) return null;
 
         Map<String, Object> response = new HashMap<>();
         response.put("workspaceName", workspace.getWorkspaceNm());
         response.put("inviteCode", workspace.getInviteCd());
-        log.info("워크스페이스 이름: {}", workspace.getWorkspaceNm());
 
         LocalDate today = LocalDate.now();
 
@@ -506,6 +497,14 @@ public class WorkspaceService {
         }
 
         return response;
+    }
+
+    public List<Map<String, Object>> getPendingInvitations(String workspaceCd) {
+        return workspaceMapper.getPendingInvitationsByWorkspace(workspaceCd);
+    }
+
+    public void respondToInvitation(String workspaceCd, String invitedUserId, String status) {
+        workspaceMapper.updateInvitationStatus(workspaceCd, invitedUserId, status);
     }
 
     /**
@@ -558,4 +557,5 @@ public class WorkspaceService {
             return new ArrayList<>();
         }
     }
+
 }
