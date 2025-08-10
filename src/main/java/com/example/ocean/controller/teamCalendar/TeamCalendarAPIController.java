@@ -10,6 +10,7 @@ import com.example.ocean.service.TeamCalendarService;
 import com.example.ocean.service.UserService;
 import lombok.RequiredArgsConstructor;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/calendar/team")
 @RequiredArgsConstructor
@@ -57,27 +59,39 @@ public class TeamCalendarAPIController {
     public ResponseEntity<String> createEvent(
             @RequestPart("request") EventCreateRequest request,
             @RequestPart(value = "files", required = false) MultipartFile[] files,
-            @AuthenticationPrincipal UserDetails userPrincipal // 로그인 사용자
+            @AuthenticationPrincipal UserDetails userPrincipal
     ) {
+        log.info("📌 [팀 일정] createEvent 진입 - 요청자: {}", userPrincipal.getUsername());
+
         int result = teamCalendarService.insertTeamEvent(request, files);
+        log.info("🧾 팀 일정 저장 결과: {}", result);
 
         if (result == 1) {
-            String userId = userPrincipal.getUsername();
-            String nickname = userService.getUserProfile(userId).getUserName();
+            String userId = userPrincipal.getUsername(); // ✅ 이 값을 사용
+            // String nickname = userService.getUserProfile(userId).getUserName(); // ❌ 필요 없음
 
             Notification notification = new Notification();
             notification.setNotiId(UUID.randomUUID().toString());
             notification.setWorkspaceCd(request.getWorkspaceCd());
-            notification.setCreatedBy(nickname);
+            notification.setCreatedBy(userId); // ✅ 수정된 부분
             notification.setNotiState("NEW_EVENT");
 
-            notificationService.createNotification(notification);
+            log.info("📨 [팀 일정] 알림 생성 요청: {}", notification);
+
+            try {
+                notificationService.createNotification(notification);
+                log.info("✅ [팀 일정] 알림 저장 완료");
+            } catch (Exception e) {
+                log.error("❌ [팀 일정] 알림 저장 실패", e);
+            }
 
             return ResponseEntity.ok("일정 등록 성공");
         }
 
+        log.warn("❌ [팀 일정] 일정 등록 실패: result != 1");
         return ResponseEntity.badRequest().body("일정 등록 실패");
     }
+
 
 
     @PutMapping("/events/{eventCd}")

@@ -9,8 +9,15 @@
 <body>
 <div class="container">
     <header class="meeting-header">
-        <h1>진행 중인 회의</h1>
-        <button class="btn btn-primary" onclick="window.location.href='/meeting/setup'">
+        <div class="header-left">
+            <!-- 뒤로가기 버튼 추가 -->
+            <button class="btn btn-back" onclick="goBackToWorkspace()">
+                <span class="back-icon">←</span>
+                워크스페이스로 돌아가기
+            </button>
+            <h1>진행 중인 회의</h1>
+        </div>
+        <button class="btn btn-primary" onclick="goToMeetingSetup()">
             새 회의 시작
         </button>
     </header>
@@ -43,6 +50,33 @@
     // 토큰에서 사용자 정보 가져오기
     const userInfo = getUserInfoFromToken();
     const currentUserId = userInfo?.userId;
+
+    /**
+     * 워크스페이스 메인 페이지로 돌아가기
+     * workspaceCd 파라미터를 유지하면서 wsmain 페이지로 리다이렉트
+     */
+    function goBackToWorkspace() {
+        if (workspaceId) {
+            // workspaceCd 파라미터를 포함하여 wsmain 페이지로 이동
+            window.location.href = `/wsmain?workspaceCd=${workspaceId}`;
+        } else {
+            // workspaceId가 없는 경우 브라우저 히스토리로 뒤로가기
+            window.history.back();
+        }
+    }
+
+    /**
+     * 회의 설정 페이지로 이동
+     * workspaceCd 파라미터를 필수로 전달
+     */
+    function goToMeetingSetup() {
+        if (workspaceId) {
+            // workspaceCd 파라미터를 포함하여 meeting/setup 페이지로 이동
+            window.location.href = `/meeting/setup?workspaceCd=${workspaceId}`;
+        } else {
+            alert('워크스페이스 정보가 없습니다. 다시 시도해주세요.');
+        }
+    }
 
     // 진행 중인 회의 목록 가져오기
     async function fetchActiveMeetings() {
@@ -195,10 +229,10 @@ async function rejoinMeeting(roomId, meetingTitle) {
             actualUserId = profileData.userId || 'unknown';
             actualUserImg = profileData.userImg || '';
 
-            console.log('=== 워크스페이스 프로필 정보 ===');
-            console.log('닉네임:', actualDisplayName);
-            console.log('사용자 ID:', actualUserId);
-            console.log('프로필 이미지:', actualUserImg);
+            // console.log('=== 워크스페이스 프로필 정보 ===');
+            // console.log('닉네임:', actualDisplayName);
+            // console.log('사용자 ID:', actualUserId);
+            // console.log('프로필 이미지:', actualUserImg);
 
             // localStorage 업데이트 (선택사항)
             if (actualUserImg) {

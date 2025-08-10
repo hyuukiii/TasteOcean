@@ -79,18 +79,22 @@ public class PersonalCalendarAPIController {
             notification.setCreatedBy(userId);
             notification.setNotiState("NEW_EVENT");
 
-            log.info("📨 알림 생성 요청: {}", notification);
+            log.info("📨 알림 생성 요청 객체: {}", notification);
 
-            notificationService.createNotification(notification);
-
-            log.info("✅ 알림 생성 완료");
+            try {
+                notificationService.createNotification(notification);
+                log.info("✅ MAIN_NOTIFICATION 저장 완료");
+            } catch (Exception e) {
+                log.error("❌ MAIN_NOTIFICATION 저장 실패", e);
+            }
 
             return ResponseEntity.ok("일정 등록 성공");
         } else {
-            log.warn("❌ 일정 등록 실패: result != 1");
+            log.warn("❌ 일정 등록 실패: personalCalendarService 결과값이 {}", result);
             return ResponseEntity.badRequest().body("일정 등록 실패");
         }
     }
+
 
     @PutMapping("/events/{eventCd}")
     public ResponseEntity<String> updateEventDetail(
@@ -108,12 +112,14 @@ public class PersonalCalendarAPIController {
                 : ResponseEntity.badRequest().body("일정 수정 실패");
     }
 
+
     @DeleteMapping("/events/{eventCd}")
     public ResponseEntity<String> deleteFile(
             @PathVariable String eventCd,
             @RequestParam(required = false) String userId
     ) {
         int result = personalCalendarService.deletePersonalEvent(eventCd, userId);
+
         return result == 1
                 ? ResponseEntity.ok("일정 삭제 성공")
                 : ResponseEntity.badRequest().body("일정 삭제 실패");
